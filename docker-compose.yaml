@@ -1,0 +1,50 @@
+services:
+    backend:
+        build: ./backend
+        container_name: hvac-backend
+        command: npm start
+        ports:
+            - "3000:3000"
+        env_file:
+            - ./backend/.env
+        depends_on:
+            - db
+        volumes:
+            - ./backend:/app
+        working_dir: /app
+        networks:
+            - hvacnet
+
+    hvac-frontend:
+        build: ./hvac-frontend
+        container_name: hvac-frontend
+        command: sh -c "npm install --legacy-peer-deps && npx ng serve --host 0.0.0.0 --disable-host-check"
+        ports:
+            - "4200:4200"
+        volumes:
+            - ./hvac-frontend:/app
+        working_dir: /app
+        networks:
+            - hvacnet
+
+    db:
+        image: postgres:16
+        container_name: hvac-db
+        restart: always
+        environment:
+            POSTGRES_USER: hvac_user
+            POSTGRES_PASSWORD: hvac_pass
+            POSTGRES_DB: hvac_db
+        ports:
+            - "5433:5432"
+        volumes:
+            - pgdata:/var/lib/postgresql/data
+        networks:
+            - hvacnet
+
+volumes:
+    pgdata:
+
+networks:
+    hvacnet:
+        driver: bridge
