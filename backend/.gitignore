@@ -1,0 +1,41 @@
+# Node
+/node_modules/
+
+# Build outputs
+/dist/
+/build/
+
+# IDE files
+/.vscode/
+/.idea/
+
+# Logs
+npm-debug.log
+yarn-debug.log
+
+# Environment
+.env
+
+# Misc
+.DS_Store
+Thumbs.db
+
+# Optional lock files
+package-lock.json
+yarn.lock
+
+# Generated directories
+coverage/
+
+# Local angular/angular-cli cache
+.angular/cache
+
+# Mac
+*.tmp
+
+# Windows
+ehthumbs.db
+
+# JetBrains
+*.iml
+out/
