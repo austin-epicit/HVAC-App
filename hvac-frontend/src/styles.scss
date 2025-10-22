@@ -1,8 +1,11 @@
-/* You can add global styles to this file, and also import other style files */
+/* You can add global styles to this file, and also import other style files 
+@import "primeicons/primeicons.css";*/
+/* Choose your preferred theme: 
+@import "primeng/themes/lara-light-blue/theme.css";*/
+/* Core styling + utilities 
+@import "primeng/resources/primeng.css";
+@import "primeflex/primeflex.css";*/
+
 
 html, body { height: 100%; }
 body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
-.mdc-list{
-    margin: 0 ;
-    padding: 0 !important;
-}

@@ -1,22 +1,33 @@
 import { Component } from '@angular/core';
 import { Router } from '@angular/router';
-import { MatToolbarModule } from '@angular/material/toolbar';
-import { MatButtonModule } from '@angular/material/button';
+
+// PrimeNG toolbar + button modules
+import { ToolbarModule } from 'primeng/toolbar';
+import { ButtonModule } from 'primeng/button';
 
 @Component({
   selector: 'app-top-bar',
   standalone: true,
-  imports: [MatToolbarModule, MatButtonModule],
+  imports: [ToolbarModule, ButtonModule],
   template: `
-    <mat-toolbar class="top-bar">
-      <span>Dispatch Dashboard</span>
-      <span class="spacer"></span>
-      <button mat-button (click)="logout()">Logout</button>
-    </mat-toolbar>
+    <p-toolbar class="top-bar">
+      <ng-template pTemplate="start">
+        <span>Dispatch Dashboard</span>
+      </ng-template>
+      <ng-template pTemplate="end">
+        <button pButton type="button" label="Logout" (click)="logout()"></button>
+      </ng-template>
+    </p-toolbar>
   `,
   styles: [`
-    .top-bar {border-bottom: 2px solid #f09797ff;}
-    .spacer { flex: 1 1 auto; }
+    .top-bar { 
+      border-bottom: 2px solid #f09797ff; 
+      height: 50px;
+    }
+    .p-toolbar .p-toolbar-start span {
+      font-size: 1.25rem;
+      font-weight: 500;
+    }
   `]
 })
 export class TopBarComponent {
