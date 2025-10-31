@@ -3,16 +3,16 @@ import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 
 @Component({
-  selector: 'app-login',
-  standalone: true,
-  imports: [CommonModule],
-  templateUrl: './login.component.html',
-  styleUrl: './login.component.scss'
+	selector: 'app-login',
+	standalone: true,
+	imports: [CommonModule],
+	templateUrl: './login.component.html',
+	styleUrl: './login.component.scss',
 })
 export class LoginComponent {
-  constructor(private router: Router) {}
+	constructor(private router: Router) {}
 
-  goToDispatchDashboard() {
-    this.router.navigate(['/dispatch/dashboard']);
-  }
+	goToDispatchDashboard() {
+		this.router.navigate(['/dispatch/dashboard']);
+	}
 }

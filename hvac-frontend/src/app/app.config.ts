@@ -4,15 +4,14 @@ import { providePrimeNG } from 'primeng/config';
 
 import Aura from '@primeuix/themes/aura';
 
-
 import { routes } from './app.routes';
 
 export const appConfig: ApplicationConfig = {
-  providers: [
-    providePrimeNG({
-      ripple: true
-    }),
-    /** providePrimeNG({
+	providers: [
+		providePrimeNG({
+			ripple: true,
+		}),
+		/** providePrimeNG({
       theme: {
         preset: Aura,
         options: {
@@ -22,7 +21,7 @@ export const appConfig: ApplicationConfig = {
         }
       }
     }),*/
-    provideZoneChangeDetection({ eventCoalescing: true }),
-    provideRouter(routes),
-  ],
+		provideZoneChangeDetection({ eventCoalescing: true }),
+		provideRouter(routes),
+	],
 };

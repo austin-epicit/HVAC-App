@@ -10,7 +10,8 @@ services:
         depends_on:
             - db
         volumes:
-            - ./backend:/app
+            - ./backend/src:/app/src
+            - ./backend/package.json:/app/package.json
         working_dir: /app
         networks:
             - hvacnet
