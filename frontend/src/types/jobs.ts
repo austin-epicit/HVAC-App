@@ -1,9 +1,4 @@
-export const JobStatusValues = [
-	"Scheduled",
-	"In Progress",
-	"Completed",
-	"Cancelled",
-] as const;
+export const JobStatusValues = ["Scheduled", "In Progress", "Completed", "Cancelled"] as const;
 export type JobStatus = (typeof JobStatusValues)[number];
 
 export interface Job {
