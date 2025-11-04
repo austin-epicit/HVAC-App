@@ -5,6 +5,7 @@ import DashboardPage from "./pages/dispatch/DashboardPage";
 import JobsPage from "./pages/dispatch/JobsPage";
 import SchedulePage from "./pages/dispatch/SchedulePage";
 import { useAuthStore } from "./auth/authStore";
+import type { JSX } from "react";
 
 function RequireAuth({ children }: { children: JSX.Element }) {
 	const { user } = useAuthStore();
