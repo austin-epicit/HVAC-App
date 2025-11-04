@@ -1,10 +1,9 @@
-import http from "http";
 import "dotenv/config";
+import { getAllJobs } from "./controllers/jobsController.js";
+import express from "express";
 
-const server = http.createServer((req, res) => {
-	res.writeHead(200, { "content-type": "application/json" });
-	res.end(JSON.stringify({ hello: "world" }));
-});
+const app = express();
+app.use(express.json());
 
 let port: string | undefined = process.env["SERVER_PORT"];
 if (!port) {
@@ -12,4 +11,10 @@ if (!port) {
 	port = "3000";
 }
 
-server.listen(port, () => console.log(`Listening on port ${port}`));
+app.get("/jobs", (req, res) => {
+	res.send(getAllJobs());
+});
+
+app.listen(port, () => {
+	console.log(`Server running on http://localhost:${port}`);
+});
