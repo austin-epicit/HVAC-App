@@ -13,3 +13,125 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+enum job_status {
+  Unscheduled
+  Scheduled
+  InProgress
+  Completed
+  Cancelled
+}
+
+model job {
+  id          String @unique @id @default(uuid())
+  name        String
+  description String
+  priority    String
+  client_id   String
+  client      client @relation(fields: [client_id], references: [id])
+  job_tech    job_technician[]
+  address     String
+  created_at  DateTime @default(now())
+  status      job_status
+  time_mins   Int
+  starts_at   DateTime
+  @@index([client_id])
+}
+
+enum technician_status {
+  Offline
+  Available
+  Busy
+  Break
+}
+
+model technician {
+  id            String @unique @id @default(uuid())
+  name          String
+  email         String @unique
+  phone         String
+  password      String
+  title         String
+  description   String
+  status        technician_status
+  job_tech      job_technician[]
+  client_notes  client_note[]
+  logs          log[]
+  hire_date     DateTime
+  last_pos      Unsupported("point")
+  last_login    DateTime @default(now())
+}
+
+model job_technician {
+  job_id  String
+  tech_id String
+  job     job       @relation(fields: [job_id], references: [id])
+  tech    technician @relation(fields: [tech_id], references: [id])
+  @@id([job_id, tech_id])
+  @@index([tech_id])
+}
+
+model client {
+  id            String @unique @id @default(uuid())
+  name          String
+  address       String
+  is_active     Boolean
+  created_at    DateTime @default(now())
+  last_activity DateTime
+  jobs          job[]
+  contacts      client_contact[]
+  notes         client_note[]
+}
+
+model client_contact {
+  id          String @unique @id @default(uuid())
+  client_id   String
+  name        String
+  email       String
+  phone       String
+  relation    String
+  description String
+  client      client @relation(fields: [client_id], references: [id])
+  @@index([client_id])
+}
+
+model client_note {
+  id               String       @unique @id @default(uuid())
+  client_id        String
+  tech_id          String? 
+  operator_id      String?
+  content          String
+  created_at       DateTime     @default(now())
+  updated_at       DateTime     @updatedAt 
+  client           client       @relation(fields: [client_id], references: [id])
+  tech             technician?  @relation(fields: [tech_id], references: [id])
+  operator         operator?    @relation(fields: [operator_id], references: [id])
+  @@index([client_id])
+  @@index([tech_id])
+  @@index([operator_id])
+}
+
+model operator {
+  id            String @unique @id @default(uuid())
+  name          String
+  email         String
+  phone         String?
+  password      String
+  title         String
+  description   String
+  last_login    DateTime @default(now())
+  logs          log[]
+  client_notes  client_note[]
+}
+
+model log {
+  id          String @unique @id @default(uuid())
+  operator_id String?
+  tech_id     String?
+  description String
+  created_at  DateTime @default(now())
+  operator    operator?    @relation(fields: [operator_id], references: [id])
+  tech        technician?  @relation(fields: [tech_id], references: [id])
+  @@index([operator_id])
+  @@index([tech_id])
+}
