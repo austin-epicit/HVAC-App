@@ -11,16 +11,16 @@ export default function DispatchLayout() {
 	};
 
 	return (
-		<div className="flex h-screen bg-gray-50 text-gray-900">
+		<div className="flex h-screen bg-zinc-950 text-white">
 			{/* Sidebar */}
-			<aside className="w-64 bg-white border-r shadow-sm hidden md:flex flex-col">
-				<div className="p-4 text-xl font-bold border-b">Dispatch Panel</div>
+			<aside className="w-64 border-r-2 border-zinc-900 shadow-sm hidden md:flex flex-col">
+				<div className="p-4 text-xl font-bold">Dispatch Panel Demo</div>
 				<nav className="flex-1 p-2 space-y-1">
 					<NavLink
 						to="/dispatch"
 						end
 						className={({ isActive }) =>
-							`block p-2 rounded ${isActive ? "bg-blue-100 font-medium" : "hover:bg-gray-100"}`
+							`block p-2 rounded ${isActive ? "bg-zinc-900 font-medium" : "hover:bg-zinc-800"}`
 						}
 					>
 						Dashboard
@@ -28,7 +28,7 @@ export default function DispatchLayout() {
 					<NavLink
 						to="/dispatch/jobs"
 						className={({ isActive }) =>
-							`block p-2 rounded ${isActive ? "bg-blue-100 font-medium" : "hover:bg-gray-100"}`
+							`block p-2 rounded ${isActive ? "bg-zinc-900 font-medium" : "hover:bg-zinc-800"}`
 						}
 					>
 						Jobs
@@ -36,7 +36,7 @@ export default function DispatchLayout() {
 					<NavLink
 						to="/dispatch/schedule"
 						className={({ isActive }) =>
-							`block p-2 rounded ${isActive ? "bg-blue-100 font-medium" : "hover:bg-gray-100"}`
+							`block p-2 rounded ${isActive ? "bg-zinc-900 font-medium" : "hover:bg-zinc-800"}`
 						}
 					>
 						Schedule
@@ -46,10 +46,7 @@ export default function DispatchLayout() {
 
 			{/* Main Content */}
 			<div className="flex flex-col flex-1 overflow-hidden">
-				<header className="flex justify-between items-center bg-white border-b px-6 py-3">
-					<h1 className="text-lg font-semibold">
-						Welcome, {user?.name}
-					</h1>
+				<header className="flex flex-row-reverse justify-between items-center px-6 py-3">
 					<button
 						onClick={handleLogout}
 						className="text-sm bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
