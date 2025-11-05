@@ -75,7 +75,7 @@ export default function DispatchLayout() {
       
       <div className="flex flex-col flex-1 overflow-hidden">
 		{/* Top Bar */}
-        <header className="flex justify-end items-center px-6 py-3 border-b border-zinc-900 bg-zinc-950">
+        <header className="flex justify-end items-center px-6 py-3 bg-zinc-950">
           <div className="flex items-center gap-3">
             {/* Search Bar */}
             <div className="relative w-80">
