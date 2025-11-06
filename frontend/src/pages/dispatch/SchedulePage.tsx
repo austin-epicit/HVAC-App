@@ -3,9 +3,9 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 
 export default function SchedulePage() {
   const events = [
-    { title: "AC Installation", start: "2025-09-02T09:00:00" },
-    { title: "Boiler Repair", start: "2025-09-02T13:30:00" },
-    { title: "Heat Pump Maintenance", start: "2025-09-11T09:00:00" },
+    { title: "AC Installation", start: "2025-11-02T09:00:00" },
+    { title: "Boiler Repair", start: "2025-11-02T13:30:00" },
+    { title: "Heat Pump Maintenance", start: "2025-11-11T09:00:00" },
   ];
 
   return (

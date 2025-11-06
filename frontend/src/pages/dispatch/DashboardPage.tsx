@@ -1,25 +1,52 @@
+import Card from "../../components/ui/Card";
+import FullCalendar from "@fullcalendar/react";
+import dayGridPlugin from "@fullcalendar/daygrid";
+
 export default function DashboardPage() {
-	return (
-		<div className="min-h-screen text-white p-6">
-			<div className="grid gap-6 md:grid-cols-2">
-				{/* Full-width card on top */}
-				<div className="md:col-span-2 bg-gray-700 p-6 rounded-lg shadow-md border border-gray-700">
-					<h2 className="text-xl font-semibold mb-2 text-white">Today's Jobs</h2>
-					<p className="text-gray-300 text-sm">5 scheduled jobs</p>
-				</div>
+	  const events = [
+    { title: "Install", start: "2025-11-07T09:00:00", end: "2025-09-02T10:30:00" },
+	 { title: "Install", start: "2025-11-07T09:00:00", end: "2025-09-02T10:30:00" },
+	  { title: "Install", start: "2025-11-07T09:00:00", end: "2025-09-02T10:30:00" },
+	   { title: "Install", start: "2025-11-07T09:00:00", end: "2025-09-02T10:30:00" },
+    { title: "Repair", start: "2025-11-06T13:00:00", end: "2025-09-03T14:00:00" },
+  ];
+  return (
+    <div className="min-h-screen text-white p-6">
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card className="md:col-span-2">
+          <FullCalendar
+            plugins={[dayGridPlugin]}
+            initialView="dayGridWeek"
+            views={{
+              dayGridWeek: {
+                type: "dayGrid",
+                duration: { days: 7 },
+              },
+            }}
+            headerToolbar={{
+              left: "jobsTitle",       // 👈 our custom “title”
+              center: "",
+              right: "today prev,next",
+            }}
+            customButtons={{
+              jobsTitle: {
+                text: "Upcoming Jobs",
+                click: () => {},       // no-op so it does nothing
+              },
+            }}
+            events={events}
+            height="auto"
+          />
+        </Card>
 
-				{/* Bottom left */}
-				<div className="bg-gray-700 p-6 rounded-lg shadow-md border border-gray-700">
-					<h2 className="text-lg font-semibold mb-2 text-white">Technicians Online</h2>
-					<p className="text-gray-300 text-sm">3 active technicians</p>
-				</div>
+        <Card title="Technicians Online">
+          <p className="text-gray-300 text-sm">3 active technicians</p>
+        </Card>
 
-				{/* Bottom right */}
-				<div className="bg-gray-700 p-6 rounded-lg shadow-md border border-gray-700">
-					<h2 className="text-lg font-semibold mb-2 text-white">Pending Quotes</h2>
-					<p className="text-gray-300 text-sm">2 awaiting approval</p>
-				</div>
-			</div>
-		</div>
-	);
+        <Card title="Pending Quotes">
+          <p className="text-gray-300 text-sm">2 awaiting approval</p>
+        </Card>
+      </div>
+    </div>
+  );
 }

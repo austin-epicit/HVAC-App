@@ -9,6 +9,11 @@
 * {
 	font-family: "Inter";
 }
+
+/******************************
+    Calendar Styling
+******************************/
+
 /* Base calendar background */
 .fc {
   background-color: var(--main); 
@@ -78,7 +83,6 @@
   background-color: #1f1f22 !important;
 }
 
-
 /* Ensure day grid cells have their own internal lines only */
 .fc-theme-standard td {
   background-color: var(--main); 
@@ -95,7 +99,6 @@
 .fc-theme-standard th:last-child {
   border-right: none !important;
 }
-
 
 /* Event block styling */
 .fc-event {
@@ -138,10 +141,26 @@
   overflow: hidden;
 }
 
-
 /* Today highlight */
 .fc-day-today {
   background-color: #27272a !important; /* subtle highlight */
 }
 
+/* Make the custom "jobsTitle" look like plain header text, not a button */
+.fc .fc-toolbar-chunk .fc-jobsTitle-button {
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  color: #f4f4f5 !important;
+  font-size: 1.25rem !important;
+  font-weight: 600 !important;
+  text-transform: none !important;
+  cursor: default !important;
+}
 
+/* Optional: keep all toolbar items nicely aligned vertically */
+.fc .fc-toolbar {
+  align-items: center !important;
+}
