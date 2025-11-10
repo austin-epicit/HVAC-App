@@ -2,6 +2,7 @@ import AdaptableTable from "../../components/AdaptableTable";
 import { useState } from "react";
 import { Search, Plus, Share } from "lucide-react";
 import { useAllClientsQuery, useCreateClientMutation } from "../../hooks/useClients";
+import CreateClient from "../../components/clients/CreateClient";
 
 export default function JobsPage() {
 	const {
@@ -9,9 +10,9 @@ export default function JobsPage() {
 		isLoading: isFetchLoading,
 		error: fetchError,
 	} = useAllClientsQuery();
-	const { mutateAsync: createJob } = useCreateClientMutation();
-	const [search, setSearch] = useState("");
-	// const [isModalOpen, setIsModalOpen] = useState(false);
+	const { mutateAsync: createClient } = useCreateClientMutation();
+	// const [search, setSearch] = useState("");
+	const [isModalOpen, setIsModalOpen] = useState(false);
 	const display = clients
 		?.map((c) => ({
 			name: c.name,
@@ -40,7 +41,10 @@ export default function JobsPage() {
 						/>
 					</div>
 
-					<button className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-md text-sm font-medium">
+					<button
+						className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-md text-sm font-medium cursor-pointer"
+						onClick={() => setIsModalOpen(true)}
+					>
 						<Plus size={16} className="text-white" />
 						New Client
 					</button>
@@ -59,6 +63,21 @@ export default function JobsPage() {
 					errListener={fetchError}
 				/>
 			</div>
+
+			<CreateClient
+				isModalOpen={isModalOpen}
+				setIsModalOpen={setIsModalOpen}
+				createClient={async (input) => {
+					const newClient = await createClient(input);
+
+					if (!newClient?.id)
+						throw new Error(
+							"Client creation failed: no ID returned"
+						);
+
+					return newClient.id;
+				}}
+			/>
 		</div>
 	);
 }

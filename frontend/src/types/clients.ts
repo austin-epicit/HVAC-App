@@ -1,4 +1,5 @@
 import type { Job } from "./jobs";
+import z from "zod";
 
 export interface Client {
 	id: string;
@@ -33,6 +34,12 @@ export interface CreateClientInput {
 	address: string;
 	isActive: boolean;
 }
+
+export const CreateClientSchema = z.object({
+	name: z.string().min(1, "Client name is required"),
+	address: z.string().min(1, "Address is required"),
+	isActive: z.boolean().default(true),
+});
 
 export interface ClientResponse {
 	err: string;
