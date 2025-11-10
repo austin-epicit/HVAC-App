@@ -24,3 +24,8 @@ export interface InsertResult {
 	err: string;
 	item?: JobWithRelations | null;
 }
+
+export interface ClientResponse {
+	err: string;
+	data: client[];
+}

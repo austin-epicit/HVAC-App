@@ -6,7 +6,15 @@ import {
 	insertJob,
 } from "./controllers/jobsController.js";
 import express from "express";
-import { InsertResult, JobResponse } from "./types/responses.js";
+import {
+	ClientResponse,
+	InsertResult,
+	JobResponse,
+} from "./types/responses.js";
+import {
+	getAllClients,
+	getClientById,
+} from "./controllers/clientsController.js";
 
 const app = express();
 
@@ -32,6 +40,8 @@ if (!port) {
 	console.warn("No port configured. Defaulting...");
 	port = "3000";
 }
+
+// JOBS
 
 app.get("/jobs", async (req, res) => {
 	try {
@@ -67,6 +77,35 @@ app.post("/jobs", async (req, res) => {
 	}
 
 	return res.status(201).json({ err: "", data: [result.item] });
+});
+
+// CLIENTS
+
+app.get("/clients", async (req, res) => {
+	try {
+		const clients = await getAllClients();
+		const resp: ClientResponse = { err: "", data: clients };
+		res.json(resp);
+	} catch (err) {
+		console.error(err);
+		res.status(500).json({ err: "Failed to fetch clients", data: [] });
+	}
+});
+
+app.get("/clients/:id", async (req, res) => {
+	try {
+		const { id } = req.params;
+		const client = await getClientById(id);
+
+		if (!client)
+			return res.status(404).json({ err: "Client not found", data: [] });
+
+		const resp: ClientResponse = { err: "", data: [client] };
+		res.json(resp);
+	} catch (err) {
+		console.error(err);
+		res.status(500).json({ err: "Failed to fetch client", data: [] });
+	}
 });
 
 app.listen(port, () => {
