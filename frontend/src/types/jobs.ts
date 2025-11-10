@@ -11,5 +11,5 @@ export interface Job {
 
 export interface JobResponse {
 	err: string;
-	jobs: Job[];
+	data: Job[];
 }

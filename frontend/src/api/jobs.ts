@@ -12,21 +12,21 @@ const api = axios.create({
 export const getAllJobs = async (): Promise<Job[]> => {
 	try {
 		const response = await api.get<JobResponse>(`/jobs`);
-
 		if (response.data.err) throw new Error(response.data.err);
-		return response.data.jobs;
+
+		return response.data.data;
 	} catch (error) {
 		console.error("Failed to fetch jobs: ", error);
 		throw error;
 	}
 };
 
-export const getBucketById = async (id: string): Promise<Job> => {
+export const getJobById = async (id: string): Promise<Job> => {
 	try {
 		const response = await api.get<JobResponse>(`/jobs/${id}`);
 
 		if (response.data.err) throw new Error(response.data.err);
-		return response.data.jobs[0];
+		return response.data.data[0];
 	} catch (error) {
 		console.error("Failed to fetch job: ", error);
 		throw error;
