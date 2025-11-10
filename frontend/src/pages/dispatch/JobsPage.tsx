@@ -2,11 +2,11 @@ import AdaptableTable from "../../components/AdaptableTable";
 import { useAllJobsQuery } from "../../hooks/useJobs";
 import { JobStatusValues } from "../../types/jobs";
 import { useState } from "react";
- 
+
 import { Search, Plus, Share } from "lucide-react";
 
 export default function JobsPage() {
-	const { data: jobs, isLoading: isGetLoading, isError: isGetError } = useAllJobsQuery();
+	const { data: jobs, isLoading: isFetchLoading, error: fetchError } = useAllJobsQuery();
 	const [search, setSearch] = useState("");
 	const display = jobs
 		?.map((j) => ({
@@ -29,18 +29,18 @@ export default function JobsPage() {
 				<h2 className="text-2xl font-semibold">Active Jobs</h2>
 
 				{/* Center: Search Bar */}
-				    <div className="relative w-full max-w-sm">
-				<Search
-					size={18}
-					className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-				/>
-				<input
-					type="text"
-					placeholder="Search jobs..."
-					className="w-full pl-11 pr-3 py-2 rounded-md bg-zinc-800 border border-zinc-700 text-sm 
+				<div className="relative w-full max-w-sm">
+					<Search
+						size={18}
+						className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+					/>
+					<input
+						type="text"
+						placeholder="Search jobs..."
+						className="w-full pl-11 pr-3 py-2 rounded-md bg-zinc-800 border border-zinc-700 text-sm 
 							text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 
 							focus:ring-blue-500"
-				/>
+					/>
 				</div>
 
 				{/* Right side: Buttons */}
@@ -59,7 +59,11 @@ export default function JobsPage() {
 
 			{/* Table */}
 			<div className="shadow-sm border border-zinc-800 p-3 bg-zinc-900 rounded-lg overflow-hidden text-left">
-				<AdaptableTable data={display || []} />
+				<AdaptableTable
+					data={display || []}
+					loadListener={isFetchLoading}
+					errListener={fetchError}
+				/>
 			</div>
 		</div>
 	);
