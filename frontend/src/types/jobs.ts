@@ -9,6 +9,12 @@ export interface Job {
 	status: JobStatus;
 }
 
+export interface CreateJobInput {
+	name: string;
+	tech_ids: string[];
+	client_id: string;
+}
+
 export interface JobResponse {
 	err: string;
 	data: Job[];

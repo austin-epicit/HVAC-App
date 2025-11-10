@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { Job, JobResponse } from "../types/jobs";
+import type { CreateJobInput, Job, JobResponse } from "../types/jobs";
 
 const BASE_URL: string = import.meta.env.VITE_BACKEND_URL;
 
@@ -29,6 +29,18 @@ export const getJobById = async (id: string): Promise<Job> => {
 		return response.data.data[0];
 	} catch (error) {
 		console.error("Failed to fetch job: ", error);
+		throw error;
+	}
+};
+
+export const createJob = async (input: CreateJobInput): Promise<Job> => {
+	try {
+		const response = await api.post<JobResponse>(`/buckets`, input);
+
+		if (response.data.err) throw new Error(response.data.err);
+		return response.data.data[0];
+	} catch (error) {
+		console.error("Failed to post bucket: ", error);
 		throw error;
 	}
 };
