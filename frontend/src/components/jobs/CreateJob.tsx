@@ -1,143 +1,183 @@
-// import { Link, useNavigate } from "@tanstack/react-router";
-// import LoadSvg from "../../assets/icons/load-dots.svg?react";
-// import Button from "../General/Button";
-// import { useRef, useState } from "react";
-// import { DataLifespanDuration } from "../../types/plans";
-// import type { ZodError } from "zod";
-// import { BucketSchema } from "../../hooks/useBuckets";
-// import FullPopup from "../General/FullPopup";
-// import Dropdown from "../General/Dropdown";
+import LoadSvg from "../../assets/icons/loading.svg?react";
+import Button from "../ui/Button";
+import { useRef, useState } from "react";
+import type { ZodError } from "zod";
+import FullPopup from "../ui/FullPopup";
+import { CreateJobSchema, type CreateJobInput } from "../../types/jobs";
+import { useAllClientsQuery } from "../../hooks/useClients";
+import Dropdown from "../ui/Dropdown";
 
-// interface CreateJobProps {
-// 	isModalOpen: boolean;
-// 	setIsModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
-// 	createJob: (label: string, dataDuration: DataLifespanDuration) => Promise<string>;
-// }
+interface CreateJobProps {
+	isModalOpen: boolean;
+	setIsModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
+	createJob: (input: CreateJobInput) => Promise<string>;
+}
 
-// const CreateJob = ({ isModalOpen, setIsModalOpen, createJob }: CreateJobProps) => {
-// 	const nameRef = useRef<HTMLInputElement>(null);
-// 	const durationRef = useRef<HTMLSelectElement>(null);
-// 	const [isLoading, setIsLoading] = useState(false);
-// 	const [errors, setErrors] = useState<ZodError | null>(null);
+const CreateJob = ({ isModalOpen, setIsModalOpen, createJob }: CreateJobProps) => {
+	const nameRef = useRef<HTMLInputElement>(null);
+	const addressRef = useRef<HTMLInputElement>(null);
+	const descRef = useRef<HTMLTextAreaElement>(null);
+	const clientRef = useRef<HTMLSelectElement>(null);
+	const [isLoading, setIsLoading] = useState(false);
+	const [errors, setErrors] = useState<ZodError | null>(null);
+	const {
+		data: clients,
+		// isLoading: isFetchLoading,
+		// error: fetchError,
+	} = useAllClientsQuery();
 
-// 	const invokeCreate = async () => {
-// 		if (nameRef.current && durationRef.current && !isLoading) {
-// 			const labelValue = nameRef.current.value.trim();
-// 			const durationValue = durationRef.current.value.trim();
-// 			const parseResult = BucketSchema.safeParse({
-// 				label: labelValue,
-// 				dataLifespan: durationValue,
-// 			});
+	let dropdownEntries;
 
-// 			if (!parseResult.success) {
-// 				setErrors(parseResult.error);
-// 				return;
-// 			}
+	if (clients) {
+		dropdownEntries = (
+			<>
+				{clients.map((c) => (
+					<option value={c.id} key={c.id} className="text-black">
+						{c.name}
+					</option>
+				))}
+			</>
+		);
+	} else {
+		dropdownEntries = (
+			<>
+				<option disabled value={""} className="text-black">
+					No clients found
+				</option>
+			</>
+		);
+	}
 
-// 			setIsLoading(true);
+	const invokeCreate = async () => {
+		if (
+			nameRef.current &&
+			clientRef.current &&
+			addressRef.current &&
+			descRef.current &&
+			!isLoading
+		) {
+			const labelValue = nameRef.current.value.trim();
+			const clientValue = clientRef.current.value.trim();
+			const addressValue = addressRef.current.value.trim();
+			const descValue = descRef.current.value.trim();
 
-// 			const dataDuration = durationValue as keyof typeof DataLifespanDuration;
+			const newJob: CreateJobInput = {
+				name: labelValue,
+				tech_ids: [],
+				client_id: clientValue,
+				address: addressValue,
+				description: descValue,
+				status: "Unscheduled",
+				start_date: new Date(),
+			};
 
-// 			const id = await createJob(labelValue, DataLifespanDuration[dataDuration]);
-// 		}
-// 	};
+			const parseResult = CreateJobSchema.safeParse(newJob);
 
-// 	let labelErrors;
-// 	let durationErrors;
+			if (!parseResult.success) {
+				setErrors(parseResult.error);
+				return;
+			}
 
-// 	if (errors) {
-// 		labelErrors = errors.issues.filter((err) => err.path[0] == "label");
-// 		durationErrors = errors.issues.filter((err) => err.path[0] == "dataLifespan");
-// 	}
+			setErrors(null);
+			setIsLoading(true);
 
-// 	const dropdownEntries = (
-// 		<>
-// 			{Object.entries(DataLifespanDuration).map(([keyName, duration]) => (
-// 				<option value={keyName} key={keyName}>
-// 					{duration}
-// 				</option>
-// 			))}
-// 		</>
-// 	);
+			await createJob(newJob);
 
-// 	const content = (
-// 		<>
-// 			<h2 className="text-2xl font-bold mb-4">Create New Bucket</h2>
-// 			<p className="mb-1 hover:color-accent">Name</p>
-// 			<input
-// 				type="text"
-// 				placeholder="Bucket Name"
-// 				className="border border-gray-300 p-2 w-full rounded-sm"
-// 				disabled={isLoading}
-// 				ref={nameRef}
-// 			/>
+			setIsLoading(false);
+			setIsModalOpen(false);
+		}
+	};
 
-// 			{labelErrors && (
-// 				<div>
-// 					{" "}
-// 					{labelErrors.map((err) => (
-// 						<h3 className="my-1 color-accent" key={err.message}>
-// 							{err.message}
-// 						</h3>
-// 					))}
-// 				</div>
-// 			)}
+	let nameErrors;
+	let addressErrors;
 
-// 			<div className="mb-1 mt-4 flex">
-// 				<p>Data Lifespan</p>
-// 				<div className="flex-1"></div>
-// 				<Link
-// 					to="/learn/data-lifespan"
-// 					target="_blank"
-// 					className="underline color-accent"
-// 				>
-// 					{"Learn more"}
-// 				</Link>
-// 			</div>
+	if (errors) {
+		nameErrors = errors.issues.filter((err) => err.path[0] == "name");
+		addressErrors = errors.issues.filter((err) => err.path[0] == "address");
+	}
 
-// 			<Dropdown
-// 				entries={dropdownEntries}
-// 				disabled={isLoading}
-// 				refToApply={durationRef}
-// 			/>
+	const content = (
+		<>
+			<h2 className="text-2xl font-bold mb-4">Create New Job</h2>
+			<p className="mb-1 hover:color-accent">Name</p>
+			<input
+				type="text"
+				placeholder="Job Name"
+				className="border border-zinc-800 p-2 w-full rounded-sm"
+				disabled={isLoading}
+				ref={nameRef}
+			/>
 
-// 			{durationErrors && (
-// 				<div>
-// 					{" "}
-// 					{durationErrors.map((err) => (
-// 						<h3 className="my-1 color-accent" key={err.message}>
-// 							{err.message}
-// 						</h3>
-// 					))}
-// 				</div>
-// 			)}
+			{nameErrors && (
+				<div>
+					{" "}
+					{nameErrors.map((err) => (
+						<h3 className="my-1 text-red-300" key={err.message}>
+							{err.message}
+						</h3>
+					))}
+				</div>
+			)}
 
-// 			<div className="transition-all flex justify-end space-x-2 mt-4">
-// 				{isLoading ? (
-// 					<LoadSvg className="color-accent w-10 h-10 bg-white" />
-// 				) : (
-// 					<>
-// 						<div
-// 							className="border-1 border-gray-300 rounded-sm cursor-pointer hover:bg-gray-100 transition-all"
-// 							onClick={() => setIsModalOpen(false)}
-// 						>
-// 							<Button label="Cancel" />
-// 						</div>
-// 						<div
-// 							className="transition-all rounded-sm cursor-pointer bg-accent text-white font-bold"
-// 							onClick={() => {
-// 								invokeCreate();
-// 							}}
-// 						>
-// 							<Button label="Create" />
-// 						</div>{" "}
-// 					</>
-// 				)}
-// 			</div>
-// 		</>
-// 	);
+			<p className="mb-1 mt-3 hover:color-accent">Address</p>
+			<input
+				type="text"
+				placeholder="Job Address"
+				className="border border-zinc-800 p-2 w-full rounded-sm"
+				disabled={isLoading}
+				ref={addressRef}
+			/>
 
-// 	return <FullPopup content={content} isModalOpen={isModalOpen} />;
-// };
+			{addressErrors && (
+				<div>
+					{" "}
+					{addressErrors.map((err) => (
+						<h3 className="my-1 text-red-300" key={err.message}>
+							{err.message}
+						</h3>
+					))}
+				</div>
+			)}
 
-// export default CreateJob;
+			<p className="mb-1 mt-3 hover:color-accent">Client</p>
+			<div className="border border-zinc-800 rounded-sm">
+				<Dropdown refToApply={clientRef} entries={dropdownEntries} />
+			</div>
+
+			<p className="mb-1 mt-3 hover:color-accent">Description</p>
+			<textarea
+				placeholder="Job Description"
+				className="border border-zinc-800 p-2 w-full h-15 rounded-sm"
+				disabled={isLoading}
+				ref={descRef}
+			></textarea>
+
+			<div className="transition-all flex justify-end space-x-2 mt-4">
+				{isLoading ? (
+					<LoadSvg className="w-10 h-10" />
+				) : (
+					<>
+						<div
+							className="border-1 border-zinc-800 rounded-sm cursor-pointer hover:bg-zinc-800 transition-all"
+							onClick={() => setIsModalOpen(false)}
+						>
+							<Button label="Cancel" />
+						</div>
+						<div
+							className="border-1 border-zinc-800 rounded-sm cursor-pointer hover:bg-zinc-800 transition-all font-bold"
+							onClick={() => {
+								invokeCreate();
+							}}
+						>
+							<Button label="Create" />
+						</div>{" "}
+					</>
+				)}
+			</div>
+		</>
+	);
+
+	return <FullPopup content={content} isModalOpen={isModalOpen} />;
+};
+
+export default CreateJob;

@@ -7,10 +7,20 @@ export const createJobSchema = z.object({
 	client_id: z.string(),
 	tech_ids: z.array(z.string().uuid("Invalid technician ID")).default([]),
 	address: z.string().optional().default(""),
-	status: z.enum(["Scheduled", "In Progress", "Completed", "Cancelled"]),
+	status: z
+		.enum([
+			"Unscheduled",
+			"Scheduled",
+			"In Progress",
+			"Completed",
+			"Cancelled",
+		])
+		.default("Unscheduled"),
 	time_mins: z.number().int().nonnegative().default(0),
-	starts_at: z.preprocess(
-		(arg) => (typeof arg === "string" ? new Date(arg) : arg),
-		z.date({ error: "Start date is required" })
-	),
+	starts_at: z
+		.preprocess(
+			(arg) => (typeof arg === "string" ? new Date(arg) : arg),
+			z.date({ error: "Start date is required" })
+		)
+		.default(new Date()),
 });

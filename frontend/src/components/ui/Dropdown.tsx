@@ -15,10 +15,10 @@ const Dropdown = ({ entries, disabled, refToApply, defaultValue, onChange }: Dro
 	};
 
 	let selectStyles = "appearance-none w-full h-full p-2";
-	if (disabled) selectStyles += " bg-gray-100 cursor-not-allowed";
+	if (disabled) selectStyles += " cursor-not-allowed";
 
 	return (
-		<div className="relative border border-gray-300 w-full rounded-sm">
+		<div className="w-full relative">
 			<select
 				className={selectStyles}
 				defaultValue={defaultValue}
@@ -28,7 +28,7 @@ const Dropdown = ({ entries, disabled, refToApply, defaultValue, onChange }: Dro
 			>
 				{entries}
 			</select>
-			<ArrowSvg className="absolute top-2 right-2 pointer-events-none" />
+			<ArrowSvg className="absolute top-2 right-2 pointer-events-none text-white" />
 		</div>
 	);
 };

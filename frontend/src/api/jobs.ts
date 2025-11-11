@@ -35,12 +35,12 @@ export const getJobById = async (id: string): Promise<Job> => {
 
 export const createJob = async (input: CreateJobInput): Promise<Job> => {
 	try {
-		const response = await api.post<JobResponse>(`/buckets`, input);
+		const response = await api.post<JobResponse>(`/jobs`, input);
 
 		if (response.data.err) throw new Error(response.data.err);
 		return response.data.data[0];
 	} catch (error) {
-		console.error("Failed to post bucket: ", error);
+		console.error("Failed to post job: ", error);
 		throw error;
 	}
 };

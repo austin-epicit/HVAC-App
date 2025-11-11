@@ -3,13 +3,13 @@ import { useAllJobsQuery, useCreateJobMutation } from "../../hooks/useJobs";
 import { JobStatusValues } from "../../types/jobs";
 import { useState } from "react";
 import { Search, Plus, Share } from "lucide-react";
-// import CreateJob from "../../components/jobs/CreateJob";
+import CreateJob from "../../components/jobs/CreateJob";
 
 export default function JobsPage() {
 	const { data: jobs, isLoading: isFetchLoading, error: fetchError } = useAllJobsQuery();
 	const { mutateAsync: createJob } = useCreateJobMutation();
-	const [search, setSearch] = useState("");
-	// const [isModalOpen, setIsModalOpen] = useState(false);
+	// const [search, setSearch] = useState("");
+	const [isModalOpen, setIsModalOpen] = useState(false);
 	const display = jobs
 		?.map((j) => ({
 			name: j.name,
@@ -43,7 +43,10 @@ export default function JobsPage() {
 						/>
 					</div>
 
-					<button className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-md text-sm font-medium">
+					<button
+						className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-md text-sm font-medium"
+						onClick={() => setIsModalOpen(true)}
+					>
 						<Plus size={16} className="text-white" />
 						New Job
 					</button>
@@ -63,15 +66,11 @@ export default function JobsPage() {
 				/>
 			</div>
 
-			{/* <CreateJob
+			<CreateJob
 				isModalOpen={isModalOpen}
 				setIsModalOpen={setIsModalOpen}
-				createJob={async (label, dataDuration) => {
-					const newJob = await createJob({
-						label,
-						userId: user.id,
-						dataDuration,
-					});
+				createJob={async (input) => {
+					const newJob = await createJob(input);
 
 					if (!newJob?.id)
 						throw new Error(
@@ -80,7 +79,7 @@ export default function JobsPage() {
 
 					return newJob.id;
 				}}
-			/> */}
+			/>
 		</div>
 	);
 }
