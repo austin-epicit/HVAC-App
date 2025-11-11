@@ -7,13 +7,15 @@ import {
 } from "./controllers/jobsController.js";
 import express from "express";
 import {
+	ClientInsertResult,
 	ClientResponse,
-	InsertResult,
+	JobInsertResult,
 	JobResponse,
 } from "./types/responses.js";
 import {
 	getAllClients,
 	getClientById,
+	insertClient,
 } from "./controllers/clientsController.js";
 
 const app = express();
@@ -71,7 +73,7 @@ app.get("/jobs/:id", async (req, res) => {
 });
 
 app.post("/jobs", async (req, res) => {
-	const result: InsertResult = await insertJob(req.body);
+	const result: JobInsertResult = await insertJob(req.body);
 	if (result.err) {
 		return res.status(400).json({ err: result.err, data: [] });
 	}
@@ -106,6 +108,15 @@ app.get("/clients/:id", async (req, res) => {
 		console.error(err);
 		res.status(500).json({ err: "Failed to fetch client", data: [] });
 	}
+});
+
+app.post("/clients", async (req, res) => {
+	const result: ClientInsertResult = await insertClient(req.body);
+	if (result.err) {
+		return res.status(400).json({ err: result.err, data: [] });
+	}
+
+	return res.status(201).json({ err: "", data: [result.item] });
 });
 
 app.listen(port, () => {

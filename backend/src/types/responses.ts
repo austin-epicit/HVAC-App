@@ -20,7 +20,7 @@ export interface InsertResult {
 	item?: JobWithRelations | null;
 }
 
-export interface InsertResult {
+export interface JobInsertResult {
 	err: string;
 	item?: JobWithRelations | null;
 }
@@ -28,4 +28,9 @@ export interface InsertResult {
 export interface ClientResponse {
 	err: string;
 	data: client[];
+}
+
+export interface ClientInsertResult {
+	err: string;
+	item?: client | null;
 }

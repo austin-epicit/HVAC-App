@@ -1,7 +1,6 @@
-// import { ZodError } from "zod";
-// import { job_status } from "../../generated/prisma/enums.js";
+import { ZodError } from "zod";
 import { db } from "../db.js";
-// import { createJobSchema } from "../lib/validate/jobs.js";
+import { createClientSchema } from "../lib/validate/clients.js";
 
 export const getAllClients = async () => {
 	return await db.client.findMany();
@@ -11,79 +10,46 @@ export const getClientById = async (id: string) => {
 	return await db.client.findFirst({ where: { id: id } });
 };
 
-// export const insertClient = async (req: Request) => {
-// 	try {
-// 		const parsed = createJobSchema.parse(req);
+export const insertClient = async (req: Request) => {
+	try {
+		const parsed = createClientSchema.parse(req);
 
-// 		const client = await db.client.findUnique({
-// 			where: { id: parsed.client_id },
-// 		});
+		// should be validated here
 
-// 		if (!client) {
-// 			return { err: "Invalid client id" };
-// 		}
+		const created = await db.$transaction(async (tx) => {
+			const client = await tx.client.create({
+				data: {
+					id: undefined,
+					name: parsed.name,
+					address: parsed.address,
+					is_active: parsed.is_active,
+					jobs: {
+						connect: parsed.jobs.map((id) => ({ id })),
+					},
+					contacts: {
+						connect: parsed.contacts.map((id) => ({ id })),
+					},
+					notes: {
+						connect: parsed.notes.map((id) => ({ id })),
+					},
+					last_activity: new Date(),
+				},
+			});
 
-// 		if (parsed.tech_ids.length > 0) {
-// 			const existingTechs = await db.technician.findMany({
-// 				where: { id: { in: parsed.tech_ids } },
-// 				select: { id: true },
-// 			});
-// 			const existingIds = new Set(existingTechs.map((t) => t.id));
-// 			const missing = parsed.tech_ids.filter(
-// 				(id) => !existingIds.has(id)
-// 			);
-// 			if (missing.length > 0) {
-// 				return {
-// 					err: `Technicians not found: ${missing.join(", ")}`,
-// 				};
-// 			}
-// 		}
+			return tx.client.findUnique({
+				where: { id: client.id },
+			});
+		});
 
-// 		const created = await db.$transaction(async (tx) => {
-// 			const job = await tx.job.create({
-// 				data: {
-// 					id: undefined,
-// 					name: parsed.name,
-// 					description: parsed.description,
-// 					priority: parsed.priority,
-// 					client_id: parsed.client_id,
-// 					address: parsed.address,
-// 					status: parsed.status as job_status,
-// 					time_mins: parsed.time_mins,
-// 					starts_at: parsed.starts_at,
-// 				},
-// 			});
-
-// 			if (parsed.tech_ids.length > 0) {
-// 				await tx.job_technician.createMany({
-// 					data: parsed.tech_ids.map((tech_id) => ({
-// 						job_id: job.id,
-// 						tech_id,
-// 					})),
-// 					skipDuplicates: true,
-// 				});
-// 			}
-
-// 			return tx.job.findUnique({
-// 				where: { id: job.id },
-// 				include: {
-// 					client: true,
-// 					job_tech: {
-// 						include: { tech: true },
-// 					},
-// 				},
-// 			});
-// 		});
-
-// 		return { err: "", item: created ?? undefined };
-// 	} catch (e) {
-// 		if (e instanceof ZodError) {
-// 			return {
-// 				err: `Validation failed: ${e.issues
-// 					.map((err) => err.message)
-// 					.join(", ")}`,
-// 			};
-// 		}
-// 		return { err: "Internal server error" };
-// 	}
-// };
+		return { err: "", item: created ?? undefined };
+	} catch (e) {
+		if (e instanceof ZodError) {
+			return {
+				err: `Validation failed: ${e.issues
+					.map((err) => err.message)
+					.join(", ")}`,
+			};
+		}
+		return { err: "Internal server error" };
+	}
+};
