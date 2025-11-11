@@ -43,6 +43,7 @@ const CreateClient = ({ isModalOpen, setIsModalOpen, createClient }: CreateClien
 			await createClient(newClient);
 
 			setIsLoading(false);
+			setIsModalOpen(false);
 		}
 	};
 
