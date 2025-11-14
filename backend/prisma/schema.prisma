@@ -34,7 +34,7 @@ model job {
   created_at  DateTime @default(now())
   status      job_status
   time_mins   Int
-  starts_at   DateTime
+  start_date DateTime
   @@index([client_id])
 }
 
