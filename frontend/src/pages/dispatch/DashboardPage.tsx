@@ -1,19 +1,33 @@
 import Card from "../../components/ui/Card";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
+import { useAllJobsQuery } from "../../hooks/useJobs";
 
 export default function DashboardPage() {
-	  const events = [
-    { title: "Install", start: "2025-11-07T09:00:00", end: "2025-09-02T10:30:00" },
-	 { title: "Install", start: "2025-11-07T09:00:00", end: "2025-09-02T10:30:00" },
-	  { title: "Install", start: "2025-11-07T09:00:00", end: "2025-09-02T10:30:00" },
-	   { title: "Install", start: "2025-11-07T09:00:00", end: "2025-09-02T10:30:00" },
-    { title: "Repair", start: "2025-11-06T13:00:00", end: "2025-09-03T14:00:00" },
-  ];
+  const { data: jobs, error } = useAllJobsQuery();
+
+  const events = jobs
+    ?.map((job) => {
+    const date = new Date(job.start_date);
+    const dateStr = date.toISOString().split("T")[0]; // YYYY-MM-DD
+
+    return {
+      title: job.name,
+      start: dateStr,
+      allDay: true,
+    };
+    }) || [];
   return (
     <div className="min-h-screen text-white p-6">
       <div className="grid gap-6 md:grid-cols-2">
+
         <Card className="md:col-span-2">
+          {error && (
+            <p className="text-red-400 mb-2">
+              Failed to load events: {error.message}
+            </p>
+          )}
+
           <FullCalendar
             plugins={[dayGridPlugin]}
             initialView="dayGridWeek"
@@ -24,14 +38,14 @@ export default function DashboardPage() {
               },
             }}
             headerToolbar={{
-              left: "jobsTitle",       // 👈 our custom “title”
+              left: "jobsTitle",
               center: "",
               right: "today prev,next",
             }}
             customButtons={{
               jobsTitle: {
                 text: "Upcoming Jobs",
-                click: () => {},       // no-op so it does nothing
+                click: () => {},
               },
             }}
             events={events}
@@ -46,6 +60,7 @@ export default function DashboardPage() {
         <Card title="Pending Quotes">
           <p className="text-gray-300 text-sm">2 awaiting approval</p>
         </Card>
+
       </div>
     </div>
   );

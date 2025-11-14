@@ -15,6 +15,7 @@ export interface Job {
 	tech_ids: string[];
 	client_id: string;
 	status: JobStatus;
+	start_date: Date;
 }
 
 export interface CreateJobInput {
