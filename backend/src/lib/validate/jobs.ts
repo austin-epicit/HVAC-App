@@ -17,7 +17,7 @@ export const createJobSchema = z.object({
 		])
 		.default("Unscheduled"),
 	time_mins: z.number().int().nonnegative().default(0),
-	starts_at: z
+	start_date: z
 		.preprocess(
 			(arg) => (typeof arg === "string" ? new Date(arg) : arg),
 			z.date({ error: "Start date is required" })

@@ -57,7 +57,7 @@ export const insertJob = async (req: Request) => {
 					address: parsed.address,
 					status: parsed.status as job_status,
 					time_mins: parsed.time_mins,
-					starts_at: parsed.starts_at,
+					start_date: parsed.start_date,
 				},
 			});
 
