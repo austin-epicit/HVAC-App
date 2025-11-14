@@ -6,7 +6,6 @@ import FullPopup from "../ui/FullPopup";
 import { CreateJobSchema, type CreateJobInput } from "../../types/jobs";
 import { useAllClientsQuery } from "../../hooks/useClients";
 import Dropdown from "../ui/Dropdown";
-
 import DatePicker from "../ui/DatePicker";
 
 interface CreateJobProps {
@@ -27,7 +26,6 @@ const CreateJob = ({ isModalOpen, setIsModalOpen, createJob }: CreateJobProps) =
 		// isLoading: isFetchLoading,
 		// error: fetchError,
 	} = useAllClientsQuery();
-
 	const [startDate, setStartDate] = useState<Date>(new Date());
 
 	let dropdownEntries;

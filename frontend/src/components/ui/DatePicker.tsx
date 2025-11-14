@@ -3,8 +3,8 @@ import { DayPicker } from "react-day-picker";
 import { Calendar } from "lucide-react";
 import { format } from "date-fns";
 
-import "react-day-picker/dist/style.css";     // DayPicker base styles (required)
-import "./DatePicker.css";                    // your dark theme overrides
+import "react-day-picker/dist/style.css";
+import "./DatePicker.css"; 
 
 type DatePickerProps = {
   label?: string;
@@ -13,13 +13,6 @@ type DatePickerProps = {
   disabled?: boolean;
 };
 
-/**
- * A smooth inline-expanding datepicker
- * - No portal
- * - No absolute positioning
- * - Expands inside form naturally
- * - Allows scrolling anywhere in the form
- */
 export default function DatePicker({
   label,
   value,
@@ -36,7 +29,6 @@ export default function DatePicker({
         </p>
       )}
 
-      {/* Input button */}
       <button
         type="button"
         disabled={disabled}
@@ -56,7 +48,6 @@ export default function DatePicker({
         <Calendar className="h-4 w-4 opacity-50" />
       </button>
 
-      {/* Inline expanding calendar */}
       {open && (
         <div className=" mt-1 bg-zinc-950 border border-zinc-800 rounded-sm shadow-xl p-0.5 inline-block">
           <DayPicker
