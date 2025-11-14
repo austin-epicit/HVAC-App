@@ -7,6 +7,8 @@ import { CreateJobSchema, type CreateJobInput } from "../../types/jobs";
 import { useAllClientsQuery } from "../../hooks/useClients";
 import Dropdown from "../ui/Dropdown";
 
+import DatePicker from "../ui/DatePicker";
+
 interface CreateJobProps {
 	isModalOpen: boolean;
 	setIsModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -25,6 +27,8 @@ const CreateJob = ({ isModalOpen, setIsModalOpen, createJob }: CreateJobProps) =
 		// isLoading: isFetchLoading,
 		// error: fetchError,
 	} = useAllClientsQuery();
+
+	const [startDate, setStartDate] = useState<Date>(new Date());
 
 	let dropdownEntries;
 
@@ -68,7 +72,7 @@ const CreateJob = ({ isModalOpen, setIsModalOpen, createJob }: CreateJobProps) =
 				address: addressValue,
 				description: descValue,
 				status: "Unscheduled",
-				start_date: new Date(),
+				start_date: startDate,
 			};
 
 			const parseResult = CreateJobSchema.safeParse(newJob);
@@ -143,6 +147,8 @@ const CreateJob = ({ isModalOpen, setIsModalOpen, createJob }: CreateJobProps) =
 			<div className="border border-zinc-800 rounded-sm">
 				<Dropdown refToApply={clientRef} entries={dropdownEntries} />
 			</div>
+
+			<DatePicker label="Start Date" value={startDate} onChange={setStartDate}/>
 
 			<p className="mb-1 mt-3 hover:color-accent">Description</p>
 			<textarea
