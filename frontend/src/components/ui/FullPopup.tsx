@@ -5,9 +5,10 @@ interface FullPopupProps {
 	isModalOpen: boolean;
 	size?: "md" | "lg" | "xl";
 	hasBackground?: boolean;
+	onClose?: () => void;
 }
 
-const FullPopup = ({ content, isModalOpen, size = "md", hasBackground = true }: FullPopupProps) => {
+const FullPopup = ({ content, isModalOpen, size = "md", hasBackground = true, onClose, }: FullPopupProps) => {
 	let baseClassPanel = "transition-all fixed inset-0 flex items-center justify-center ";
 	let baseClassBackground = "transition-all fixed inset-0 bg-black ";
 
@@ -36,14 +37,23 @@ const FullPopup = ({ content, isModalOpen, size = "md", hasBackground = true }: 
 	}
 
 	return (
-		<>
-			{hasBackground && <div className={baseClassBackground}></div>}
-
-			<div className={baseClassPanel}>
-				<div className={baseClassInset}>{content}</div>
-			</div>
-		</>
-	);
+    <>
+      {hasBackground && (
+        <div
+          className={baseClassBackground}
+          onClick={onClose}
+        ></div>
+      )}
+      <div className={baseClassPanel} onClick={onClose}>
+        <div
+          className={baseClassInset}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {content}
+        </div>
+      </div>
+    </>
+  );
 };
 
 export default FullPopup;

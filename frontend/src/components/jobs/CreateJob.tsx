@@ -181,7 +181,7 @@ const CreateJob = ({ isModalOpen, setIsModalOpen, createJob }: CreateJobProps) =
 		</>
 	);
 
-	return <FullPopup content={content} isModalOpen={isModalOpen} />;
+	return <FullPopup content={content} isModalOpen={isModalOpen} onClose={() => setIsModalOpen(false)}/>;
 };
 
 export default CreateJob;
