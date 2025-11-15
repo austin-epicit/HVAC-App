@@ -30,7 +30,7 @@ const CreateJob = ({ isModalOpen, setIsModalOpen, createJob }: CreateJobProps) =
 
 	let dropdownEntries;
 
-	if (clients) {
+	if (clients && clients.length) {
 		dropdownEntries = (
 			<>
 				{clients.map((c) => (
@@ -43,7 +43,7 @@ const CreateJob = ({ isModalOpen, setIsModalOpen, createJob }: CreateJobProps) =
 	} else {
 		dropdownEntries = (
 			<>
-				<option disabled value={""} className="text-black">
+				<option disabled selected value={""} className="text-black">
 					No clients found
 				</option>
 			</>
@@ -146,7 +146,7 @@ const CreateJob = ({ isModalOpen, setIsModalOpen, createJob }: CreateJobProps) =
 				<Dropdown refToApply={clientRef} entries={dropdownEntries} />
 			</div>
 
-			<DatePicker label="Start Date" value={startDate} onChange={setStartDate}/>
+			<DatePicker label="Start Date" value={startDate} onChange={setStartDate} />
 
 			<p className="mb-1 mt-3 hover:color-accent">Description</p>
 			<textarea
@@ -181,7 +181,13 @@ const CreateJob = ({ isModalOpen, setIsModalOpen, createJob }: CreateJobProps) =
 		</>
 	);
 
-	return <FullPopup content={content} isModalOpen={isModalOpen} onClose={() => setIsModalOpen(false)}/>;
+	return (
+		<FullPopup
+			content={content}
+			isModalOpen={isModalOpen}
+			onClose={() => setIsModalOpen(false)}
+		/>
+	);
 };
 
 export default CreateJob;
