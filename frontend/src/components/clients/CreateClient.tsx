@@ -133,7 +133,7 @@ const CreateClient = ({ isModalOpen, setIsModalOpen, createClient }: CreateClien
 		</>
 	);
 
-	return <FullPopup content={content} isModalOpen={isModalOpen} />;
+	return <FullPopup content={content} isModalOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />;
 };
 
 export default CreateClient;
