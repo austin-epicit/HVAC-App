@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import FullCalendar from "@fullcalendar/react";
+import interactionPlugin from "@fullcalendar/interaction";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import type { Job } from "../../types/jobs";
+import { useUpdateJobMutation } from "../../hooks/useJobs";
 
 interface SmartCalendarProps {
   jobs: Job[];
@@ -14,21 +16,21 @@ export default function SmartCalendar({ jobs, view, toolbar }: SmartCalendarProp
   const [popupPos, setPopupPos] = useState<{ top: number; left: number } | null>(null);
   const popupRef = useRef<HTMLDivElement>(null);
 
-  // Close popup outside click
+  const { mutateAsync: updateJob } = useUpdateJobMutation();
+
+  // Close popup on outside click
   useEffect(() => {
-    function handleClick(e: MouseEvent) {
+    function handleMouseDown(e: MouseEvent) {
       if (popupRef.current && !popupRef.current.contains(e.target as Node)) {
         setSelectedJob(null);
       }
     }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    document.addEventListener("mousedown", handleMouseDown);
+    return () => document.removeEventListener("mousedown", handleMouseDown);
   }, []);
 
-  // Convert job data into FullCalendar events
   const events = jobs.map((job) => {
-    const d = new Date(job.start_date);
-    const dateStr = d.toISOString().split("T")[0];
+    const dateStr = new Date(job.start_date).toISOString().split("T")[0];
     return {
       id: job.id,
       title: job.name,
@@ -40,7 +42,7 @@ export default function SmartCalendar({ jobs, view, toolbar }: SmartCalendarProp
   return (
     <div className="relative">
       <FullCalendar
-        plugins={[dayGridPlugin]}
+        plugins={[dayGridPlugin, interactionPlugin]}
         initialView={view === "week" ? "dayGridWeek" : "dayGridMonth"}
         headerToolbar={toolbar}
         views={{
@@ -49,6 +51,39 @@ export default function SmartCalendar({ jobs, view, toolbar }: SmartCalendarProp
         }}
         events={events}
         height="auto"
+        editable={true}
+        eventStartEditable={true}
+        eventDurationEditable={false}
+
+        eventDrop={async (info) => {
+          const jobId = info.event.id;
+          const newDate = info.event.start;
+
+          if (!newDate) {
+            info.revert();
+            return;
+          }
+
+          try {
+            // Normalize to YYYY-MM-DD (UTC) for all-day events
+            const normalized = new Date(
+              Date.UTC(
+                newDate.getFullYear(),
+                newDate.getMonth(),
+                newDate.getDate()
+              )
+            );
+
+            await updateJob({
+              id: jobId,
+              updates: { start_date: normalized },
+            });
+          } catch (err) {
+            console.error("Failed to update job date", err);
+            info.revert();
+          }
+        }}
+
         eventClick={(info) => {
           const job = jobs.find((j) => j.id === info.event.id);
           if (!job) return;

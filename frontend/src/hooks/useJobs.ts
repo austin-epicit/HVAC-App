@@ -5,7 +5,7 @@ import {
 	type UseMutationResult,
 } from "@tanstack/react-query";
 import type { CreateJobInput, Job } from "../types/jobs";
-import { createJob, getAllJobs, getJobById } from "../api/jobs";
+import { createJob, getAllJobs, getJobById, updateJob } from "../api/jobs";
 
 export const useAllJobsQuery = () => {
 	return useQuery<Job[], Error>({
@@ -36,3 +36,20 @@ export const useCreateJobMutation = (): UseMutationResult<Job, Error, CreateJobI
 		},
 	});
 };
+
+export const useUpdateJobMutation = () => {
+	const queryClient = useQueryClient();
+
+	return useMutation<Job, Error, { id: string; updates: Partial<Job> }>({
+		mutationFn: ({ id, updates }) => updateJob(id, updates),
+		onSuccess: (updatedJob) => {
+			queryClient.invalidateQueries({ queryKey: ["allJobs"] });
+			queryClient.setQueryData(["jobById", updatedJob.id], updatedJob);
+		},
+		onError: (err) => {
+			console.error("Failed to update job:", err);
+		},
+	});
+};
+
+

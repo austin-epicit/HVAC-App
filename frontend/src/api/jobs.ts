@@ -44,3 +44,15 @@ export const createJob = async (input: CreateJobInput): Promise<Job> => {
 		throw error;
 	}
 };
+
+export const updateJob = async ( id: string, updates: Partial<Job>): Promise<Job> => {
+	try {
+		const response = await api.patch<JobResponse>(`/jobs/${id}`, updates);
+
+		if (response.data.err) throw new Error(response.data.err);
+		return response.data.data[0];
+	} catch (error) {
+		console.error("Failed to update job: ", error);
+		throw error;
+	}
+};

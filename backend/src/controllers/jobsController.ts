@@ -2,6 +2,7 @@ import { ZodError } from "zod";
 import { job_status } from "../../generated/prisma/enums.js";
 import { db } from "../db.js";
 import { createJobSchema } from "../lib/validate/jobs.js";
+import { Request } from "express";
 
 export const getAllJobs = async () => {
 	return await db.job.findMany();
@@ -92,5 +93,53 @@ export const insertJob = async (req: Request) => {
 			};
 		}
 		return { err: "Internal server error" };
+	}
+};
+
+
+export const updateJob = async (req: Request) => {
+	try {
+		const id = (req as any).params.id;
+		const updates = (req as any).body;
+
+		// Allow only safe fields to be updated
+		const allowedFields = [
+			"name",
+			"description",
+			"priority",
+			"client_id",
+			"address",
+			"status",
+			"time_mins",
+			"start_date",
+		] satisfies (keyof typeof updates)[];
+
+		const safeData: Record<string, any> = {};
+
+		for (const key of allowedFields) {
+			if (updates[key] !== undefined) {
+				if (key === "start_date") {
+					safeData.start_date = new Date(updates.start_date);
+				} else {
+					safeData[key] = updates[key];
+				}
+			}
+		}
+
+		const updated = await db.job.update({
+			where: { id },
+			data: safeData,
+			include: {
+				client: true,
+				job_tech: {
+					include: { tech: true },
+				},
+			},
+		});
+
+		return { err: "", item: updated };
+	} catch (e) {
+		console.error("Failed to update job:", e);
+		return { err: "Failed to update job" };
 	}
 };

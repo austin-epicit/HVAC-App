@@ -4,6 +4,7 @@ import {
 	getAllJobs,
 	getJobById,
 	insertJob,
+	updateJob,
 } from "./controllers/jobsController.js";
 import express from "express";
 import {
@@ -79,6 +80,19 @@ app.post("/jobs", async (req, res) => {
 	}
 
 	return res.status(201).json({ err: "", data: [result.item] });
+});
+
+app.patch("/jobs/:id", async (req, res) => {
+	try {
+		const result = await updateJob(req);
+		if (result.err) {
+			return res.status(400).json({ err: result.err, data: [] });
+		}
+		return res.json({ err: "", data: [result.item] });
+	} catch (err) {
+		console.error(err);
+		return res.status(500).json({ err: "Failed to update job", data: [] });
+	}
 });
 
 // CLIENTS

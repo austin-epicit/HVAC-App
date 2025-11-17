@@ -15,7 +15,7 @@ export default function JobsPage() {
 			name: j.name,
 			technicians: j.tech_ids,
 			client: j.client_id,
-			Date: new Date(j.start_date).toLocaleDateString(),
+			Date: new Date(j.start_date).toISOString().split("T")[0],
 			status: j.status,
 		}))
 		.sort(
