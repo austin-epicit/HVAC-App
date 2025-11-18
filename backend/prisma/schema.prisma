@@ -34,7 +34,7 @@ model job {
   created_at  DateTime @default(now())
   status      job_status
   time_mins   Int
-  start_date DateTime
+  start_date  DateTime
   @@index([client_id])
 }
 
@@ -99,19 +99,19 @@ model client_note {
   id               String       @unique @id @default(uuid())
   client_id        String
   tech_id          String? 
-  operator_id      String?
+  dispatcher_id    String?
   content          String
   created_at       DateTime     @default(now())
   updated_at       DateTime     @updatedAt 
   client           client       @relation(fields: [client_id], references: [id])
   tech             technician?  @relation(fields: [tech_id], references: [id])
-  operator         operator?    @relation(fields: [operator_id], references: [id])
+  dispatcher       dispatcher?    @relation(fields: [dispatcher_id], references: [id])
   @@index([client_id])
   @@index([tech_id])
-  @@index([operator_id])
+  @@index([dispatcher_id])
 }
 
-model operator {
+model dispatcher {
   id            String @unique @id @default(uuid())
   name          String
   email         String
@@ -125,13 +125,13 @@ model operator {
 }
 
 model log {
-  id          String @unique @id @default(uuid())
-  operator_id String?
-  tech_id     String?
-  description String
-  created_at  DateTime @default(now())
-  operator    operator?    @relation(fields: [operator_id], references: [id])
-  tech        technician?  @relation(fields: [tech_id], references: [id])
-  @@index([operator_id])
+  id            String @unique @id @default(uuid())
+  dispatcher_id String?
+  tech_id       String?
+  description   String
+  created_at    DateTime @default(now())
+  dispatcher    dispatcher?    @relation(fields: [dispatcher_id], references: [id])
+  tech          technician?  @relation(fields: [tech_id], references: [id])
+  @@index([dispatcher_id])
   @@index([tech_id])
 }
