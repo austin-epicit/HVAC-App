@@ -38,6 +38,15 @@ model job {
   @@index([client_id])
 }
 
+// TODO: add field for images
+model inventory_item {
+  id          String @unique @id @default(uuid())
+  name        String
+  description String
+  location    String
+  quantity    Int
+}
+
 enum technician_status {
   Offline
   Available
