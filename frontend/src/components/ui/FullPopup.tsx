@@ -29,7 +29,7 @@ const FullPopup = ({
   }
 
   let baseClassInset =
-    "transition-all bg-zinc-900 p-5 rounded-lg shadow-xl max-h-[90vh] overflow-y-auto ";
+    "scrollbar-hide transition-all bg-zinc-900 p-5 rounded-lg shadow-xl max-h-[90vh] overflow-y-auto ";
 
   switch (size) {
     case "md":
@@ -72,8 +72,18 @@ const FullPopup = ({
         >
           {content}
         </div>
+        <style>{`
+          .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+          }
+          .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+          }
+        `}</style>
       </div>
     </>
+    
   );
 };
 
