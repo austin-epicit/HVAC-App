@@ -7,6 +7,8 @@ import { CreateJobSchema, type CreateJobInput } from "../../types/jobs";
 import { useAllClientsQuery } from "../../hooks/useClients";
 import Dropdown from "../ui/Dropdown";
 import DatePicker from "../ui/DatePicker";
+import TimePicker from "../ui/TimePicker";
+import DurationPicker from "../ui/DurationPicker";
 
 interface CreateJobProps {
 	isModalOpen: boolean;
@@ -26,7 +28,13 @@ const CreateJob = ({ isModalOpen, setIsModalOpen, createJob }: CreateJobProps) =
 		// isLoading: isFetchLoading,
 		// error: fetchError,
 	} = useAllClientsQuery();
+
 	const [startDate, setStartDate] = useState<Date>(new Date());
+	const [when, setWhen] = useState<"all_day" | "exact" | "window">("all_day");
+	const [exactTime, setExactTime] = useState<Date | null>(null);
+	const [windowStart, setWindowStart] = useState<Date | null>(null);
+	const [windowEnd, setWindowEnd] = useState<Date | null>(null);
+	const [duration, setDuration] = useState<number>(60); // in minutes
 
 	let dropdownEntries;
 
@@ -63,6 +71,19 @@ const CreateJob = ({ isModalOpen, setIsModalOpen, createJob }: CreateJobProps) =
 			const addressValue = addressRef.current.value.trim();
 			const descValue = descRef.current.value.trim();
 
+			let combinedStart = new Date(startDate);
+			if (when === "all_day") {
+			combinedStart.setHours(6, 0, 0, 0); // default all-day start
+			}
+			if (when === "exact" && exactTime) {
+			combinedStart.setHours(exactTime.getHours());
+			combinedStart.setMinutes(exactTime.getMinutes());
+			}
+			if (when === "window" && windowStart) {
+			combinedStart.setHours(windowStart.getHours());
+			combinedStart.setMinutes(windowStart.getMinutes());
+			}
+
 			const newJob: CreateJobInput = {
 				name: labelValue,
 				tech_ids: [],
@@ -70,7 +91,10 @@ const CreateJob = ({ isModalOpen, setIsModalOpen, createJob }: CreateJobProps) =
 				address: addressValue,
 				description: descValue,
 				status: "Unscheduled",
-				start_date: startDate,
+				start_date: combinedStart.toISOString(),
+				duration: duration,
+				schedule_type: when,
+				window_end: when === "window" && windowEnd ? windowEnd.toISOString() : null,
 			};
 
 			const parseResult = CreateJobSchema.safeParse(newJob);
@@ -86,6 +110,15 @@ const CreateJob = ({ isModalOpen, setIsModalOpen, createJob }: CreateJobProps) =
 			await createJob(newJob);
 
 			setIsLoading(false);
+
+			// Reset form values before closing
+			setStartDate(new Date());
+			setExactTime(new Date());
+			setWindowStart(new Date());
+			setWindowEnd(new Date());
+			setDuration(0);
+			setWhen("all_day");
+
 			setIsModalOpen(false);
 		}
 	};
@@ -147,6 +180,75 @@ const CreateJob = ({ isModalOpen, setIsModalOpen, createJob }: CreateJobProps) =
 			</div>
 
 			<DatePicker label="Start Date" value={startDate} onChange={setStartDate} />
+
+			<p className="mb-1 mt-4 hover:color-accent">When</p>
+
+			<div className="flex w-full border border-zinc-700 rounded-md overflow-hidden">
+				<button
+				className={`flex-1 py-2 text-sm ${
+					when === "all_day"
+					? "bg-blue-600 text-white"
+					: "bg-zinc-900 text-gray-300 hover:bg-zinc-800"
+				}`}
+				onClick={() => setWhen("all_day")}
+				>
+				All Day
+				</button>
+
+				<button
+				className={`flex-1 py-2 text-sm ${
+					when === "exact"
+					? "bg-blue-600 text-white"
+					: "bg-zinc-900 text-gray-300 hover:bg-zinc-800"
+				}`}
+				onClick={() => setWhen("exact")}
+				>
+				Exact Time
+				</button>
+
+				<button
+				className={`flex-1 py-2 text-sm ${
+					when === "window"
+					? "bg-blue-600 text-white"
+					: "bg-zinc-900 text-gray-300 hover:bg-zinc-800"
+				}`}
+				onClick={() => setWhen("window")}
+				>
+				Arrival Window
+				</button>
+			</div>
+
+			{when === "exact" && (
+				<div className="mt-2 flex gap-4 items-start">
+				<TimePicker label="Start Time" value={exactTime} onChange={setExactTime} />
+				<DurationPicker
+					label="Job Duration"
+					value={duration}
+					onChange={setDuration}
+					/>
+				</div>
+			)}
+
+			{when === "window" && (
+			<div className="grid grid-cols-2 gap-4 mt-2">
+				<TimePicker
+					label="Start Time"
+					value={windowStart}
+					onChange={setWindowStart}
+				/>
+				<DurationPicker
+					label="Job Duration"
+					value={duration}
+					onChange={setDuration}
+				/>
+				<TimePicker
+					label="End Time"
+					value={windowEnd}
+					onChange={setWindowEnd}
+				/>
+				
+			</div>
+			)}
 
 			<p className="mb-1 mt-3 hover:color-accent">Description</p>
 			<textarea

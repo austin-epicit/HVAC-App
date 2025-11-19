@@ -29,13 +29,76 @@ export default function SmartCalendar({ jobs, view, toolbar }: SmartCalendarProp
     return () => document.removeEventListener("mousedown", handleMouseDown);
   }, []);
 
-  const events = jobs.map((job) => {
-    const dateStr = new Date(job.start_date).toISOString().split("T")[0];
+  /*  After priority support is added to jobs
+  function getPriorityColor(priority?: string): string {
+    switch (priority?.toLowerCase()) {
+      case "high": return "#ef4444"; // red
+      case "medium": return "#f59e0b"; // amber
+      case "low": return "#10b981"; // green
+      case "normal": 
+      default: return "#3b82f6"; // blue
+    }
+  }*/
+
+  function formatTime(dateStr: string): string {
+    const date = new Date(dateStr);
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  }
+
+  function formatDuration(minutes?: number): string {
+    if (!minutes) return "";
+    const hrs = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    if (hrs === 0) return `${mins}m`;
+    if (mins === 0) return `${hrs}h`;
+    return `${hrs}h ${mins}m`;
+  }
+
+  function formatDate(dateStr: string): string {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString([], { 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric' 
+    });
+  }
+
+  // Sort jobs: all-day jobs first, then by start time
+  const sortedJobs = [...jobs].sort((a, b) => {
+    const isAllDayA = a.schedule_type === "all_day";
+    const isAllDayB = b.schedule_type === "all_day";
+    
+    // All-day jobs come first
+    if (isAllDayA && !isAllDayB) return -1;
+    if (!isAllDayA && isAllDayB) return 1;
+    
+    // Within same type, sort by time
+    const timeA = new Date(a.start_date).getTime();
+    const timeB = new Date(b.start_date).getTime();
+    return timeA - timeB;
+  });
+
+  const events = sortedJobs.map((job, index) => {
+    const startDate = new Date(job.start_date);
+    const dateStr = startDate.toISOString().split("T")[0];
+    const isAllDay = job.schedule_type === "all_day";
+    
+    // Format title based on schedule type
+    const title = isAllDay 
+      ? job.name 
+      : `${formatTime(job.start_date)} ${job.name}`;
+    
     return {
       id: job.id,
-      title: job.name,
+      title: title,
       start: dateStr,
       allDay: true,
+      //backgroundColor: getPriorityColor(job.priority),
+      //borderColor: getPriorityColor(job.priority),
+      extendedProps: {
+        sortOrder: index, // Use index from sorted array
+        isAllDay: isAllDay,
+      },
     };
   });
 
@@ -54,6 +117,7 @@ export default function SmartCalendar({ jobs, view, toolbar }: SmartCalendarProp
         editable={true}
         eventStartEditable={true}
         eventDurationEditable={false}
+        eventOrder="sortOrder,title" // Sort by our custom order, then title
 
         eventDrop={async (info) => {
           const jobId = info.event.id;
@@ -65,18 +129,43 @@ export default function SmartCalendar({ jobs, view, toolbar }: SmartCalendarProp
           }
 
           try {
-            // Normalize to YYYY-MM-DD (UTC) for all-day events
-            const normalized = new Date(
-              Date.UTC(
-                newDate.getFullYear(),
-                newDate.getMonth(),
-                newDate.getDate()
-              )
-            );
+            const job = jobs.find((j) => j.id === jobId);
+            if (!job) {
+              info.revert();
+              return;
+            }
+
+            let normalized: Date;
+
+            // For all-day jobs, use date only (no time)
+            if (job.schedule_type === "all_day") {
+              normalized = new Date(
+                Date.UTC(
+                  newDate.getFullYear(),
+                  newDate.getMonth(),
+                  newDate.getDate(),
+                  0, 0, 0, 0
+                )
+              );
+            } else {
+              // For timed jobs, preserve the original time
+              const originalDate = new Date(job.start_date);
+              normalized = new Date(
+                Date.UTC(
+                  newDate.getFullYear(),
+                  newDate.getMonth(),
+                  newDate.getDate(),
+                  originalDate.getUTCHours(),
+                  originalDate.getUTCMinutes(),
+                  0,
+                  0
+                )
+              );
+            }
 
             await updateJob({
               id: jobId,
-              updates: { start_date: normalized },
+              updates: { start_date: normalized.toISOString() },
             });
           } catch (err) {
             console.error("Failed to update job date", err);
@@ -93,8 +182,8 @@ export default function SmartCalendar({ jobs, view, toolbar }: SmartCalendarProp
           const eventCenterY = rect.top + rect.height / 2;
           const screenCenterX = window.innerWidth / 2;
 
-          const POPUP_WIDTH = 260;
-          const POPUP_HEIGHT = 160;
+          const POPUP_WIDTH = 300;
+          const POPUP_HEIGHT = 200;
 
           const placeRight = eventCenterX < screenCenterX;
 
@@ -113,21 +202,59 @@ export default function SmartCalendar({ jobs, view, toolbar }: SmartCalendarProp
         <div
           ref={popupRef}
           className="fixed z-[6000] bg-zinc-900 border border-zinc-700
-                     rounded-lg shadow-xl p-4 text-sm min-w-[260px]"
-          style={{ top: popupPos.top, left: popupPos.left }}
+                     rounded-lg shadow-xl p-4 text-sm"
+          style={{ top: popupPos.top, left: popupPos.left, minWidth: '300px' }}
         >
-          <h2 className="text-xl font-bold mb-3">{selectedJob.name}</h2>
+          <h2 className="text-xl font-bold mb-3 text-gray-200">{selectedJob.name}</h2>
 
-          <p className="mb-1"><strong>Status:</strong> {selectedJob.status}</p>
-          <p className="mb-1">
-            <strong>Start:</strong>{" "}
-            {new Date(selectedJob.start_date).toLocaleDateString()}
-          </p>
+          <div className="space-y-2 text-gray-300">
+            <p>
+              <strong className="text-gray-400">Status:</strong> {selectedJob.status}
+            </p>
+
+            {selectedJob.schedule_type === "all_day" ? (
+              <p>
+                <strong className="text-gray-400">Schedule:</strong>{" "}
+                All Day
+              </p>
+            ) : (
+              <p>
+                <strong className="text-gray-400">Start:</strong>{" "}
+                {formatTime(selectedJob.start_date)}
+              </p>
+            )}
+
+            <p>
+              <strong className="text-gray-400">Date:</strong>{" "}
+              {formatDate(selectedJob.start_date)}
+            </p>
+
+            {selectedJob.duration !== undefined && selectedJob.duration > 0 && (
+              <p>
+                <strong className="text-gray-400">Duration:</strong>{" "}
+                {formatDuration(selectedJob.duration)}
+              </p>
+            )}
+
+            {selectedJob.address && (
+              <p>
+                <strong className="text-gray-400">Address:</strong>{" "}
+                {selectedJob.address}
+              </p>
+            )}
+
+            {selectedJob.description && (
+              <p>
+                <strong className="text-gray-400">Description:</strong>{" "}
+                {selectedJob.description}
+              </p>
+            )}
+          </div>
 
           <div className="flex justify-end mt-4">
             <button
-              className="px-3 py-1 rounded-sm border border-zinc-700 
-                         hover:bg-zinc-800 text-sm"
+              className="px-3 py-1.5 rounded-sm border border-zinc-700 
+                         hover:bg-zinc-800 text-sm text-gray-200 transition-colors"
               onClick={() => setSelectedJob(null)}
             >
               Close
@@ -137,4 +264,14 @@ export default function SmartCalendar({ jobs, view, toolbar }: SmartCalendarProp
       )}
     </div>
   );
+  /**       To be used after priority support is added to jobs
+      <p> 
+        <strong className="text-gray-400">Priority:</strong>{" "}
+        <span 
+          className="inline-block w-2 h-2 rounded-full mr-1"
+          style={{ backgroundColor: getPriorityColor(selectedJob.priority) }}
+        />
+        {selectedJob.priority || "normal"}
+      </p> 
+     */ 
 }

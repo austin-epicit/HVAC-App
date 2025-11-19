@@ -17,10 +17,24 @@ export const createJobSchema = z.object({
 		])
 		.default("Unscheduled"),
 	time_mins: z.number().int().nonnegative().default(0),
+	duration: z.number().int().nonnegative().optional(),
 	start_date: z
 		.preprocess(
 			(arg) => (typeof arg === "string" ? new Date(arg) : arg),
 			z.date({ error: "Start date is required" })
 		)
 		.default(new Date()),
+	window_end: z
+		.preprocess(
+			(arg) => {
+				if (!arg) return null;
+				return typeof arg === "string" ? new Date(arg) : arg;
+			},
+			z.date().nullable()
+		)
+		.optional(),
+	schedule_type: z
+		.enum(["all_day", "exact", "window"])
+		.optional()
+		.default("exact"),
 });

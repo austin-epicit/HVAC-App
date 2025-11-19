@@ -23,18 +23,20 @@ enum job_status {
 }
 
 model job {
-  id          String @unique @id @default(uuid())
-  name        String
-  description String
-  priority    String
-  client_id   String
-  client      client @relation(fields: [client_id], references: [id])
-  job_tech    job_technician[]
-  address     String
-  created_at  DateTime @default(now())
-  status      job_status
-  time_mins   Int
-  start_date  DateTime
+  id            String @unique @id @default(uuid())
+  name          String
+  description   String
+  priority      String
+  client_id     String
+  client        client @relation(fields: [client_id], references: [id])
+  job_tech      job_technician[]
+  address       String
+  created_at    DateTime @default(now())
+  status        job_status
+  duration      Int @default(0)   // In minutes
+  start_date    DateTime 
+  window_end    DateTime?
+  schedule_type String  @default("exact") // "all_day" | "exact" | "window"
   @@index([client_id])
 }
 

@@ -57,8 +57,10 @@ export const insertJob = async (req: Request) => {
 					client_id: parsed.client_id,
 					address: parsed.address,
 					status: parsed.status as job_status,
-					time_mins: parsed.time_mins,
+					duration: parsed.duration,
 					start_date: parsed.start_date,
+					window_end: parsed.window_end,
+					schedule_type: parsed.schedule_type,
 				},
 			});
 
@@ -110,8 +112,10 @@ export const updateJob = async (req: Request) => {
 			"client_id",
 			"address",
 			"status",
-			"time_mins",
+			"duration",
 			"start_date",
+			"window_end",
+    		"schedule_type",	
 		] satisfies (keyof typeof updates)[];
 
 		const safeData: Record<string, any> = {};

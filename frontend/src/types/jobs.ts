@@ -7,6 +7,7 @@ export const JobStatusValues = [
 	"Completed",
 	"Cancelled",
 ] as const;
+
 export type JobStatus = (typeof JobStatusValues)[number];
 
 export interface Job {
@@ -14,8 +15,13 @@ export interface Job {
 	name: string;
 	tech_ids: string[];
 	client_id: string;
+	address: string;
+	description: string;
 	status: JobStatus;
-	start_date: Date;
+	schedule_type: "all_day" | "exact" | "window";
+	duration?: number;
+	start_date: string;
+	window_end?: string | null;
 }
 
 export interface CreateJobInput {
@@ -25,7 +31,10 @@ export interface CreateJobInput {
 	address: string;
 	description: string;
 	status: JobStatus;
-	start_date: Date;
+	schedule_type: "all_day" | "exact" | "window";
+	duration?: number;
+	start_date: string;
+	window_end?: string | null;
 }
 
 export interface JobResponse {
