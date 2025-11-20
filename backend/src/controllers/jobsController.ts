@@ -64,6 +64,11 @@ export const insertJob = async (req: Request) => {
 				},
 			});
 
+			await tx.client.update({
+				where: { id: parsed.client_id },
+				data: { last_activity: new Date() },
+			});
+
 			if (parsed.tech_ids.length > 0) {
 				await tx.job_technician.createMany({
 					data: parsed.tech_ids.map((tech_id) => ({
