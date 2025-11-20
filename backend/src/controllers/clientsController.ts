@@ -32,7 +32,7 @@ export const insertClient = async (req: Request) => {
 					notes: {
 						connect: parsed.notes.map((id) => ({ id })),
 					},
-					last_activity: new Date(),
+					last_activity: parsed.last_activity,
 				},
 			});
 

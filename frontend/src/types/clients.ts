@@ -5,9 +5,9 @@ export interface Client {
 	id: string;
 	name: string;
 	address: string;
-	isActive: boolean;
-	createdAt: Date;
-	lastActivity: Date;
+	is_active: boolean;
+	created_at: Date;
+	last_activity: Date;
 	jobs: Job[];
 	contacts: ClientContact[];
 	notes: ClientNote[];
@@ -25,20 +25,20 @@ export interface ClientContact {
 export interface ClientNote {
 	id: string;
 	content: string;
-	createdAt: Date;
-	updatedAt: Date;
+	created_at: Date;
+	updated_at: Date;
 }
 
 export interface CreateClientInput {
 	name: string;
 	address: string;
-	isActive: boolean;
+	is_active: boolean;
 }
 
 export const CreateClientSchema = z.object({
 	name: z.string().min(1, "Client name is required"),
 	address: z.string().min(1, "Address is required"),
-	isActive: z.boolean().default(true),
+	is_active: z.boolean().default(true),
 });
 
 export interface ClientResponse {

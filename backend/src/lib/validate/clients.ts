@@ -18,4 +18,10 @@ export const createClientSchema = z.object({
 	jobs: z.array(z.string().uuid("Invalid job ID")).default([]),
 	contacts: z.array(z.string().uuid("Invalid contact ID")).default([]),
 	notes: z.array(z.string().uuid("Invalid note ID")).default([]),
+	last_activity: z
+		.preprocess(
+			(val) => (typeof val === "string" || val instanceof Date ? new Date(val) : new Date()),
+			z.date()
+		)
+		.default(() => new Date()),
 });

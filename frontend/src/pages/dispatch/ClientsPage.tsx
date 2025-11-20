@@ -17,7 +17,6 @@ export default function ClientsPage() {
 	const [search, setSearch] = useState("");
 	const [isModalOpen, setIsModalOpen] = useState(false);
 
-	// Filter and sort clients
 	const filteredClients = clients
 		?.filter((c) =>
 			c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -25,8 +24,8 @@ export default function ClientsPage() {
 		)
 		.sort((a, b) => {
 			// Sort active clients first
-			if (a.isActive === b.isActive) return 0;
-			return a.isActive ? -1 : 1;
+			if (a.is_active === b.is_active) return 0;
+			return a.is_active ? -1 : 1;
 		});
 
 	return (
@@ -104,7 +103,7 @@ export default function ClientsPage() {
 
 			{/* Client Cards Grid */}
 			{!isFetchLoading && !fetchError && filteredClients && filteredClients.length > 0 && (
-				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 justify-items-center">
 					{filteredClients.map((client) => (
 						<ClientCard
 							key={client.id}
