@@ -27,7 +27,7 @@ const CreateClient = ({ isModalOpen, setIsModalOpen, createClient }: CreateClien
 			const newClient: CreateClientInput = {
 				name: labelValue,
 				address: addressValue,
-				isActive: activeValue,
+				is_active: activeValue,
 			};
 
 			const parseResult = CreateClientSchema.safeParse(newClient);

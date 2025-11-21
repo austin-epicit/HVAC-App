@@ -7,6 +7,7 @@ import ClientsPage from "./pages/dispatch/ClientsPage";
 import TechniciansPage from "./pages/dispatch/TechniciansPage";
 import ReportingPage from "./pages/dispatch/ReportingPage";
 import SettingsPage from "./pages/dispatch/SettingsPage";
+import ClientDetailsPage from "./pages/dispatch/ClientDetailPage";
 
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuthStore } from "./auth/authStore";
@@ -34,6 +35,7 @@ export default function AppRoutes() {
 				<Route index element={<DashboardPage />} />
 				<Route path="schedule" element={<SchedulePage />} />
 				<Route path="clients" element={<ClientsPage />} />
+				<Route path="clients/:clientId" element={<ClientDetailsPage />} />
 				<Route path="jobs" element={<JobsPage />} />
 				<Route path="technicians" element={<TechniciansPage />} />
 				<Route path="reporting" element={<ReportingPage />} />

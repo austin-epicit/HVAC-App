@@ -72,14 +72,7 @@ export default function ClientCard({ client, onClick }: ClientCardProps) {
         </p>
       </div>
 
-      {/* Divider */}
-      <div className="w-full h-px bg-zinc-800 mb-2" />
-
-
-
-      {/* \/ JOB COUNT DOES NOT AUTO REFRESH ATM \/ */}
-
-
+      <div className="w-full h-px bg-zinc-800 mb-2" /> {/* Divider */}
 
       <div className="flex items-center justify-between">
         <span

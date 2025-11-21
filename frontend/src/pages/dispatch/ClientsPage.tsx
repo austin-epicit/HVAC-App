@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Search, Plus, Share } from "lucide-react";
 import { useAllClientsQuery, useCreateClientMutation } from "../../hooks/useClients";
 import CreateClient from "../../components/clients/CreateClient";
@@ -8,6 +9,7 @@ import BoxSvg from "../../assets/icons/box.svg?react";
 import ErrSvg from "../../assets/icons/error.svg?react";
 
 export default function ClientsPage() {
+	const navigate = useNavigate();
 	const {
 		data: clients,
 		isLoading: isFetchLoading,
@@ -109,8 +111,9 @@ export default function ClientsPage() {
 							key={client.id}
 							client={client}
 							onClick={() => {
-								// Handle client click - navigate to detail page
-								console.log("Clicked client:", client.id);
+								navigate(`/dispatch/clients/${client.id}`, {
+									state: { client }
+								});
 							}}
 						/>
 					))}
