@@ -5,6 +5,7 @@ import {
 	getJobById,
 	insertJob,
 	updateJob,
+	getJobsByClientId
 } from "./controllers/jobsController.js";
 import express from "express";
 import {
@@ -12,12 +13,33 @@ import {
 	ClientResponse,
 	JobInsertResult,
 	JobResponse,
+	ContactInsertResult,
+	ContactResponse,
+	NoteInsertResult,
+	NoteResponse,
+	DeleteResult,
 } from "./types/responses.js";
 import {
 	getAllClients,
 	getClientById,
 	insertClient,
+	updateClient,
+	deleteClient,
 } from "./controllers/clientsController.js";
+import {
+	getClientContacts,
+	getContactById,
+	insertContact,
+	updateContact,
+	deleteContact,
+} from "./controllers/contactsController.js";
+import {
+	getClientNotes,
+	getNoteById,
+	insertNote,
+	updateNote,
+	deleteNote,
+} from "./controllers/notesController.js";
 
 const app = express();
 
@@ -44,7 +66,9 @@ if (!port) {
 	port = "3000";
 }
 
+// ============================================
 // JOBS
+// ============================================
 
 app.get("/jobs", async (req, res) => {
 	try {
@@ -95,7 +119,9 @@ app.patch("/jobs/:id", async (req, res) => {
 	}
 });
 
+// ============================================
 // CLIENTS
+// ============================================
 
 app.get("/clients", async (req, res) => {
 	try {
@@ -125,12 +151,226 @@ app.get("/clients/:id", async (req, res) => {
 });
 
 app.post("/clients", async (req, res) => {
-	const result: ClientInsertResult = await insertClient(req.body);
-	if (result.err) {
-		return res.status(400).json({ err: result.err, data: [] });
-	}
+	try {
+		const result: ClientInsertResult = await insertClient(req.body);
+		if (result.err) {
+			console.error("Create client validation error:", result.err);
+			return res.status(400).json({ err: result.err });
+		}
 
-	return res.status(201).json({ err: "", data: [result.item] });
+		return res.status(201).json({ err: "", item: result.item });
+	} catch (err) {
+		console.error("Create client error:", err);
+		return res.status(500).json({ err: "Failed to create client" });
+	}
+});
+
+app.put("/clients/:id", async (req, res) => {
+	try {
+		const { id } = req.params;
+		const result = await updateClient(id, req.body);
+		
+		if (result.err) {
+			return res.status(400).json({ err: result.err });
+		}
+
+		return res.json({ err: "", item: result.item });
+	} catch (err) {
+		console.error(err);
+		return res.status(500).json({ err: "Failed to update client" });
+	}
+});
+
+app.delete("/clients/:id", async (req, res) => {
+	try {
+		const { id } = req.params;
+		const result: DeleteResult = await deleteClient(id);
+		
+		if (result.err) {
+			return res.status(400).json({ err: result.err });
+		}
+
+		return res.json({ err: "", message: result.message });
+	} catch (err) {
+		console.error(err);
+		return res.status(500).json({ err: "Failed to delete client" });
+	}
+});
+
+// ============================================
+// CLIENT CONTACTS
+// ============================================
+
+app.get("/clients/:clientId/contacts", async (req, res) => {
+	try {
+		const { clientId } = req.params;
+		const contacts = await getClientContacts(clientId);
+		const resp: ContactResponse = { err: "", data: contacts };
+		res.json(resp);
+	} catch (err) {
+		console.error(err);
+		res.status(500).json({ err: "Failed to fetch contacts", data: [] });
+	}
+});
+
+app.get("/clients/:clientId/contacts/:contactId", async (req, res) => {
+	try {
+		const { clientId, contactId } = req.params;
+		const contact = await getContactById(clientId, contactId);
+
+		if (!contact)
+			return res.status(404).json({ err: "Contact not found", data: [] });
+
+		const resp: ContactResponse = { err: "", data: [contact] };
+		res.json(resp);
+	} catch (err) {
+		console.error(err);
+		res.status(500).json({ err: "Failed to fetch contact", data: [] });
+	}
+});
+
+app.post("/clients/:clientId/contacts", async (req, res) => {
+	try {
+		const { clientId } = req.params;
+		const result: ContactInsertResult = await insertContact(clientId, req.body);
+		
+		if (result.err) {
+			return res.status(400).json({ err: result.err });
+		}
+
+		return res.status(201).json({ err: "", item: result.item });
+	} catch (err) {
+		console.error(err);
+		return res.status(500).json({ err: "Failed to create contact" });
+	}
+});
+
+app.put("/clients/:clientId/contacts/:contactId", async (req, res) => {
+	try {
+		const { clientId, contactId } = req.params;
+		const result = await updateContact(clientId, contactId, req.body);
+		
+		if (result.err) {
+			return res.status(400).json({ err: result.err });
+		}
+
+		return res.json({ err: "", item: result.item });
+	} catch (err) {
+		console.error(err);
+		return res.status(500).json({ err: "Failed to update contact" });
+	}
+});
+
+app.delete("/clients/:clientId/contacts/:contactId", async (req, res) => {
+	try {
+		const { clientId, contactId } = req.params;
+		const result: DeleteResult = await deleteContact(clientId, contactId);
+		
+		if (result.err) {
+			return res.status(400).json({ err: result.err });
+		}
+
+		return res.json({ err: "", message: result.message });
+	} catch (err) {
+		console.error(err);
+		return res.status(500).json({ err: "Failed to delete contact" });
+	}
+});
+
+// ============================================
+// CLIENT NOTES
+// ============================================
+
+app.get("/clients/:clientId/notes", async (req, res) => {
+	try {
+		const { clientId } = req.params;
+		const notes = await getClientNotes(clientId);
+		const resp: NoteResponse = { err: "", data: notes };
+		res.json(resp);
+	} catch (err) {
+		console.error(err);
+		res.status(500).json({ err: "Failed to fetch notes", data: [] });
+	}
+});
+
+app.get("/clients/:clientId/notes/:noteId", async (req, res) => {
+	try {
+		const { clientId, noteId } = req.params;
+		const note = await getNoteById(clientId, noteId);
+
+		if (!note)
+			return res.status(404).json({ err: "Note not found", data: [] });
+
+		const resp: NoteResponse = { err: "", data: [note] };
+		res.json(resp);
+	} catch (err) {
+		console.error(err);
+		res.status(500).json({ err: "Failed to fetch note", data: [] });
+	}
+});
+
+app.post("/clients/:clientId/notes", async (req, res) => {
+	try {
+		const { clientId } = req.params;
+		const result: NoteInsertResult = await insertNote(clientId, req.body);
+		
+		if (result.err) {
+			return res.status(400).json({ err: result.err });
+		}
+
+		return res.status(201).json({ err: "", item: result.item });
+	} catch (err) {
+		console.error(err);
+		return res.status(500).json({ err: "Failed to create note" });
+	}
+});
+
+app.put("/clients/:clientId/notes/:noteId", async (req, res) => {
+	try {
+		const { clientId, noteId } = req.params;
+		const result = await updateNote(clientId, noteId, req.body);
+		
+		if (result.err) {
+			return res.status(400).json({ err: result.err });
+		}
+
+		return res.json({ err: "", item: result.item });
+	} catch (err) {
+		console.error(err);
+		return res.status(500).json({ err: "Failed to update note" });
+	}
+});
+
+app.delete("/clients/:clientId/notes/:noteId", async (req, res) => {
+	try {
+		const { clientId, noteId } = req.params;
+		const result: DeleteResult = await deleteNote(clientId, noteId);
+		
+		if (result.err) {
+			return res.status(400).json({ err: result.err });
+		}
+
+		return res.json({ err: "", message: result.message });
+	} catch (err) {
+		console.error(err);
+		return res.status(500).json({ err: "Failed to delete note" });
+	}
+});
+
+// ============================================
+// CLIENT JOBS (Read-only)
+// ============================================
+
+app.get("/clients/:clientId/jobs", async (req, res) => {
+	try {
+		const { clientId } = req.params;
+		const jobs = await getJobsByClientId(clientId);
+		const resp: JobResponse = { err: "", data: jobs };
+		res.json(resp);
+	} catch (err) {
+		console.error(err);
+		res.status(500).json({ err: "Failed to fetch client jobs", data: [] });
+	}
 });
 
 app.listen(port, () => {

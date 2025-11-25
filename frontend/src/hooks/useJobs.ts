@@ -29,6 +29,7 @@ export const useCreateJobMutation = (): UseMutationResult<Job, Error, CreateJobI
 		mutationFn: createJob,
 		onSuccess: (newJob: Job) => {
 			queryClient.invalidateQueries({ queryKey: ["allJobs"] });
+			queryClient.invalidateQueries({ queryKey: ["allClients"] });
 			queryClient.setQueryData(["jobById", newJob.id], newJob);
 		},
 		onError: (error) => {

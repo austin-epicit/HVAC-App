@@ -2,24 +2,19 @@ import type { ReactNode } from "react";
 
 interface CardProps {
 	title?: string;
-	size?: "sm" | "md" | "lg";
+	headerAction?: ReactNode;
 	children: ReactNode;
 	className?: string;
 }
 
-const sizeClasses = {
-	sm: "p-4",
-	md: "p-6",
-	lg: "p-8",
-};
-
-export default function Card({ title, size = "md", children, className = "" }: CardProps) {
+export default function Card({ title, headerAction, children, className = "" }: CardProps) {
 	return (
-		<div
-			className={`bg-zinc-900 rounded-xl shadow-md border border-[#3a3a3f] pt-3.5 ${sizeClasses[size]} ${className}`}
-		>
+		<div className={`bg-zinc-900 border border-zinc-800 rounded-lg p-6 ${className}`}>
 			{title && (
-				<h2 className="text-lg font-semibold mb-2 text-white">{title}</h2>
+				<div className="flex items-center justify-between mb-6">
+					<h3 className="text-lg font-semibold text-white">{title}</h3>
+					{headerAction && <div>{headerAction}</div>}
+				</div>
 			)}
 			{children}
 		</div>

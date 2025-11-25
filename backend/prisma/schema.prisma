@@ -102,6 +102,7 @@ model client_contact {
   phone       String
   relation    String
   description String
+  created_at  DateTime @default(now())
   client      client @relation(fields: [client_id], references: [id])
   @@index([client_id])
 }

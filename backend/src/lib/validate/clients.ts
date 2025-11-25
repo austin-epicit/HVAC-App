@@ -25,3 +25,18 @@ export const createClientSchema = z.object({
 		)
 		.default(() => new Date()),
 });
+
+export const updateClientSchema = z.object({
+	name: z.string().min(1, "Client name is required").optional(),
+	address: z.string().min(1, "Address is required").optional(),
+	is_active: z.boolean().optional(),
+	last_activity: z
+		.preprocess(
+			(val) => (typeof val === "string" || val instanceof Date ? new Date(val) : val),
+			z.date()
+		)
+		.optional(),
+}).refine(
+	(data) => data.name !== undefined || data.address !== undefined || data.is_active !== undefined || data.last_activity !== undefined,
+	{ message: "At least one field must be provided for update" }
+);

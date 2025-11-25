@@ -105,29 +105,17 @@ export default function ClientsPage() {
 			)}
 
 			{/* Client Cards Grid */}
-			{!isFetchLoading &&
-				!fetchError &&
-				filteredClients &&
-				filteredClients.length > 0 && (
-					<div className="flex flex-wrap gap-2">
-						{filteredClients.map((client) => (
-							<ClientCard
-								key={client.id}
-								client={client}
-								onClick={() => {
-									navigate(
-										`/dispatch/clients/${client.id}`,
-										{
-											state: {
-												client,
-											},
-										}
-									);
-								}}
-							/>
-						))}
-					</div>
-				)}
+			{!isFetchLoading && !fetchError && filteredClients && filteredClients.length > 0 && (
+				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 justify-items-center">
+					{filteredClients.map((client) => (
+						<ClientCard
+							key={client.id}
+							client={client}
+							onClick={() => { navigate(`/dispatch/clients/${client.id}`); }}
+						/>
+					))}
+				</div>
+			)}
 
 			<CreateClient
 				isModalOpen={isModalOpen}
