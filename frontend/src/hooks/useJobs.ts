@@ -27,9 +27,11 @@ export const useCreateJobMutation = (): UseMutationResult<Job, Error, CreateJobI
 
 	return useMutation<Job, Error, CreateJobInput>({
 		mutationFn: createJob,
-		onSuccess: (newJob: Job) => {
-			queryClient.invalidateQueries({ queryKey: ["allJobs"] });
-			queryClient.invalidateQueries({ queryKey: ["allClients"] });
+		onSuccess: async (newJob: Job) => {
+			await queryClient.invalidateQueries({ queryKey: ["allJobs"] });
+			await queryClient.invalidateQueries({ queryKey: ["clients", newJob.client_id] });
+			await queryClient.invalidateQueries({ queryKey: ["clients"] });
+
 			queryClient.setQueryData(["jobById", newJob.id], newJob);
 		},
 		onError: (error) => {
@@ -43,8 +45,11 @@ export const useUpdateJobMutation = () => {
 
 	return useMutation<Job, Error, { id: string; updates: Partial<Job> }>({
 		mutationFn: ({ id, updates }) => updateJob(id, updates),
-		onSuccess: (updatedJob) => {
-			queryClient.invalidateQueries({ queryKey: ["allJobs"] });
+		onSuccess: async (updatedJob) => {
+			await queryClient.invalidateQueries({ queryKey: ["allJobs"] });
+			await queryClient.invalidateQueries({ queryKey: ["clients", updatedJob.client_id] });
+			await queryClient.invalidateQueries({ queryKey: ["clients"] });
+			
 			queryClient.setQueryData(["jobById", updatedJob.id], updatedJob);
 		},
 		onError: (err) => {
@@ -52,5 +57,3 @@ export const useUpdateJobMutation = () => {
 		},
 	});
 };
-
-

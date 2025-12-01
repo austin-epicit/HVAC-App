@@ -30,11 +30,12 @@ function formatLastActivity(raw: unknown) {
     return "No recent activity";
   }
 
-  return d.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  return d.toLocaleString(undefined, {
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+});
 }
 
 export default function ClientCard({ client, onClick }: ClientCardProps) {

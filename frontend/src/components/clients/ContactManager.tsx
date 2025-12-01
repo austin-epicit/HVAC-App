@@ -238,7 +238,7 @@ export default function ContactManager({ clientId }: ContactManagerProps) {
 							{contacts.map((contact) => (
 								<div
 									key={contact.id}
-									className="p-4 bg-zinc-800 rounded-lg border border-zinc-700 group hover:border-zinc-600 transition-colors w-80px"
+									className="p-4 bg-zinc-800 rounded-lg border border-zinc-700 group hover:border-zinc-600 transition-colors w-[calc(33.333%-0.67rem)] min-w-[280px]"
 								>
 									<div className="flex justify-between items-start mb-2">
 										<h3 className="text-white font-semibold">{contact.name}</h3>
@@ -254,7 +254,7 @@ export default function ContactManager({ clientId }: ContactManagerProps) {
 												onMouseLeave={() => setDeleteConfirmId(null)}
 												className={`transition-colors ${
 													deleteConfirmId === contact.id
-														? "text-red-500 hover:text-red-400"
+														? "text-red-500 hover:text-red-600"
 														: "text-zinc-400 hover:text-red-400"
 												}`}
 												title={
@@ -263,7 +263,10 @@ export default function ContactManager({ clientId }: ContactManagerProps) {
 														: "Delete contact"
 												}
 											>
-												<Trash2 size={16} />
+												<Trash2 
+													size={16} 
+													className={deleteConfirmId === contact.id ? "fill-red-500" : ""} 
+												/>
 											</button>
 										</div>
 									</div>

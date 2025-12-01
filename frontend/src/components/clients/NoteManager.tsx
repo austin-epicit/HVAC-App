@@ -178,7 +178,7 @@ export default function NoteManager({ clientId }: NoteManagerProps) {
 												onMouseLeave={() => setDeleteConfirmId(null)}
 												className={`transition-colors ${
 													deleteConfirmId === note.id
-														? "text-red-500 hover:text-red-400"
+														? "text-red-500 hover:text-red-600"
 														: "text-zinc-400 hover:text-red-400"
 												}`}
 												title={
@@ -187,7 +187,10 @@ export default function NoteManager({ clientId }: NoteManagerProps) {
 														: "Delete note"
 												}
 											>
-												<Trash2 size={14} />
+												<Trash2 
+													size={14} 
+													className={deleteConfirmId === note.id ? "fill-red-500" : ""} 
+												/>
 											</button>
 										</div>
 									</div>

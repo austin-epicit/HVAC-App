@@ -5,10 +5,9 @@ import {
 	type UseMutationResult,
 	type UseQueryResult,
 } from "@tanstack/react-query";
-
-import type {
-	Client,
-	CreateClientInput,
+import type { 
+	Client, 
+	CreateClientInput, 
 	UpdateClientInput,
 	ClientContact,
 	CreateClientContactInput,
@@ -17,36 +16,39 @@ import type {
 	CreateClientNoteInput,
 	UpdateClientNoteInput,
 } from "../types/clients";
-
 import * as clientApi from "../api/clients";
 
-/* ======================================================
-   CLIENTS
-====================================================== */
+// ============================================
+// CLIENT QUERIES
+// ============================================
 
-export const useAllClientsQuery = () => {
-	return useQuery<Client[], Error>({
-		queryKey: ["allClients"],
+export const useAllClientsQuery = (): UseQueryResult<Client[], Error> => {
+	return useQuery({
+		queryKey: ["clients"],
 		queryFn: clientApi.getAllClients,
 	});
 };
 
-export const useClientByIdQuery = (id: string) => {
-	return useQuery<Client, Error>({
-		queryKey: ["clientById", id],
+export const useClientByIdQuery = (id: string): UseQueryResult<Client, Error> => {
+	return useQuery({
+		queryKey: ["clients", id],
 		queryFn: () => clientApi.getClientById(id),
 		enabled: !!id,
 	});
 };
 
+// ============================================
+// CLIENT MUTATIONS
+// ============================================
+
 export const useCreateClientMutation = (): UseMutationResult<Client, Error, CreateClientInput> => {
 	const queryClient = useQueryClient();
 
-	return useMutation<Client, Error, CreateClientInput>({
+	return useMutation({
 		mutationFn: clientApi.createClient,
 		onSuccess: (newClient: Client) => {
-			queryClient.invalidateQueries({ queryKey: ["allClients"] });
-			queryClient.setQueryData(["clientById", newClient.id], newClient);
+			queryClient.invalidateQueries({ queryKey: ["clients"] });
+			queryClient.setQueryData(["clients", newClient.id], newClient);
 		},
 		onError: (error) => {
 			console.error("Failed to create client:", error);
@@ -54,23 +56,19 @@ export const useCreateClientMutation = (): UseMutationResult<Client, Error, Crea
 	});
 };
 
-export const useUpdateClientMutation = () => {
+export const useUpdateClientMutation = (): UseMutationResult<
+	Client,
+	Error,
+	{ id: string; data: UpdateClientInput }
+> => {
 	const queryClient = useQueryClient();
 
 	return useMutation({
 		mutationFn: ({ id, data }: { id: string; data: UpdateClientInput }) =>
 			clientApi.updateClient(id, data),
 		onSuccess: (updatedClient: Client) => {
-			queryClient.invalidateQueries({ queryKey: ["allClients"] });
-
-			queryClient.setQueryData(["clientById", updatedClient.id], updatedClient);
-
-			queryClient.setQueryData<Client[]>(["allClients"], (old) => {
-				if (!old) return old;
-				return old.map((client) =>
-					client.id === updatedClient.id ? updatedClient : client
-				);
-			});
+			queryClient.invalidateQueries({ queryKey: ["clients"] });
+			queryClient.setQueryData(["clients", updatedClient.id], updatedClient);
 		},
 		onError: (error: Error) => {
 			console.error("Failed to update client:", error);
@@ -78,13 +76,17 @@ export const useUpdateClientMutation = () => {
 	});
 };
 
-export const useDeleteClientMutation = (): UseMutationResult<{ message: string }, Error, string> => {
+export const useDeleteClientMutation = (): UseMutationResult<
+	{ message: string },
+	Error,
+	string
+> => {
 	const queryClient = useQueryClient();
 
 	return useMutation({
 		mutationFn: clientApi.deleteClient,
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["allClients"] });
+			queryClient.invalidateQueries({ queryKey: ["clients"] });
 		},
 		onError: (error: Error) => {
 			console.error("Failed to delete client:", error);
@@ -92,9 +94,9 @@ export const useDeleteClientMutation = (): UseMutationResult<{ message: string }
 	});
 };
 
-/* ======================================================
-   CONTACTS
-====================================================== */
+// ============================================
+// CLIENT CONTACT QUERIES
+// ============================================
 
 export const useClientContactsQuery = (clientId: string): UseQueryResult<ClientContact[], Error> => {
 	return useQuery({
@@ -104,31 +106,50 @@ export const useClientContactsQuery = (clientId: string): UseQueryResult<ClientC
 	});
 };
 
-export const useCreateClientContactMutation = () => {
+// ============================================
+// CLIENT CONTACT MUTATIONS
+// ============================================
+
+export const useCreateClientContactMutation = (): UseMutationResult<
+	ClientContact,
+	Error,
+	{ clientId: string; data: CreateClientContactInput }
+> => {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: ({clientId, data,}: {clientId: string; data: CreateClientContactInput;}) => 
+		mutationFn: ({ clientId, data }: { clientId: string; data: CreateClientContactInput }) =>
 			clientApi.createClientContact(clientId, data),
-		onSuccess: (_newContact: ClientContact, { clientId }) => {
-			queryClient.invalidateQueries({ queryKey: ["clientById", clientId] });
-			queryClient.invalidateQueries({ queryKey: ["allClients"] });
+		onSuccess: async (_, variables) => {
+			await queryClient.invalidateQueries({ queryKey: ["clients", variables.clientId] });
+			await queryClient.invalidateQueries({ queryKey: ["clients", variables.clientId, "contacts"] });
 		},
 		onError: (error: Error) => {
-			console.error("Failed to add contact:", error);
+			console.error("Failed to create contact:", error);
 		},
 	});
 };
 
-export const useUpdateClientContactMutation = () => {
+export const useUpdateClientContactMutation = (): UseMutationResult<
+	ClientContact,
+	Error,
+	{ clientId: string; contactId: string; data: UpdateClientContactInput }
+> => {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: ({clientId, contactId, data,}: {clientId: string;contactId: string;data: UpdateClientContactInput;}) => 
-			clientApi.updateClientContact(clientId, contactId, data),
-		onSuccess: (_updatedContact, { clientId }) => {
-			queryClient.invalidateQueries({ queryKey: ["clientById", clientId] });
-			queryClient.invalidateQueries({ queryKey: ["allClients"] });
+		mutationFn: ({
+			clientId,
+			contactId,
+			data,
+		}: {
+			clientId: string;
+			contactId: string;
+			data: UpdateClientContactInput;
+		}) => clientApi.updateClientContact(clientId, contactId, data),
+		onSuccess: async (_, variables) => {
+			await queryClient.invalidateQueries({ queryKey: ["clients", variables.clientId] });
+			await queryClient.invalidateQueries({ queryKey: ["clients", variables.clientId, "contacts"] });
 		},
 		onError: (error: Error) => {
 			console.error("Failed to update contact:", error);
@@ -136,15 +157,19 @@ export const useUpdateClientContactMutation = () => {
 	});
 };
 
-export const useDeleteClientContactMutation = () => {
+export const useDeleteClientContactMutation = (): UseMutationResult<
+	{ message: string },
+	Error,
+	{ clientId: string; contactId: string }
+> => {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: ({clientId, contactId,}: {clientId: string; contactId: string;}) => 
+		mutationFn: ({ clientId, contactId }: { clientId: string; contactId: string }) =>
 			clientApi.deleteClientContact(clientId, contactId),
-		onSuccess: (_data, { clientId }) => {
-			queryClient.invalidateQueries({ queryKey: ["clientById", clientId] });
-			queryClient.invalidateQueries({ queryKey: ["allClients"] });
+		onSuccess: async (_, variables) => {
+			await queryClient.invalidateQueries({ queryKey: ["clients", variables.clientId] });
+			await queryClient.invalidateQueries({ queryKey: ["clients", variables.clientId, "contacts"] });
 		},
 		onError: (error: Error) => {
 			console.error("Failed to delete contact:", error);
@@ -152,9 +177,9 @@ export const useDeleteClientContactMutation = () => {
 	});
 };
 
-/* ======================================================
-   NOTES
-====================================================== */
+// ============================================
+// CLIENT NOTE QUERIES
+// ============================================
 
 export const useClientNotesQuery = (clientId: string): UseQueryResult<ClientNote[], Error> => {
 	return useQuery({
@@ -164,31 +189,50 @@ export const useClientNotesQuery = (clientId: string): UseQueryResult<ClientNote
 	});
 };
 
-export const useCreateClientNoteMutation = () => {
+// ============================================
+// CLIENT NOTE MUTATIONS
+// ============================================
+
+export const useCreateClientNoteMutation = (): UseMutationResult<
+	ClientNote,
+	Error,
+	{ clientId: string; data: CreateClientNoteInput }
+> => {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: ({clientId, data,}: {clientId: string; data: CreateClientNoteInput;}) => 
+		mutationFn: ({ clientId, data }: { clientId: string; data: CreateClientNoteInput }) =>
 			clientApi.createClientNote(clientId, data),
-		onSuccess: (_newNote: ClientNote, { clientId }) => {
-			queryClient.invalidateQueries({ queryKey: ["clientById", clientId] });
-			queryClient.invalidateQueries({ queryKey: ["allClients"] });
+		onSuccess: async (_, variables) => {
+			await queryClient.invalidateQueries({ queryKey: ["clients", variables.clientId] });
+			await queryClient.invalidateQueries({ queryKey: ["clients", variables.clientId, "notes"] });
 		},
 		onError: (error: Error) => {
-			console.error("Failed to add note:", error);
+			console.error("Failed to create note:", error);
 		},
 	});
 };
 
-export const useUpdateClientNoteMutation = () => {
+export const useUpdateClientNoteMutation = (): UseMutationResult<
+	ClientNote,
+	Error,
+	{ clientId: string; noteId: string; data: UpdateClientNoteInput }
+> => {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: ({clientId, noteId, data,}: {clientId: string; noteId: string; data: UpdateClientNoteInput;}) => 
-			clientApi.updateClientNote(clientId, noteId, data),
-		onSuccess: (_updatedNote, { clientId }) => {
-			queryClient.invalidateQueries({ queryKey: ["clientById", clientId] });
-			queryClient.invalidateQueries({ queryKey: ["allClients"] });
+		mutationFn: ({
+			clientId,
+			noteId,
+			data,
+		}: {
+			clientId: string;
+			noteId: string;
+			data: UpdateClientNoteInput;
+		}) => clientApi.updateClientNote(clientId, noteId, data),
+		onSuccess: async (_, variables) => {
+			await queryClient.invalidateQueries({ queryKey: ["clients", variables.clientId] });
+			await queryClient.invalidateQueries({ queryKey: ["clients", variables.clientId, "notes"] });
 		},
 		onError: (error: Error) => {
 			console.error("Failed to update note:", error);
@@ -196,15 +240,19 @@ export const useUpdateClientNoteMutation = () => {
 	});
 };
 
-export const useDeleteClientNoteMutation = () => {
+export const useDeleteClientNoteMutation = (): UseMutationResult<
+	{ message: string },
+	Error,
+	{ clientId: string; noteId: string }
+> => {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: ({clientId, noteId,}: {clientId: string; noteId: string;}) => 
+		mutationFn: ({ clientId, noteId }: { clientId: string; noteId: string }) =>
 			clientApi.deleteClientNote(clientId, noteId),
-		onSuccess: (_data, { clientId }) => {
-			queryClient.invalidateQueries({ queryKey: ["clientById", clientId] });
-			queryClient.invalidateQueries({ queryKey: ["allClients"] });
+		onSuccess: async (_, variables) => {
+			await queryClient.invalidateQueries({ queryKey: ["clients", variables.clientId] });
+			await queryClient.invalidateQueries({ queryKey: ["clients", variables.clientId, "notes"] });
 		},
 		onError: (error: Error) => {
 			console.error("Failed to delete note:", error);

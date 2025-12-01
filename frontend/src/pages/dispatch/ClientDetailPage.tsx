@@ -97,9 +97,11 @@ export default function ClientDetailsPage() {
 								<label className="text-sm text-zinc-400 font-medium">Last Activity</label>
 								<p className="text-white mt-1">
 									{new Date(client.last_activity).toLocaleDateString('en-US', {
-										year: 'numeric',
-										month: 'short',
-										day: 'numeric'
+										month: "short",
+										day: "numeric",
+										hour: "numeric",
+										minute: "2-digit",
+										year: "numeric",
 									})}
 								</p>
 							</div>

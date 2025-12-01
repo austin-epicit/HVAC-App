@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Search, Plus, Share } from "lucide-react";
 import { useAllClientsQuery, useCreateClientMutation } from "../../hooks/useClients";
 import CreateClient from "../../components/clients/CreateClient";
-import ClientCard from "../../components/ui/ClientCard";
+import ClientCard from "../../components/clients/ClientCard";
 import LoadSvg from "../../assets/icons/loading.svg?react";
 import BoxSvg from "../../assets/icons/box.svg?react";
 import ErrSvg from "../../assets/icons/error.svg?react";
