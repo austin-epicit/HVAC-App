@@ -34,8 +34,6 @@ export const insertClient = async (data: unknown) => {
 					address: parsed.address,
 					is_active: parsed.is_active,
 					last_activity: parsed.last_activity,
-					// Note: jobs, contacts, notes arrays in schema are for future use
-					// New clients start with empty relations - they're added separately
 				},
 			});
 
@@ -67,7 +65,6 @@ export const updateClient = async (id: string, data: unknown) => {
 	try {
 		const parsed = updateClientSchema.parse(data);
 
-		// Check if client exists
 		const existing = await db.client.findUnique({ where: { id } });
 		if (!existing) {
 			return { err: "Client not found" };
@@ -121,11 +118,8 @@ export const deleteClient = async (id: string) => {
 			// Delete related data in order (respecting foreign keys)
 			await tx.client_contact.deleteMany({ where: { client_id: id } });
 			await tx.client_note.deleteMany({ where: { client_id: id } });
-			
-			// Delete jobs associated with this client
 			await tx.job.deleteMany({ where: { client_id: id } });
 			
-			// Finally delete the client
 			await tx.client.delete({ where: { id } });
 		});
 

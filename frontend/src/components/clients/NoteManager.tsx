@@ -33,7 +33,6 @@ export default function NoteManager({ clientId }: NoteManagerProps) {
 		setErrorMessage(null);
 	};
 
-	// Handle click outside form
 	useEffect(() => {
 		const handleClickOutside = (event: MouseEvent) => {
 			if (formRef.current && !formRef.current.contains(event.target as Node)) {

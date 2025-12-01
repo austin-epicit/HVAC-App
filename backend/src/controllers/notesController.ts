@@ -22,7 +22,6 @@ export const insertNote = async (clientId: string, data: unknown) => {
 	try {
 		const parsed = createNoteSchema.parse(data);
 
-		// Verify client exists
 		const client = await db.client.findUnique({ where: { id: clientId } });
 		if (!client) {
 			return { err: "Client not found" };
@@ -36,7 +35,6 @@ export const insertNote = async (clientId: string, data: unknown) => {
 				}
 			});
 
-			// Update client's last_activity
 			await tx.client.update({
 				where: { id: clientId },
 				data: { last_activity: new Date() }
@@ -67,7 +65,6 @@ export const updateNote = async (clientId: string, noteId: string, data: unknown
 	try {
 		const parsed = updateNoteSchema.parse(data);
 
-		// Check if note exists and belongs to client
 		const existing = await db.client_note.findFirst({
 			where: { 
 				id: noteId,
@@ -88,7 +85,6 @@ export const updateNote = async (clientId: string, noteId: string, data: unknown
 				}
 			});
 
-			// Update client's last_activity
 			await tx.client.update({
 				where: { id: clientId },
 				data: { last_activity: new Date() }

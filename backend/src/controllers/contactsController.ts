@@ -22,7 +22,6 @@ export const insertContact = async (clientId: string, data: unknown) => {
 	try {
 		const parsed = createContactSchema.parse(data);
 
-		// Verify client exists
 		const client = await db.client.findUnique({ where: { id: clientId } });
 		if (!client) {
 			return { err: "Client not found" };
@@ -40,7 +39,6 @@ export const insertContact = async (clientId: string, data: unknown) => {
 				}
 			});
 
-			// Update client's last_activity
 			await tx.client.update({
 				where: { id: clientId },
 				data: { last_activity: new Date() }
@@ -71,7 +69,6 @@ export const updateContact = async (clientId: string, contactId: string, data: u
 	try {
 		const parsed = updateContactSchema.parse(data);
 
-		// Check if contact exists and belongs to client
 		const existing = await db.client_contact.findFirst({
 			where: { 
 				id: contactId,
@@ -95,7 +92,6 @@ export const updateContact = async (clientId: string, contactId: string, data: u
 				}
 			});
 
-			// Update client's last_activity
 			await tx.client.update({
 				where: { id: clientId },
 				data: { last_activity: new Date() }
