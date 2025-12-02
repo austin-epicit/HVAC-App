@@ -95,7 +95,7 @@ export const useDeleteClientMutation = (): UseMutationResult<
 };
 
 // ============================================
-// CLIENT CONTACT QUERIES
+//  CONTACT 
 // ============================================
 
 export const useClientContactsQuery = (clientId: string): UseQueryResult<ClientContact[], Error> => {
@@ -105,10 +105,6 @@ export const useClientContactsQuery = (clientId: string): UseQueryResult<ClientC
 		enabled: !!clientId,
 	});
 };
-
-// ============================================
-// CLIENT CONTACT MUTATIONS
-// ============================================
 
 export const useCreateClientContactMutation = (): UseMutationResult<
 	ClientContact,
@@ -178,7 +174,7 @@ export const useDeleteClientContactMutation = (): UseMutationResult<
 };
 
 // ============================================
-// CLIENT NOTE QUERIES
+//  NOTE 
 // ============================================
 
 export const useClientNotesQuery = (clientId: string): UseQueryResult<ClientNote[], Error> => {
@@ -188,10 +184,6 @@ export const useClientNotesQuery = (clientId: string): UseQueryResult<ClientNote
 		enabled: !!clientId,
 	});
 };
-
-// ============================================
-// CLIENT NOTE MUTATIONS
-// ============================================
 
 export const useCreateClientNoteMutation = (): UseMutationResult<
 	ClientNote,

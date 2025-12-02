@@ -11,6 +11,11 @@ interface AdaptableTableProps {
 	formatNums?: boolean;
 	loadListener?: boolean;
 	errListener?: Error | null;
+	onRowClick?: (row: Record<string, unknown>) => void;
+	actionColumn?: {
+		header: string;
+		cell: (row: Record<string, unknown>) => React.ReactNode;
+	};
 }
 
 const PADDING = "p-3";
@@ -26,17 +31,33 @@ const AdaptableTable = ({
 	formatNums = true,
 	loadListener,
 	errListener,
+	onRowClick,
+	actionColumn,
 }: AdaptableTableProps) => {
 	const columns = React.useMemo(() => {
 		if (data.length == 0) return [];
 
-		return Object.keys(data[0])
+		const dataColumns = Object.keys(data[0])
 			.filter((key) => !IGNORED_HEADERS[key])
 			.map((key) => ({
 				header: camelCaseToRegular(key),
 				accessorKey: key,
 			})) satisfies ColumnDef<Record<string, unknown>>[];
-	}, [data]);
+
+		// Add action column if provided
+		if (actionColumn) {
+			return [
+				...dataColumns,
+				{
+					header: actionColumn.header,
+					id: 'actions',
+					cell: ({ row }: any) => actionColumn.cell(row.original),
+				},
+			] satisfies ColumnDef<Record<string, unknown>>[];
+		}
+
+		return dataColumns;
+	}, [data, actionColumn]);
 
 	const table = useReactTable({
 		data,
@@ -138,7 +159,8 @@ const AdaptableTable = ({
 						{table.getRowModel().rows.map((row) => (
 							<tr
 								key={row.id}
-								className={`text-left ${borderColor}`}
+								className={`text-left ${borderColor} ${onRowClick ? 'cursor-pointer hover:bg-zinc-800 transition-colors' : ''}`}
+								onClick={() => onRowClick?.(row.original)}
 							>
 								{row
 									.getVisibleCells()
@@ -150,6 +172,14 @@ const AdaptableTable = ({
 											className={`border-t border-zinc-800 font-normal ${PADDING}`}
 										>
 											{(() => {
+												// If this is the actions column, render the action cell
+												if (cell.column.id === 'actions') {
+													return flexRender(
+														cell.column.columnDef.cell,
+														cell.getContext()
+													);
+												}
+
 												const rawValue =
 													cell.getValue();
 												if (

@@ -1,3 +1,4 @@
+import type { Client } from "./clients";
 import z from "zod";
 
 export const JobStatusValues = [
@@ -15,6 +16,7 @@ export interface Job {
 	name: string;
 	tech_ids: string[];
 	client_id: string;
+	client: Client;
 	address: string;
 	description: string;
 	status: JobStatus;
@@ -22,6 +24,7 @@ export interface Job {
 	duration?: number;
 	start_date: string;
 	window_end?: string | null;
+	notes: JobNote[];
 }
 
 export interface CreateJobInput {
@@ -37,6 +40,22 @@ export interface CreateJobInput {
 	window_end?: string | null;
 }
 
+export interface JobNote {
+	id: string;
+	job_id: string;
+	content: string;
+	created_at: Date;
+	updated_at?: Date;
+}
+
+export interface CreateJobNoteInput {
+	content: string;
+}
+
+export interface UpdateJobNoteInput {
+	content: string;
+}
+
 export interface JobResponse {
 	err: string;
 	data: Job[];
@@ -46,4 +65,12 @@ export const CreateJobSchema = z.object({
 	name: z.string().min(1, "Job name is required"),
 	tech_ids: z.array(z.string()).optional().default([]),
 	client_id: z.string().min(1, "Please select a client"),
+});
+
+export const CreateJobNoteSchema = z.object({
+	content: z.string().min(1, "Note content is required"),
+});
+
+export const UpdateJobNoteSchema = z.object({
+	content: z.string().min(1, "Note content is required"),
 });

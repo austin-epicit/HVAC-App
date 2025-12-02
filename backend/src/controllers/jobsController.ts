@@ -5,17 +5,32 @@ import { createJobSchema } from "../lib/validate/jobs.js";
 import { Request } from "express";
 
 export const getAllJobs = async () => {
-	return await db.job.findMany();
+	return await db.job.findMany({
+		include: {
+			client: true,
+			notes: true,
+		}
+	});
 };
 
 export const getJobById = async (id: string) => {
-	return await db.job.findFirst({ where: { id: id } });
+	return await db.job.findFirst({ 
+		where: { id: id }, 
+		include: {
+			client: true,
+			notes: true,
+		}
+	});
 };
 
 export const getJobsByClientId = async (clientId: string) => {
 	return await db.job.findMany({
 		where: { client_id: clientId },
-		include: { job_tech: true },
+		include: { 
+			job_tech: true,
+			client: true,
+			notes: true,
+		},
 	});
 };
 
@@ -86,6 +101,7 @@ export const insertJob = async (req: Request) => {
 					job_tech: {
 						include: { tech: true },
 					},
+					notes: true,
 				},
 			});
 		});

@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { CreateJobInput, Job, JobResponse } from "../types/jobs";
+import type { CreateJobInput, Job, JobResponse, CreateJobNoteInput, JobNote, UpdateJobNoteInput } from "../types/jobs";
 
 const BASE_URL: string = import.meta.env.VITE_BACKEND_URL;
 
@@ -8,6 +8,10 @@ if (!BASE_URL) console.warn("Failed to load backend url environment variable!");
 const api = axios.create({
 	baseURL: BASE_URL,
 });
+
+// ============================================
+// JOB API
+// ============================================
 
 export const getAllJobs = async (): Promise<Job[]> => {
 	try {
@@ -53,6 +57,65 @@ export const updateJob = async ( id: string, updates: Partial<Job>): Promise<Job
 		return response.data.data[0];
 	} catch (error) {
 		console.error("Failed to update job: ", error);
+		throw error;
+	}
+};
+
+// ============================================
+// JOB NOTES API
+// ============================================
+
+export const getJobNotes = async (jobId: string): Promise<JobNote[]> => {
+	try {
+		const response = await api.get<{ err: string; data: JobNote[] }>(`/jobs/${jobId}/notes`);
+		return response.data.data;
+	} catch (error) {
+		console.error("Failed to fetch job notes:", error);
+		throw error;
+	}
+};
+
+export const createJobNote = async (jobId: string, data: CreateJobNoteInput): Promise<JobNote> => {
+	try {
+		const response = await api.post<{ err: string; item?: JobNote }>(`/jobs/${jobId}/notes`, data);
+
+		if (response.data.err) throw new Error(response.data.err);
+		return response.data.item!;
+	} catch (error) {
+		console.error("Failed to create job note:", error);
+		throw error;
+	}
+};
+
+export const updateJobNote = async (
+	jobId: string,
+	noteId: string,
+	data: UpdateJobNoteInput
+): Promise<JobNote> => {
+	try {
+		const response = await api.put<{ err: string; item?: JobNote }>(
+			`/jobs/${jobId}/notes/${noteId}`,
+			data
+		);
+
+		if (response.data.err) throw new Error(response.data.err);
+		return response.data.item!;
+	} catch (error) {
+		console.error("Failed to update job note:", error);
+		throw error;
+	}
+};
+
+export const deleteJobNote = async (jobId: string, noteId: string): Promise<{ message: string }> => {
+	try {
+		const response = await api.delete<{ err: string; message: string }>(
+			`/jobs/${jobId}/notes/${noteId}`
+		);
+
+		if (response.data.err) throw new Error(response.data.err);
+		return { message: response.data.message };
+	} catch (error) {
+		console.error("Failed to delete job note:", error);
 		throw error;
 	}
 };

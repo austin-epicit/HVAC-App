@@ -2,12 +2,13 @@ import LoginPage from "./auth/LoginPage";
 import DispatchLayout from "./layouts/DispatchLayout";
 import DashboardPage from "./pages/dispatch/DashboardPage";
 import JobsPage from "./pages/dispatch/JobsPage";
+import JobDetailPage from "./pages/dispatch/JobDetailPage";
 import SchedulePage from "./pages/dispatch/SchedulePage";
 import ClientsPage from "./pages/dispatch/ClientsPage";
+import ClientDetailsPage from "./pages/dispatch/ClientDetailPage";
 import TechniciansPage from "./pages/dispatch/TechniciansPage";
 import ReportingPage from "./pages/dispatch/ReportingPage";
 import SettingsPage from "./pages/dispatch/SettingsPage";
-import ClientDetailsPage from "./pages/dispatch/ClientDetailPage";
 
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuthStore } from "./auth/authStore";
@@ -37,6 +38,7 @@ export default function AppRoutes() {
 				<Route path="clients" element={<ClientsPage />} />
 				<Route path="clients/:clientId" element={<ClientDetailsPage />} />
 				<Route path="jobs" element={<JobsPage />} />
+				<Route path="jobs/:jobId" element={<JobDetailPage />} />
 				<Route path="technicians" element={<TechniciansPage />} />
 				<Route path="reporting" element={<ReportingPage />} />
 				<Route path="settings" element={<SettingsPage />} />

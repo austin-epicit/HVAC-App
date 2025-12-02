@@ -37,7 +37,18 @@ model job {
   start_date    DateTime 
   window_end    DateTime?
   schedule_type String  @default("exact") // "all_day" | "exact" | "window"
+  notes         job_note[]
   @@index([client_id])
+}
+
+model job_note {
+  id         String   @id @default(uuid())
+  job_id     String
+  content    String   @db.Text
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  job        job      @relation(fields: [job_id], references: [id], onDelete: Cascade)   //Safe cascading
+  @@index([job_id])
 }
 
 // TODO: add field for images

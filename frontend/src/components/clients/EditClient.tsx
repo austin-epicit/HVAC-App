@@ -59,11 +59,20 @@ export default function EditClientModal({ isOpen, onClose, client }: EditClientM
 		}));
 	};
 
+	const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+		if (e.target === e.currentTarget) {
+			onClose();
+		}
+	};
+
 	if (!isOpen) return null;
 
 	return (
-		<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-			<div className="bg-zinc-900 rounded-xl p-6 w-full max-w-md border border-zinc-800">
+		<div 
+			className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" 
+			onClick={handleBackdropClick}
+		>
+			<div className="bg-zinc-900 rounded-xl p-6 w-full max-w-md border border-zinc-800 max-h-[90vh] overflow-y-auto scrollbar-hide">
 				<div className="flex justify-between items-center mb-6">
 					<h2 className="text-2xl font-bold text-white">Edit Client</h2>
 					<button

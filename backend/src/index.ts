@@ -1,5 +1,6 @@
 import "dotenv/config";
 import cors from "cors";
+import express from "express";
 import {
 	getAllJobs,
 	getJobById,
@@ -7,7 +8,12 @@ import {
 	updateJob,
 	getJobsByClientId
 } from "./controllers/jobsController.js";
-import express from "express";
+import { 
+	getJobNotes, 
+	insertJobNote, 
+	updateJobNote, 
+	deleteJobNote 
+} from "./controllers/jobNotesController.js";
 import {
 	ClientInsertResult,
 	ClientResponse,
@@ -116,6 +122,69 @@ app.patch("/jobs/:id", async (req, res) => {
 	} catch (err) {
 		console.error(err);
 		return res.status(500).json({ err: "Failed to update job", data: [] });
+	}
+});
+
+// ============================================
+// JOB NOTES
+// ============================================
+
+app.get("/jobs/:jobId/notes", async (req, res) => {
+	try {
+		const { jobId } = req.params;
+		const notes = await getJobNotes(jobId);
+		return res.json({ err: "", data: notes });
+	} catch (err) {
+		console.error(err);
+		return res.status(500).json({ err: "Failed to fetch notes" });
+	}
+});
+
+app.post("/jobs/:jobId/notes", async (req, res) => {
+	try {
+		const { jobId } = req.params;
+		const result = await insertJobNote(jobId, req.body);
+		
+		if (result.err) {
+			return res.status(400).json({ err: result.err });
+		}
+
+		return res.status(201).json({ err: "", item: result.item });
+	} catch (err) {
+		console.error(err);
+		return res.status(500).json({ err: "Failed to create note" });
+	}
+});
+
+app.put("/jobs/:jobId/notes/:noteId", async (req, res) => {
+	try {
+		const { jobId, noteId } = req.params;
+		const result = await updateJobNote(jobId, noteId, req.body);
+		
+		if (result.err) {
+			return res.status(400).json({ err: result.err });
+		}
+
+		return res.json({ err: "", item: result.item });
+	} catch (err) {
+		console.error(err);
+		return res.status(500).json({ err: "Failed to update note" });
+	}
+});
+
+app.delete("/jobs/:jobId/notes/:noteId", async (req, res) => {
+	try {
+		const { jobId, noteId } = req.params;
+		const result = await deleteJobNote(jobId, noteId);
+		
+		if (result.err) {
+			return res.status(400).json({ err: result.err });
+		}
+
+		return res.json({ err: "", message: result.message });
+	} catch (err) {
+		console.error(err);
+		return res.status(500).json({ err: "Failed to delete note" });
 	}
 });
 
