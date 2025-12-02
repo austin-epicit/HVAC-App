@@ -31,7 +31,6 @@ export default function EditJob({ isModalOpen, setIsModalOpen, job }: EditJobPro
 	);
 	const [duration, setDuration] = useState<number>(job.duration || 60);
 
-	// Update form data when job changes
 	useEffect(() => {
 		setFormData({
 			name: job.name,
@@ -52,7 +51,6 @@ export default function EditJob({ isModalOpen, setIsModalOpen, job }: EditJobPro
 		e.preventDefault();
 
 		try {
-			// Combine date and time
 			let combinedStart = new Date(startDate);
 			if (when === "all_day") {
 				combinedStart.setHours(6, 0, 0, 0);
@@ -66,7 +64,6 @@ export default function EditJob({ isModalOpen, setIsModalOpen, job }: EditJobPro
 				combinedStart.setMinutes(windowStart.getMinutes());
 			}
 
-			// Prepare update data
 			const updates: Partial<Job> = {
 				name: formData.name,
 				description: formData.description,

@@ -87,11 +87,7 @@ export const createJobNote = async (jobId: string, data: CreateJobNoteInput): Pr
 	}
 };
 
-export const updateJobNote = async (
-	jobId: string,
-	noteId: string,
-	data: UpdateJobNoteInput
-): Promise<JobNote> => {
+export const updateJobNote = async (jobId: string, noteId: string, data: UpdateJobNoteInput): Promise<JobNote> => {
 	try {
 		const response = await api.put<{ err: string; item?: JobNote }>(
 			`/jobs/${jobId}/notes/${noteId}`,

@@ -1,37 +1,68 @@
 import AdaptableTable from "../../components/AdaptableTable";
-import { useNavigate } from "react-router-dom";
 import { useAllJobsQuery, useCreateJobMutation } from "../../hooks/useJobs";
+import { useClientByIdQuery } from "../../hooks/useClients";
 import { JobStatusValues } from "../../types/jobs";
-import { useState, useMemo } from "react";
-import { Search, Plus, Share, Eye } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { Search, Plus, Share, Eye, X } from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
 import CreateJob from "../../components/jobs/CreateJob";
 
 export default function JobsPage() {
 	const navigate = useNavigate();
+	const location = useLocation();
 	const { data: jobs, isLoading: isFetchLoading, error: fetchError } = useAllJobsQuery();
 	const { mutateAsync: createJob } = useCreateJobMutation();
 	const [isModalOpen, setIsModalOpen] = useState(false);
-	const [search, setSearch] = useState("");
+	const [searchInput, setSearchInput] = useState("");
 
-	// --- Filter + map + sort ---
+	// Get filters from URL query params
+	const queryParams = new URLSearchParams(location.search);
+	const clientFilter = queryParams.get('client');
+	const searchFilter = queryParams.get('search');
+	
+	// Fetch client data if filtering by client
+	const { data: filterClient } = useClientByIdQuery(clientFilter);
+
+	// Sync search input with URL on mount and when URL changes
+	useEffect(() => {
+		setSearchInput(searchFilter || "");
+	}, [searchFilter]);
+
 	const display = useMemo(() => {
 		if (!jobs) return [];
-
-		const filtered = jobs.filter((j) => {
-			const term = search.toLowerCase();
-			return (
-				j.name.toLowerCase().includes(term) ||
-				j.client?.name?.toLowerCase().includes(term) ||
-				j.status.toLowerCase().includes(term)
-			);
-		});
-
+		
+		// Use searchInput for instant preview, searchFilter for committed filter
+		const activeSearch = searchInput || searchFilter;
+		
+		// Filter jobs based on client filter
+		let filtered = jobs;
+		
+		if (clientFilter) {
+			filtered = jobs.filter((j) => j.client_id === clientFilter);
+		}
+		
+		// Then filter by search (instant as user types)
+		if (activeSearch) {
+			filtered = filtered.filter((j) => {
+				const searchLower = activeSearch.toLowerCase();
+				const clientName = j.client?.name?.toLowerCase() || "";
+				const jobName = j.name?.toLowerCase() || "";
+				const status = j.status?.toLowerCase() || "";
+				
+				return (
+					jobName.includes(searchLower) ||
+					clientName.includes(searchLower) ||
+					status.includes(searchLower)
+				);
+			});
+		}
+		
 		return filtered
 			.map((j) => ({
-				id: j.id,
+				id: j.id, // Keep ID for navigation
 				name: j.name,
 				technicians: Array.isArray(j.tech_ids) ? j.tech_ids.join(", ") : j.tech_ids,
-				client: j.client?.name || "Unknown Client",
+				client: j.client?.name || "Unknown Client", // Use client name from relation
 				date: new Date(j.start_date).toLocaleDateString("en-US", {
 					month: "short",
 					day: "numeric",
@@ -44,7 +75,40 @@ export default function JobsPage() {
 					JobStatusValues.indexOf(a.status) -
 					JobStatusValues.indexOf(b.status)
 			);
-	}, [jobs, search]);
+	}, [jobs, searchInput, searchFilter, clientFilter]);
+
+	const handleSearchSubmit = (e: React.FormEvent) => {
+		e.preventDefault();
+		
+		const newParams = new URLSearchParams(location.search);
+		
+		if (searchInput.trim()) {
+			newParams.set('search', searchInput.trim());
+		} else {
+			newParams.delete('search');
+		}
+		
+		// Navigate with updated search param
+		navigate(`/dispatch/jobs?${newParams.toString()}`);
+	};
+
+	const removeFilter = (filterType: 'client' | 'search') => {
+		const newParams = new URLSearchParams(location.search);
+		newParams.delete(filterType);
+		
+		if (filterType === 'search') {
+			setSearchInput("");
+		}
+		
+		navigate(`/dispatch/jobs${newParams.toString() ? `?${newParams.toString()}` : ''}`);
+	};
+
+	const clearAllFilters = () => {
+		setSearchInput("");
+		navigate('/dispatch/jobs');
+	};
+
+	const hasFilters = clientFilter || searchFilter;
 
 	return (
 		<div className="text-white">
@@ -52,7 +116,7 @@ export default function JobsPage() {
 				<h2 className="text-2xl font-semibold">Jobs</h2>
 
 				<div className="flex gap-2 text-nowrap">
-					<div className="relative w-full min-w-[250px]">
+					<form onSubmit={handleSearchSubmit} className="relative w-full">
 						<Search
 							size={18}
 							className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
@@ -60,13 +124,13 @@ export default function JobsPage() {
 						<input
 							type="text"
 							placeholder="Search jobs..."
-							value={search}
-							onChange={(e) => setSearch(e.target.value)}
+							value={searchInput}
+							onChange={(e) => setSearchInput(e.target.value)}
 							className="w-full pl-11 pr-3 py-2 rounded-md bg-zinc-800 border border-zinc-700 text-sm 
 							text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 
 							focus:ring-blue-500"
 						/>
-					</div>
+					</form>
 
 					<button
 						className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-md text-sm font-medium transition-colors"
@@ -78,10 +142,67 @@ export default function JobsPage() {
 
 					<button className="flex items-center gap-2 px-4 py-2 bg-zinc-700 hover:bg-zinc-600 rounded-md text-sm font-medium transition-colors">
 						<Share size={16} className="text-white" />
-						Export Jobs
+						Export
 					</button>
 				</div>
 			</div>
+
+			{/* Single Filter Bar with Multiple Filters */}
+			{hasFilters && (
+				<div className="mb-2 p-3 bg-zinc-800 rounded-lg border border-zinc-700">
+					<div className="flex items-center justify-between">
+						<div className="flex items-center gap-2 flex-wrap">
+							<span className="text-sm text-zinc-400">Active filters:</span>
+							
+							{/* Client Filter Chip */}
+							{clientFilter && filterClient && (
+								<div className="flex items-center gap-2 px-3 py-1.5 bg-blue-600/20 border border-blue-500/30 rounded-md">
+									<span className="text-sm text-blue-300">
+										Client: <span className="font-medium text-white">{filterClient.name}</span>
+									</span>
+									<button
+										onClick={() => removeFilter('client')}
+										className="text-blue-300 hover:text-white transition-colors"
+										aria-label="Remove client filter"
+									>
+										<X size={14} />
+									</button>
+								</div>
+							)}
+
+							{/* Search Filter Chip */}
+							{searchFilter && (
+								<div className="flex items-center gap-2 px-3 py-1.5 bg-purple-600/20 border border-purple-500/30 rounded-md">
+									<span className="text-sm text-purple-300">
+										Search: <span className="font-medium text-white">"{searchFilter}"</span>
+									</span>
+									<button
+										onClick={() => removeFilter('search')}
+										className="text-purple-300 hover:text-white transition-colors"
+										aria-label="Remove search filter"
+									>
+										<X size={14} />
+									</button>
+								</div>
+							)}
+
+							{/* Results Count */}
+							<span className="text-sm text-zinc-500">
+								• {display.length} {display.length === 1 ? 'result' : 'results'}
+							</span>
+						</div>
+
+						{/* Clear All Button */}
+						<button
+							onClick={clearAllFilters}
+							className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-red-400 hover:text-red-300 hover:bg-zinc-700/50 rounded-md transition-colors"
+						>
+							Clear All
+							<X size={14} />
+						</button>
+					</div>
+				</div>
+			)}
 
 			<div className="shadow-sm border border-zinc-800 p-3 bg-zinc-900 rounded-lg overflow-hidden text-left">
 				<AdaptableTable
@@ -89,7 +210,7 @@ export default function JobsPage() {
 					loadListener={isFetchLoading}
 					errListener={fetchError}
 					actionColumn={{
-						header: "Actions",
+						header: "", // Empty header to remove "Actions" text
 						cell: (row) => (
 							<button
 								onClick={(e) => {
@@ -113,7 +234,9 @@ export default function JobsPage() {
 					const newJob = await createJob(input);
 
 					if (!newJob?.id)
-						throw new Error("Job creation failed: no ID returned");
+						throw new Error(
+							"Job creation failed: no ID returned"
+						);
 
 					return newJob.id;
 				}}

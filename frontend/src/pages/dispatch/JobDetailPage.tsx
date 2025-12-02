@@ -168,7 +168,7 @@ export default function JobDetailPage() {
 									Client Name
 								</h3>
 								<button
-									onClick={() => navigate(`/clients/${job.client_id}`)}
+									onClick={() => navigate(`/dispatch/clients/${job.client_id}`)}
 									className="text-white hover:text-blue-400 font-semibold transition-colors text-left w-full"
 								>
 									{job.client?.name || "Unknown Client"}
@@ -198,7 +198,7 @@ export default function JobDetailPage() {
 							</div>
 
 							<button
-								onClick={() => navigate(`/clients/${job.client_id}`)}
+								onClick={() => navigate(`/dispatch/clients/${job.client_id}`)}
 								className="w-full mt-4 px-4 py-2 bg-zinc-700 hover:bg-zinc-600 rounded-md text-sm font-medium transition-colors"
 							>
 								View Full Client Profile
@@ -240,7 +240,6 @@ export default function JobDetailPage() {
 
 			{/* Assigned Technicians and Technician Location - Two Column */}
 			<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-				{/* Assigned Technicians - Left */}
 				<Card
 					title="Assigned Technicians"
 					headerAction={
@@ -269,7 +268,6 @@ export default function JobDetailPage() {
 					</div>
 				</Card>
 
-				{/* Technician Location - Right */}
 				<Card title="Technician Location" className="h-fit">
 					<div className="text-center py-12">
 						<Map size={48} className="mx-auto text-zinc-600 mb-3" />

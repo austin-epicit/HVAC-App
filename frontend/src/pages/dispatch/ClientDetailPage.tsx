@@ -118,7 +118,10 @@ export default function ClientDetailsPage() {
 						title="Recent Jobs"
 						headerAction={
 							client.jobs && client.jobs.length > 5 && (
-								<button className="text-sm text-blue-400 hover:text-blue-300 transition-colors">
+								<button 
+									onClick={() => navigate(`/dispatch/jobs?client=${client.id}`)}
+									className="text-sm text-blue-400 hover:text-blue-300"
+								>
 									View All
 								</button>
 							)
@@ -129,12 +132,13 @@ export default function ClientDetailsPage() {
 							{client.jobs && client.jobs.length > 0 ? (
 								client.jobs.slice(0, 5).map((job) => (
 									<div
+										onClick={() => navigate(`/dispatch/jobs/${job.id}`)}
 										key={job.id}
 										className="p-3 bg-zinc-800 rounded-lg border border-zinc-700 hover:border-zinc-600 transition-colors cursor-pointer group"
 									>
 										<div className="flex items-start justify-between mb-2">
 											<div className="flex items-center gap-2">
-												<Briefcase size={16} className="text-zinc-400" />
+
 												<p className="text-white text-sm font-medium group-hover:text-blue-400 transition-colors">
 													{job.name}
 												</p>
@@ -143,7 +147,7 @@ export default function ClientDetailsPage() {
 												{job.status}
 											</span>
 										</div>
-										<p className="text-xs text-zinc-400 ml-6">
+										<p className="text-xs text-zinc-400">
 											{new Date(job.start_date).toLocaleDateString('en-US', {
 												month: 'short',
 												day: 'numeric',
