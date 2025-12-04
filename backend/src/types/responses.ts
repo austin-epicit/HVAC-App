@@ -3,8 +3,11 @@ import {
 	client_contact,
 	client_note,
 	job,
-	job_technician,
+	job_technician,  
+	job_note,                          
 	technician,
+	log,
+	audit_log
 } from "../../generated/prisma/client";
 
 //JOB RESPONSE TYPES
@@ -68,6 +71,27 @@ type NoteWithRelations = client_note & {
 export interface NoteInsertResult {
 	err: string;
 	item?: client_note | null;
+}
+
+// TECHNICIAN RESPONSE TYPES
+export interface TechnicianResponse {
+	err: string;
+	data: technician[];
+}
+
+type TechnicianWithRelations = technician & {
+	job_tech: (job_technician & { job: job })[];
+	logs: log[];
+	audit_logs: audit_log[];
+	created_client_notes: client_note[];
+	last_edited_client_notes: client_note[];
+	created_job_notes: job_note[];
+	last_edited_job_notes: job_note[];
+};
+
+export interface TechnicianInsertResult {
+	err: string;
+	item?: TechnicianWithRelations | null;
 }
 
 // DELETE RESPONSE TYPE

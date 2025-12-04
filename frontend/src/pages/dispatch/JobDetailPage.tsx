@@ -167,12 +167,9 @@ export default function JobDetailPage() {
 									<User size={14} />
 									Client Name
 								</h3>
-								<button
-									onClick={() => navigate(`/dispatch/clients/${job.client_id}`)}
-									className="text-white hover:text-blue-400 font-semibold transition-colors text-left w-full"
-								>
+								<p>
 									{job.client?.name || "Unknown Client"}
-								</button>
+								</p>
 							</div>
 
 							<div>

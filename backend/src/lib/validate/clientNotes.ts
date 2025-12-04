@@ -12,8 +12,12 @@ import z from "zod";
 
 export const createNoteSchema = z.object({
 	content: z.string().min(1, "Note content is required"),
+	tech_id: z.string().uuid().nullable().optional(),
+	dispatcher_id: z.string().uuid().nullable().optional(),
 });
 
 export const updateNoteSchema = z.object({
 	content: z.string().min(1, "Note content is required"),
+	tech_id: z.string().uuid().nullable().optional(),
+	dispatcher_id: z.string().uuid().nullable().optional(),
 });

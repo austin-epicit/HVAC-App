@@ -26,7 +26,7 @@ const api = axios.create({
 export const getAllClients = async (): Promise<Client[]> => {
 	try {
 		const response = await api.get<{ err: string; data: Client[] }>(`/clients`);
-		return response.data.data; // Backend wraps in { err: "", data: [] }
+		return response.data.data;
 	} catch (error) {
 		console.error("Failed to fetch clients: ", error);
 		throw error;
@@ -36,7 +36,6 @@ export const getAllClients = async (): Promise<Client[]> => {
 export const getClientById = async (id: string): Promise<Client> => {
 	try {
 		const response = await api.get<{ err: string; data: Client[] }>(`/clients/${id}`);
-		// Backend returns { err: "", data: [client] } for single client
 		return response.data.data[0];
 	} catch (error) {
 		console.error("Failed to fetch client: ", error);
@@ -165,11 +164,7 @@ export const createClientNote = async (clientId: string, data: CreateClientNoteI
 	}
 };
 
-export const updateClientNote = async (
-	clientId: string,
-	noteId: string,
-	data: UpdateClientNoteInput
-): Promise<ClientNote> => {
+export const updateClientNote = async (clientId: string, noteId: string, data: UpdateClientNoteInput): Promise<ClientNote> => {
 	try {
 		const response = await api.put<{ err: string; item?: ClientNote }>(
 			`/clients/${clientId}/notes/${noteId}`, 

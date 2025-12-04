@@ -23,6 +23,8 @@ import {
 	ContactResponse,
 	NoteInsertResult,
 	NoteResponse,
+	TechnicianInsertResult,
+	TechnicianResponse,
 	DeleteResult,
 } from "./types/responses.js";
 import {
@@ -45,7 +47,14 @@ import {
 	insertNote,
 	updateNote,
 	deleteNote,
-} from "./controllers/notesController.js";
+} from "./controllers/clientNotesController.js";
+import {
+	getAllTechnicians,
+	getTechnicianById,
+	insertTechnician,
+	updateTechnician,
+	deleteTechnician,
+} from "./controllers/techniciansController.js";
 
 const app = express();
 
@@ -71,6 +80,21 @@ if (!port) {
 	console.warn("No port configured. Defaulting...");
 	port = "3000";
 }
+
+// ============================================
+// HELPER: Extract user info from request
+// TODO: Replace with actual auth middleware
+// ============================================
+const extractUserInfo = (req: express.Request): { userId?: string; userType?: 'tech' | 'dispatcher' } => {
+	const userId = req.headers['x-user-id'] as string;
+	const userType = req.headers['x-user-type'] as 'tech' | 'dispatcher';
+	
+	// Return undefined if not provided
+	return { 
+		userId: userId || undefined, 
+		userType: userType || undefined 
+	};
+};
 
 // ============================================
 // JOBS
@@ -143,7 +167,9 @@ app.get("/jobs/:jobId/notes", async (req, res) => {
 app.post("/jobs/:jobId/notes", async (req, res) => {
 	try {
 		const { jobId } = req.params;
-		const result = await insertJobNote(jobId, req.body);
+		const { userId, userType } = extractUserInfo(req);
+		
+		const result = await insertJobNote(jobId, req.body, userId, userType);
 		
 		if (result.err) {
 			return res.status(400).json({ err: result.err });
@@ -159,7 +185,9 @@ app.post("/jobs/:jobId/notes", async (req, res) => {
 app.put("/jobs/:jobId/notes/:noteId", async (req, res) => {
 	try {
 		const { jobId, noteId } = req.params;
-		const result = await updateJobNote(jobId, noteId, req.body);
+		const { userId, userType } = extractUserInfo(req);
+		
+		const result = await updateJobNote(jobId, noteId, req.body, userId, userType);
 		
 		if (result.err) {
 			return res.status(400).json({ err: result.err });
@@ -175,7 +203,9 @@ app.put("/jobs/:jobId/notes/:noteId", async (req, res) => {
 app.delete("/jobs/:jobId/notes/:noteId", async (req, res) => {
 	try {
 		const { jobId, noteId } = req.params;
-		const result = await deleteJobNote(jobId, noteId);
+		const { userId, userType } = extractUserInfo(req);
+		
+		const result = await deleteJobNote(jobId, noteId, userId, userType);
 		
 		if (result.err) {
 			return res.status(400).json({ err: result.err });
@@ -381,7 +411,9 @@ app.get("/clients/:clientId/notes/:noteId", async (req, res) => {
 app.post("/clients/:clientId/notes", async (req, res) => {
 	try {
 		const { clientId } = req.params;
-		const result: NoteInsertResult = await insertNote(clientId, req.body);
+		const { userId, userType } = extractUserInfo(req);
+		
+		const result: NoteInsertResult = await insertNote(clientId, req.body, userId, userType);
 		
 		if (result.err) {
 			return res.status(400).json({ err: result.err });
@@ -397,7 +429,9 @@ app.post("/clients/:clientId/notes", async (req, res) => {
 app.put("/clients/:clientId/notes/:noteId", async (req, res) => {
 	try {
 		const { clientId, noteId } = req.params;
-		const result = await updateNote(clientId, noteId, req.body);
+		const { userId, userType } = extractUserInfo(req);
+		
+		const result = await updateNote(clientId, noteId, req.body, userId, userType);
 		
 		if (result.err) {
 			return res.status(400).json({ err: result.err });
@@ -413,7 +447,9 @@ app.put("/clients/:clientId/notes/:noteId", async (req, res) => {
 app.delete("/clients/:clientId/notes/:noteId", async (req, res) => {
 	try {
 		const { clientId, noteId } = req.params;
-		const result: DeleteResult = await deleteNote(clientId, noteId);
+		const { userId, userType } = extractUserInfo(req);
+		
+		const result: DeleteResult = await deleteNote(clientId, noteId, userId, userType);
 		
 		if (result.err) {
 			return res.status(400).json({ err: result.err });
@@ -439,6 +475,84 @@ app.get("/clients/:clientId/jobs", async (req, res) => {
 	} catch (err) {
 		console.error(err);
 		res.status(500).json({ err: "Failed to fetch client jobs", data: [] });
+	}
+});
+
+// ============================================
+// TECHNICIANS
+// ============================================
+
+app.get("/technicians", async (req, res) => {
+	try {
+		const technicians = await getAllTechnicians();
+		const resp: TechnicianResponse = { err: "", data: technicians };
+		res.json(resp);
+	} catch (err) {
+		console.error(err);
+		res.status(500).json({ err: "Failed to fetch technicians", data: [] });
+	}
+});
+
+app.get("/technicians/:id", async (req, res) => {
+	try {
+		const { id } = req.params;
+		const technician = await getTechnicianById(id);
+
+		if (!technician)
+			return res.status(404).json({ err: "Technician not found", data: [] });
+
+		const resp: TechnicianResponse = { err: "", data: [technician] };
+		res.json(resp);
+	} catch (err) {
+		console.error(err);
+		res.status(500).json({ err: "Failed to fetch technician", data: [] });
+	}
+});
+
+app.post("/technicians", async (req, res) => {
+	try {
+		const result: TechnicianInsertResult = await insertTechnician(req.body);
+		if (result.err) {
+			console.error("Create technician validation error:", result.err);
+			return res.status(400).json({ err: result.err });
+		}
+
+		return res.status(201).json({ err: "", item: result.item });
+	} catch (err) {
+		console.error("Create technician error:", err);
+		return res.status(500).json({ err: "Failed to create technician" });
+	}
+});
+
+app.put("/technicians/:id", async (req, res) => {
+	try {
+		const { id } = req.params;
+		const result = await updateTechnician(id, req.body);
+		
+		if (result.err) {
+			return res.status(400).json({ err: result.err });
+		}
+
+		return res.json({ err: "", item: result.item });
+	} catch (err) {
+		console.error(err);
+		return res.status(500).json({ err: "Failed to update technician" });
+	}
+});
+
+app.delete("/technicians/:id", async (req, res) => {
+	try {
+		const { id } = req.params;
+		const result: DeleteResult = await deleteTechnician(id);
+		
+		if (result.err) {
+			return res.status(400).json({ err: result.err });
+		}
+
+		return res.json({ err: "", message: result.message });
+	} catch (err) {
+		console.error(err);
+		return res.status(500).json({ err: "Failed to delete technician" });
 	}
 });
 

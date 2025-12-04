@@ -76,40 +76,42 @@ export default function ClientDetailsPage() {
 						</button>
 					}
 				>
-					<div className="space-y-6">
+					<div className="flex flex-wrap items-start gap-x-12 gap-y-4">
 						<div>
-							<label className="text-sm text-zinc-400 font-medium">Address</label>
-							<p className="text-white mt-1 break-words">{client.address}</p>
+							<label className="text-sm text-zinc-400 font-medium block mb-1">Address</label>
+							<p className="text-white">{client.address}</p>
 						</div>
 
-						<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-							<div>
-								<label className="text-sm text-zinc-400 font-medium">Created</label>
-								<p className="text-white mt-1">
-									{new Date(client.created_at).toLocaleDateString('en-US', {
-										year: 'numeric',
-										month: 'short',
-										day: 'numeric'
-									})}
-								</p>
-							</div>
-							<div>
-								<label className="text-sm text-zinc-400 font-medium">Last Activity</label>
-								<p className="text-white mt-1">
-									{new Date(client.last_activity).toLocaleDateString('en-US', {
-										month: "short",
-										day: "numeric",
-										hour: "numeric",
-										minute: "2-digit",
-										year: "numeric",
-									})}
-								</p>
-							</div>
+						<div>
+							<label className="text-sm text-zinc-400 font-medium block mb-1">Created</label>
+							<p className="text-white">
+								{new Date(client.created_at).toLocaleDateString('en-US', {
+									year: 'numeric',
+									month: 'short',
+									day: 'numeric'
+								})}
+							</p>
+						</div>
+
+						<div>
+							<label className="text-sm text-zinc-400 font-medium block mb-1">Last Activity</label>
+							<p className="text-white">
+								{new Date(client.last_activity).toLocaleDateString('en-US', {
+									month: "short",
+									day: "numeric",
+									hour: "numeric",
+									minute: "2-digit",
+									year: "numeric",
+								})}
+							</p>
 						</div>
 					</div>
 				</Card>
 
-				<ContactManager clientId={client.id} />
+				{/* Contact Manager with Flex Layout */}
+				<div className="flex-shrink-0">
+					<ContactManager clientId={client.id} />
+				</div>
 
 				{/* Two Column Layout for Notes and Jobs */}
 				<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

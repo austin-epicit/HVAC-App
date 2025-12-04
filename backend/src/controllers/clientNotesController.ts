@@ -1,10 +1,10 @@
 import { ZodError } from "zod";
 import { db } from "../db.js";
-import { createJobNoteSchema, updateJobNoteSchema } from "../lib/validate/jobNotes.js";
+import { createNoteSchema, updateNoteSchema } from "../lib/validate/clientNotes.js";
 
-export const getJobNotes = async (jobId: string) => {
-	return await db.job_note.findMany({
-		where: { job_id: jobId },
+export const getClientNotes = async (clientId: string) => {
+	return await db.client_note.findMany({
+		where: { client_id: clientId },
 		include: {
 			creator_tech: {
 				select: {
@@ -39,11 +39,11 @@ export const getJobNotes = async (jobId: string) => {
 	});
 };
 
-export const getNoteById = async (jobId: string, noteId: string) => {
-	return await db.job_note.findFirst({
+export const getNoteById = async (clientId: string, noteId: string) => {
+	return await db.client_note.findFirst({
 		where: { 
 			id: noteId,
-			job_id: jobId 
+			client_id: clientId 
 		},
 		include: {
 			creator_tech: {
@@ -81,29 +81,59 @@ export const getNoteById = async (jobId: string, noteId: string) => {
 // ============================================
 // NEEDS ID , set to optional until auth added, comments undo optionalness
 
-export const insertJobNote = async (
-	jobId: string, 
+
+export const insertNote = async (
+	clientId: string, 
 	data: unknown, 
 	userId?: string, //rm ?
 	userType?: 'tech' | 'dispatcher' //rm ?
 ) => {
 	try {
-		const parsed = createJobNoteSchema.parse(data);
+		const parsed = createNoteSchema.parse(data);
 
-		const job = await db.job.findUnique({ where: { id: jobId } });
-		if (!job) {
-			return { err: "Job not found" };
+		const client = await db.client.findUnique({ where: { id: clientId } });
+		if (!client) {
+			return { err: "Client not found" };
 		}
 
 		const created = await db.$transaction(async (tx) => {
-			const note = await tx.job_note.create({
+			const note = await tx.client_note.create({
 				data: {
-					job_id: jobId,
+					client_id: clientId,
 					content: parsed.content,
-					creator_tech_id: userType === 'tech' ? userId : null,
-					creator_dispatcher_id: userType === 'dispatcher' ? userId : null,
-				},
+					creator_tech_id: (userId && userType === 'tech') ? userId : null, //creator_tech_id: userType === 'tech' ? userId : null,
+					creator_dispatcher_id: (userId && userType === 'dispatcher') ? userId : null, //creator_dispatcher_id: userType === 'dispatcher' ? userId : null,
+				}
+			});
+			
+			await tx.audit_log.create({
+				data: {
+					entity_type: 'client_note',
+					entity_id: note.id,
+					action: 'created',
+					actor_tech_id: userType === 'tech' ? userId : null,
+					actor_dispatcher_id: userType === 'dispatcher' ? userId : null,
+					changes: {
+						content: {
+							old: null,
+							new: parsed.content
+						}
+					},
+					// Optional: If we pass from the request
+					// ip_address: parsed.ip_address,
+					// user_agent: parsed.user_agent,
+				}
+			});
+
+			await tx.client.update({
+				where: { id: clientId },
+				data: { last_activity: new Date() }
+			});
+
+			return tx.client_note.findUnique({
+				where: { id: note.id },
 				include: {
+					client: true,
 					creator_tech: {
 						select: {
 							id: true,
@@ -118,35 +148,8 @@ export const insertJobNote = async (
 							email: true,
 						}
 					}
-				}
+				},
 			});
-
-			if (userId && userType) {	//rm this outermost if
-				await tx.audit_log.create({
-					data: {
-						entity_type: 'job_note',
-						entity_id: note.id,
-						action: 'created',
-						actor_tech_id: userType === 'tech' ? userId : null,
-						actor_dispatcher_id: userType === 'dispatcher' ? userId : null,
-						changes: {
-							content: {
-								old: null,
-								new: parsed.content
-							},
-							job_id: {
-								old: null,
-								new: jobId
-							}
-						},
-						// Optional: If we pass them from the request
-						// ip_address: parsed.ip_address,
-						// user_agent: parsed.user_agent,
-					}
-				});
-			}
-
-			return note;
 		});
 
 		return { err: "", item: created };
@@ -165,20 +168,20 @@ export const insertJobNote = async (
 // ============================================
 // NEEDS ID , set to optional until auth added, comments undo optionalness
 
-export const updateJobNote = async (
-	jobId: string, 
+export const updateNote = async (
+	clientId: string, 
 	noteId: string, 
 	data: unknown, 
-	userId?: string, //rm ?
-	userType?: 'tech' | 'dispatcher' //rm ?
+	userId?: string, 	//rm ?
+	userType?: 'tech' | 'dispatcher'   //rm ?
 ) => {
 	try {
-		const parsed = updateJobNoteSchema.parse(data);
+		const parsed = updateNoteSchema.parse(data);
 
-		const existing = await db.job_note.findFirst({
+		const existing = await db.client_note.findFirst({
 			where: { 
 				id: noteId,
-				job_id: jobId 
+				client_id: clientId 
 			}
 		});
 
@@ -193,7 +196,7 @@ export const updateJobNote = async (
 			};
 
 			// Only update the relevant editor field based on user type
-			if (userId && userType) {					// rm this outermost if	
+			if (userId && userType) {						// rm this outermost if
 				if (userType === 'tech') {
 					updateData.last_editor_tech_id = userId;
 					updateData.last_editor_dispatcher_id = null;
@@ -203,10 +206,11 @@ export const updateJobNote = async (
 				}
 			}
 
-			const note = await tx.job_note.update({
+			const note = await tx.client_note.update({
 				where: { id: noteId },
 				data: updateData,
 				include: {
+					client: true,
 					creator_tech: {
 						select: {
 							id: true,
@@ -235,26 +239,29 @@ export const updateJobNote = async (
 							email: true,
 						}
 					}
+				},
+			});
+
+			await tx.audit_log.create({
+				data: {
+					entity_type: 'client_note',
+					entity_id: noteId,
+					action: 'updated',
+					actor_tech_id: userType === 'tech' ? userId : null,
+					actor_dispatcher_id: userType === 'dispatcher' ? userId : null,
+					changes: {
+						content: {
+							old: existing.content,
+							new: parsed.content
+						}
+					},
 				}
 			});
 
-			if (userId && userType) {	// rm this outermost if
-				await tx.audit_log.create({
-					data: {
-						entity_type: 'job_note',
-						entity_id: noteId,
-						action: 'updated',
-						actor_tech_id: userType === 'tech' ? userId : null,
-						actor_dispatcher_id: userType === 'dispatcher' ? userId : null,
-						changes: {
-							content: {
-								old: existing.content,
-								new: parsed.content
-							}
-						},
-					}
-				});
-			}
+			await tx.client.update({
+				where: { id: clientId },
+				data: { last_activity: new Date() }
+			});
 
 			return note;
 		});
@@ -275,17 +282,17 @@ export const updateJobNote = async (
 // ============================================
 // NEEDS ID , set to optional until auth added, comments undo optionalness
 
-export const deleteJobNote = async (
-	jobId: string, 
+export const deleteNote = async (
+	clientId: string, 
 	noteId: string, 
-	userId?: string, // rm ?
+	userId?: string, //rm ?
 	userType?: 'tech' | 'dispatcher' //rm ?
 ) => {
 	try {
-		const existing = await db.job_note.findFirst({
+		const existing = await db.client_note.findFirst({
 			where: { 
 				id: noteId,
-				job_id: jobId 
+				client_id: clientId 
 			}
 		});
 
@@ -297,7 +304,7 @@ export const deleteJobNote = async (
 			if (userId && userType) {			// rm this outermost if
 				await tx.audit_log.create({
 					data: {
-						entity_type: 'job_note',
+						entity_type: 'client_note',
 						entity_id: noteId,
 						action: 'deleted',
 						actor_tech_id: userType === 'tech' ? userId : null,
@@ -306,7 +313,7 @@ export const deleteJobNote = async (
 							deleted_record: {
 								old: {
 									content: existing.content,
-									job_id: existing.job_id,
+									client_id: existing.client_id,
 									created_at: existing.created_at,
 								},
 								new: null
@@ -319,7 +326,7 @@ export const deleteJobNote = async (
 				});
 			}
 
-			await tx.job_note.delete({
+			await tx.client_note.delete({
 				where: { id: noteId }
 			});
 		});

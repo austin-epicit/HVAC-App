@@ -41,14 +41,27 @@ model job {
   @@index([client_id])
 }
 
+
 model job_note {
-  id         String   @id @default(uuid())
-  job_id     String
-  content    String   @db.Text
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-  job        job      @relation(fields: [job_id], references: [id], onDelete: Cascade)   //Safe cascading
+  id                        String      @id @default(uuid())
+  job_id                    String
+  content                   String      @db.Text
+  creator_tech_id           String?
+  creator_dispatcher_id     String?
+  created_at                DateTime    @default(now())
+  last_editor_tech_id       String?
+  last_editor_dispatcher_id   String?
+  updated_at                DateTime    @updatedAt
+  job                       job         @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  creator_tech              technician? @relation("JobNoteCreator", fields: [creator_tech_id], references: [id])
+  creator_dispatcher        dispatcher? @relation("JobNoteCreator", fields: [creator_dispatcher_id], references: [id])
+  last_editor_tech          technician? @relation("JobNoteEditor", fields: [last_editor_tech_id], references: [id])
+  last_editor_dispatcher    dispatcher? @relation("JobNoteEditor", fields: [last_editor_dispatcher_id], references: [id])
   @@index([job_id])
+  @@index([creator_tech_id])
+  @@index([creator_dispatcher_id])
+  @@index([last_editor_tech_id])
+  @@index([last_editor_dispatcher_id])
 }
 
 // TODO: add field for images
@@ -76,12 +89,16 @@ model technician {
   title         String
   description   String
   status        technician_status
-  job_tech      job_technician[]
-  client_notes  client_note[]
-  logs          log[]
   hire_date     DateTime
-  last_pos      Unsupported("point")
+  last_pos      Unsupported("point")?   //Optional for dev
   last_login    DateTime @default(now())
+  job_tech      job_technician[]
+  logs          log[]
+  audit_logs    audit_log[]
+  created_client_notes        client_note[] @relation("ClientNoteCreator")
+  last_edited_client_notes    client_note[] @relation("ClientNoteEditor")
+  created_job_notes           job_note[] @relation("JobNoteCreator")
+  last_edited_job_notes       job_note[] @relation("JobNoteEditor")
 }
 
 model job_technician {
@@ -119,19 +136,26 @@ model client_contact {
 }
 
 model client_note {
-  id               String       @unique @id @default(uuid())
-  client_id        String
-  tech_id          String? 
-  dispatcher_id    String?
-  content          String
-  created_at       DateTime     @default(now())
-  updated_at       DateTime     @updatedAt 
-  client           client       @relation(fields: [client_id], references: [id])
-  tech             technician?  @relation(fields: [tech_id], references: [id])
-  dispatcher       dispatcher?    @relation(fields: [dispatcher_id], references: [id])
+  id                          String       @unique @id @default(uuid())
+  client_id                   String
+  content                     String
+  creator_tech_id             String? 
+  creator_dispatcher_id       String?
+  created_at                  DateTime     @default(now())
+  last_editor_tech_id         String? 
+  last_editor_dispatcher_id   String?
+  updated_at                  DateTime     @updatedAt 
+  client                      client       @relation(fields: [client_id], references: [id])
+  creator_tech                technician?  @relation("ClientNoteCreator", fields: [creator_tech_id], references: [id])
+  creator_dispatcher          dispatcher?  @relation("ClientNoteCreator", fields: [creator_dispatcher_id], references: [id])
+  last_editor_tech            technician?  @relation("ClientNoteEditor", fields: [last_editor_tech_id], references: [id])
+  last_editor_dispatcher      dispatcher?  @relation("ClientNoteEditor", fields: [last_editor_dispatcher_id], references: [id])
+
   @@index([client_id])
-  @@index([tech_id])
-  @@index([dispatcher_id])
+  @@index([creator_tech_id])
+  @@index([creator_dispatcher_id])
+  @@index([last_editor_tech_id])
+  @@index([last_editor_dispatcher_id])
 }
 
 model dispatcher {
@@ -144,9 +168,15 @@ model dispatcher {
   description   String
   last_login    DateTime @default(now())
   logs          log[]
-  client_notes  client_note[]
+  created_client_notes      client_note[] @relation("ClientNoteCreator")
+  last_edited_client_notes  client_note[] @relation("ClientNoteEditor")
+  created_job_notes         job_note[] @relation("JobNoteCreator")
+  last_edited_job_notes     job_note[] @relation("JobNoteEditor")
+  
+  audit_logs                audit_log[]
 }
 
+//(record system actions)
 model log {
   id            String @unique @id @default(uuid())
   dispatcher_id String?
@@ -157,4 +187,28 @@ model log {
   tech          technician?  @relation(fields: [tech_id], references: [id])
   @@index([dispatcher_id])
   @@index([tech_id])
+}
+
+//Added to dispatch/technician (record user actions, templates placed (unreachable atm) in job/clientNotes controllers )
+model audit_log {
+  id            String      @id @default(uuid())
+  entity_type   String      // "client_note", "job_note", "job", "client", etc.
+  entity_id     String      // UUID of the changed record
+  action        String      // "created", "updated", "deleted"
+  actor_tech_id        String?
+  actor_dispatcher_id  String?
+  changes       Json        // { field_name: { old: "...", new: "..." } }
+  timestamp     DateTime    @default(now())
+
+  // Optional context
+  ip_address    String?     // For security
+  user_agent    String?     // For security
+  reason        String?     // Optional: "Customer requested update"
+  
+  actor_tech       technician? @relation(fields: [actor_tech_id], references: [id])
+  actor_dispatcher dispatcher? @relation(fields: [actor_dispatcher_id], references: [id])
+  @@index([entity_type, entity_id]) // Get all changes to a specific record
+  @@index([timestamp])
+  @@index([actor_tech_id])
+  @@index([actor_dispatcher_id])
 }

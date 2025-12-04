@@ -219,9 +219,9 @@ export default function ClientsPage() {
 				</div>
 			)}
 
-			{/* Client Cards Grid */}
+			{/* Client Cards - Flex Layout */}
 			{!isFetchLoading && !fetchError && filteredClients && filteredClients.length > 0 && (
-				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 justify-items-center">
+				<div className="flex flex-wrap gap-4">
 					{filteredClients.map((client) => (
 						<ClientCard
 							key={client.id}

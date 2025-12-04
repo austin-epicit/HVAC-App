@@ -238,7 +238,7 @@ export default function ContactManager({ clientId }: ContactManagerProps) {
 							{contacts.map((contact) => (
 								<div
 									key={contact.id}
-									className="p-4 bg-zinc-800 rounded-lg border border-zinc-700 group hover:border-zinc-600 transition-colors w-[calc(33.333%-0.67rem)] min-w-[280px]"
+									className="p-4 bg-zinc-800 rounded-lg border border-zinc-700 group hover:border-zinc-600 transition-colors flex-shrink-0 w-[320px]"
 								>
 									<div className="flex justify-between items-start mb-2">
 										<h3 className="text-white font-semibold">{contact.name}</h3>

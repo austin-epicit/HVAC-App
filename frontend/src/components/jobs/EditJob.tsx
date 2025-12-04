@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X } from "lucide-react";
+import { X, Trash2 } from "lucide-react";
 import { useUpdateJobMutation } from "../../hooks/useJobs";
 import type { Job, JobStatus } from "../../types/jobs";
 import DatePicker from "../ui/DatePicker";
@@ -130,7 +130,6 @@ export default function EditJob({ isModalOpen, setIsModalOpen, job }: EditJobPro
 				</div>
 
 				<form onSubmit={handleSubmit} className="space-y-4">
-					{/* Job Name */}
 					<div>
 						<label className="block text-sm font-medium text-zinc-300 mb-2">
 							Job Name
@@ -145,7 +144,6 @@ export default function EditJob({ isModalOpen, setIsModalOpen, job }: EditJobPro
 						/>
 					</div>
 
-					{/* Address */}
 					<div>
 						<label className="block text-sm font-medium text-zinc-300 mb-2">
 							Address
@@ -160,7 +158,6 @@ export default function EditJob({ isModalOpen, setIsModalOpen, job }: EditJobPro
 						/>
 					</div>
 
-					{/* Client (Read-only) */}
 					<div>
 						<label className="block text-sm font-medium text-zinc-300 mb-2">
 							Client
@@ -173,7 +170,6 @@ export default function EditJob({ isModalOpen, setIsModalOpen, job }: EditJobPro
 						</p>
 					</div>
 
-					{/* Status */}
 					<div>
 						<label className="block text-sm font-medium text-zinc-300 mb-2">
 							Status
@@ -193,10 +189,8 @@ export default function EditJob({ isModalOpen, setIsModalOpen, job }: EditJobPro
 						</select>
 					</div>
 
-					{/* Start Date */}
 					<DatePicker label="Start Date" value={startDate} onChange={setStartDate} />
 
-					{/* Schedule Type */}
 					<div>
 						<label className="block text-sm font-medium text-zinc-300 mb-2">
 							When
@@ -238,7 +232,6 @@ export default function EditJob({ isModalOpen, setIsModalOpen, job }: EditJobPro
 						</div>
 					</div>
 
-					{/* Exact Time */}
 					{when === "exact" && (
 						<div className="flex gap-4">
 							<div className="flex-1">
@@ -250,7 +243,6 @@ export default function EditJob({ isModalOpen, setIsModalOpen, job }: EditJobPro
 						</div>
 					)}
 
-					{/* Window */}
 					{when === "window" && (
 						<>
 							<div className="flex gap-4">
@@ -261,11 +253,15 @@ export default function EditJob({ isModalOpen, setIsModalOpen, job }: EditJobPro
 									<DurationPicker label="Duration" value={duration} onChange={setDuration} />
 								</div>
 							</div>
-							<TimePicker label="End Time" value={windowEnd} onChange={setWindowEnd} />
+							<div className="flex gap-4">
+								<div className="flex-1">
+									<TimePicker label="End Time" value={windowEnd} onChange={setWindowEnd} />
+								</div>
+								<div className="flex-1"></div>
+							</div>
 						</>
 					)}
 
-					{/* Description */}
 					<div>
 						<label className="block text-sm font-medium text-zinc-300 mb-2">
 							Description
@@ -279,14 +275,20 @@ export default function EditJob({ isModalOpen, setIsModalOpen, job }: EditJobPro
 						/>
 					</div>
 
-					{/* Submit Button */}
-					<div className="pt-4">
+					<div className="flex gap-3 pt-4">
 						<button
 							type="submit"
 							disabled={updateJob.isPending}
-							className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:cursor-not-allowed text-white rounded-md transition-colors"
+							className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:cursor-not-allowed text-white rounded-md transition-colors"
 						>
 							{updateJob.isPending ? "Saving..." : "Save Changes"}
+						</button>
+						<button
+							type="button"
+							className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors`}
+						>
+							<Trash2 size={16} />
+							
 						</button>
 					</div>
 				</form>
