@@ -2,8 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import FullCalendar from "@fullcalendar/react";
 import interactionPlugin from "@fullcalendar/interaction";
 import dayGridPlugin from "@fullcalendar/daygrid";
-import type { Job } from "../../types/jobs";
-import { useUpdateJobMutation } from "../../hooks/useJobs";
+import type { Job, JobVisit } from "../../types/jobs";
+import { useUpdateJobVisitMutation } from "../../hooks/useJobs";
 
 interface SmartCalendarProps {
   jobs: Job[];
@@ -11,25 +11,33 @@ interface SmartCalendarProps {
   toolbar?: any;
 }
 
+interface VisitWithJob extends JobVisit {
+  job: Job;
+}
+
 export default function SmartCalendar({ jobs, view, toolbar }: SmartCalendarProps) {
-  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [selectedVisit, setSelectedVisit] = useState<VisitWithJob | null>(null);
   const [popupPos, setPopupPos] = useState<{ top: number; left: number } | null>(null);
   const popupRef = useRef<HTMLDivElement>(null);
 
-  const { mutateAsync: updateJob } = useUpdateJobMutation();
+  const { mutateAsync: updateVisit } = useUpdateJobVisitMutation();
 
   // Close popup on outside click
   useEffect(() => {
     function handleMouseDown(e: MouseEvent) {
       if (popupRef.current && !popupRef.current.contains(e.target as Node)) {
-        setSelectedJob(null);
+        setSelectedVisit(null);
       }
     }
     document.addEventListener("mousedown", handleMouseDown);
     return () => document.removeEventListener("mousedown", handleMouseDown);
   }, []);
 
-  /*  After priority support is added to jobs
+  // Extract all visits from all jobs with job info
+  const allVisits: VisitWithJob[] = jobs.flatMap(job => 
+    job.visits.map(visit => ({ ...visit, job }))
+  );
+
   function getPriorityColor(priority?: string): string {
     switch (priority?.toLowerCase()) {
       case "high": return "#ef4444"; // red
@@ -38,66 +46,93 @@ export default function SmartCalendar({ jobs, view, toolbar }: SmartCalendarProp
       case "normal": 
       default: return "#3b82f6"; // blue
     }
-  }*/
-
-  function formatTime(dateStr: string): string {
-    const date = new Date(dateStr);
-    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   }
 
-  function formatDuration(minutes?: number): string {
-    if (!minutes) return "";
-    const hrs = Math.floor(minutes / 60);
-    const mins = minutes % 60;
+  function getStatusColor(status: string): string {
+    switch (status) {
+      case "Scheduled": return "#3b82f6"; // blue
+      case "InProgress": return "#f59e0b"; // amber
+      case "Completed": return "#10b981"; // green
+      case "Cancelled": return "#ef4444"; // red
+      default: return "#6b7280"; // gray
+    }
+  }
+
+  function formatTime(date: Date | string): string {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  }
+
+  function formatDuration(start: Date | string, end: Date | string): string {
+    const startDate = typeof start === 'string' ? new Date(start) : start;
+    const endDate = typeof end === 'string' ? new Date(end) : end;
+    const diffMs = endDate.getTime() - startDate.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    
+    const hrs = Math.floor(diffMins / 60);
+    const mins = diffMins % 60;
+    
     if (hrs === 0) return `${mins}m`;
     if (mins === 0) return `${hrs}h`;
     return `${hrs}h ${mins}m`;
   }
 
-  function formatDate(dateStr: string): string {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString([], { 
+  function formatDate(date: Date | string): string {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    return d.toLocaleDateString([], { 
       month: 'short', 
       day: 'numeric', 
       year: 'numeric' 
     });
   }
 
-  // Sort jobs: all-day jobs first, then by start time
-  const sortedJobs = [...jobs].sort((a, b) => {
+  function formatDateTimeRange(visit: JobVisit): string {
+    const start = new Date(visit.scheduled_start_at);
+    const end = new Date(visit.scheduled_end_at);
+
+    if (visit.schedule_type === "all_day") {
+      return "All Day";
+    } else if (visit.schedule_type === "window" && visit.arrival_window_start && visit.arrival_window_end) {
+      return `${formatTime(visit.arrival_window_start)} - ${formatTime(visit.arrival_window_end)} (window)`;
+    } else {
+      return `${formatTime(start)} - ${formatTime(end)}`;
+    }
+  }
+
+  // Sort visits: all-day visits first, then by start time
+  const sortedVisits = [...allVisits].sort((a, b) => {
     const isAllDayA = a.schedule_type === "all_day";
     const isAllDayB = b.schedule_type === "all_day";
-    
-    // All-day jobs come first
+
     if (isAllDayA && !isAllDayB) return -1;
     if (!isAllDayA && isAllDayB) return 1;
     
-    // Within same type, sort by time
-    const timeA = new Date(a.start_date).getTime();
-    const timeB = new Date(b.start_date).getTime();
+    const timeA = new Date(a.scheduled_start_at).getTime();
+    const timeB = new Date(b.scheduled_start_at).getTime();
     return timeA - timeB;
   });
 
-  const events = sortedJobs.map((job, index) => {
-    const startDate = new Date(job.start_date);
+  const events = sortedVisits.map((visit, index) => {
+    const startDate = new Date(visit.scheduled_start_at);
     const dateStr = startDate.toISOString().split("T")[0];
-    const isAllDay = job.schedule_type === "all_day";
+    const isAllDay = visit.schedule_type === "all_day";
     
     // Format title based on schedule type
     const title = isAllDay 
-      ? job.name 
-      : `${formatTime(job.start_date)} ${job.name}`;
+      ? visit.job.name 
+      : `${formatTime(visit.scheduled_start_at)} ${visit.job.name}`;
     
     return {
-      id: job.id,
+      id: visit.id,
       title: title,
       start: dateStr,
       allDay: true,
-      //backgroundColor: getPriorityColor(job.priority),
-      //borderColor: getPriorityColor(job.priority),
+      backgroundColor: getStatusColor(visit.status),
+      borderColor: getPriorityColor(visit.job.priority),
       extendedProps: {
         sortOrder: index, // Use index from sorted array
         isAllDay: isAllDay,
+        visit: visit,
       },
     };
   });
@@ -120,7 +155,7 @@ export default function SmartCalendar({ jobs, view, toolbar }: SmartCalendarProp
         eventOrder="sortOrder,title" // Sort by our custom order, then title
 
         eventDrop={async (info) => {
-          const jobId = info.event.id;
+          const visitId = info.event.id;
           const newDate = info.event.start;
 
           if (!newDate) {
@@ -129,17 +164,24 @@ export default function SmartCalendar({ jobs, view, toolbar }: SmartCalendarProp
           }
 
           try {
-            const job = jobs.find((j) => j.id === jobId);
-            if (!job) {
+            const visit = allVisits.find((v) => v.id === visitId);
+            if (!visit) {
               info.revert();
               return;
             }
 
-            let normalized: Date;
+            const originalStart = new Date(visit.scheduled_start_at);
+            const originalEnd = new Date(visit.scheduled_end_at);
+            
+            // Calculate duration to maintain it
+            const durationMs = originalEnd.getTime() - originalStart.getTime();
 
-            // For all-day jobs, use date only (no time)
-            if (job.schedule_type === "all_day") {
-              normalized = new Date(
+            let newStart: Date;
+            let newEnd: Date;
+
+            // For all-day visits, use date only (no time)
+            if (visit.schedule_type === "all_day") {
+              newStart = new Date(
                 Date.UTC(
                   newDate.getFullYear(),
                   newDate.getMonth(),
@@ -147,43 +189,77 @@ export default function SmartCalendar({ jobs, view, toolbar }: SmartCalendarProp
                   0, 0, 0, 0
                 )
               );
+              newEnd = new Date(newStart.getTime() + durationMs);
             } else {
-              // For timed jobs, preserve the original time
-              const originalDate = new Date(job.start_date);
-              normalized = new Date(
+              // For timed visits, preserve the original time
+              newStart = new Date(
                 Date.UTC(
                   newDate.getFullYear(),
                   newDate.getMonth(),
                   newDate.getDate(),
-                  originalDate.getUTCHours(),
-                  originalDate.getUTCMinutes(),
+                  originalStart.getUTCHours(),
+                  originalStart.getUTCMinutes(),
                   0,
                   0
                 )
               );
+              newEnd = new Date(newStart.getTime() + durationMs);
             }
 
-            await updateJob({
-              id: jobId,
-              updates: { start_date: normalized.toISOString() },
+            // Also update window times if they exist
+            let updates: any = {
+              scheduled_start_at: newStart.toISOString(),
+              scheduled_end_at: newEnd.toISOString(),
+            };
+
+            if (visit.arrival_window_start && visit.arrival_window_end) {
+              const windowStart = new Date(visit.arrival_window_start);
+              const windowEnd = new Date(visit.arrival_window_end);
+              
+              updates.arrival_window_start = new Date(
+                Date.UTC(
+                  newDate.getFullYear(),
+                  newDate.getMonth(),
+                  newDate.getDate(),
+                  windowStart.getUTCHours(),
+                  windowStart.getUTCMinutes(),
+                  0, 0
+                )
+              ).toISOString();
+              
+              updates.arrival_window_end = new Date(
+                Date.UTC(
+                  newDate.getFullYear(),
+                  newDate.getMonth(),
+                  newDate.getDate(),
+                  windowEnd.getUTCHours(),
+                  windowEnd.getUTCMinutes(),
+                  0, 0
+                )
+              ).toISOString();
+            }
+
+            await updateVisit({
+              id: visitId,
+              data: updates,
             });
           } catch (err) {
-            console.error("Failed to update job date", err);
+            console.error("Failed to update visit date", err);
             info.revert();
           }
         }}
 
         eventClick={(info) => {
-          const job = jobs.find((j) => j.id === info.event.id);
-          if (!job) return;
+          const visit = allVisits.find((v) => v.id === info.event.id);
+          if (!visit) return;
 
           const rect = info.el.getBoundingClientRect();
           const eventCenterX = rect.left + rect.width / 2;
           const eventCenterY = rect.top + rect.height / 2;
           const screenCenterX = window.innerWidth / 2;
 
-          const POPUP_WIDTH = 300;
-          const POPUP_HEIGHT = 200;
+          const POPUP_WIDTH = 350;
+          const POPUP_HEIGHT = 250;
 
           const placeRight = eventCenterX < screenCenterX;
 
@@ -194,59 +270,93 @@ export default function SmartCalendar({ jobs, view, toolbar }: SmartCalendarProp
           const top = eventCenterY - POPUP_HEIGHT / 2;
 
           setPopupPos({ top, left });
-          setSelectedJob(job);
+          setSelectedVisit(visit);
         }}
       />
 
-      {selectedJob && popupPos && (
+      {selectedVisit && popupPos && (
         <div
           ref={popupRef}
           className="fixed z-[6000] bg-zinc-900 border border-zinc-700
                      rounded-lg shadow-xl p-4 text-sm"
-          style={{ top: popupPos.top, left: popupPos.left, minWidth: '300px' }}
+          style={{ top: popupPos.top, left: popupPos.left, minWidth: '350px' }}
         >
-          <h2 className="text-xl font-bold mb-3 text-gray-200">{selectedJob.name}</h2>
+          <h2 className="text-xl font-bold mb-3 text-gray-200">{selectedVisit.job.name}</h2>
 
           <div className="space-y-2 text-gray-300">
             <p>
-              <strong className="text-gray-400">Status:</strong> {selectedJob.status}
+              <strong className="text-gray-400">Client:</strong> {selectedVisit.job.client.name}
             </p>
 
-            {selectedJob.schedule_type === "all_day" ? (
-              <p>
-                <strong className="text-gray-400">Schedule:</strong>{" "}
-                All Day
-              </p>
-            ) : (
-              <p>
-                <strong className="text-gray-400">Start:</strong>{" "}
-                {formatTime(selectedJob.start_date)}
-              </p>
-            )}
+            <p>
+              <strong className="text-gray-400">Visit Status:</strong>{" "}
+              <span 
+                className="inline-block w-2 h-2 rounded-full mr-1"
+                style={{ backgroundColor: getStatusColor(selectedVisit.status) }}
+              />
+              {selectedVisit.status}
+            </p>
+
+            <p>
+              <strong className="text-gray-400">Job Status:</strong> {selectedVisit.job.status}
+            </p>
+
+            <p>
+              <strong className="text-gray-400">Priority:</strong>{" "}
+              <span 
+                className="inline-block w-2 h-2 rounded-full mr-1"
+                style={{ backgroundColor: getPriorityColor(selectedVisit.job.priority) }}
+              />
+              {selectedVisit.job.priority || "normal"}
+            </p>
+
+            <p>
+              <strong className="text-gray-400">Schedule:</strong>{" "}
+              {formatDateTimeRange(selectedVisit)}
+            </p>
 
             <p>
               <strong className="text-gray-400">Date:</strong>{" "}
-              {formatDate(selectedJob.start_date)}
+              {formatDate(selectedVisit.scheduled_start_at)}
             </p>
 
-            {selectedJob.duration !== undefined && selectedJob.duration > 0 && (
+            <p>
+              <strong className="text-gray-400">Duration:</strong>{" "}
+              {formatDuration(selectedVisit.scheduled_start_at, selectedVisit.scheduled_end_at)}
+            </p>
+
+            {selectedVisit.visit_techs && selectedVisit.visit_techs.length > 0 && (
               <p>
-                <strong className="text-gray-400">Duration:</strong>{" "}
-                {formatDuration(selectedJob.duration)}
+                <strong className="text-gray-400">Technicians:</strong>{" "}
+                {selectedVisit.visit_techs.map(vt => vt.tech.name).join(", ")}
               </p>
             )}
 
-            {selectedJob.address && (
+            {selectedVisit.job.address && (
               <p>
                 <strong className="text-gray-400">Address:</strong>{" "}
-                {selectedJob.address}
+                {selectedVisit.job.address}
               </p>
             )}
 
-            {selectedJob.description && (
+            {selectedVisit.job.description && (
               <p>
                 <strong className="text-gray-400">Description:</strong>{" "}
-                {selectedJob.description}
+                {selectedVisit.job.description}
+              </p>
+            )}
+
+            {selectedVisit.actual_start_at && (
+              <p>
+                <strong className="text-gray-400">Started:</strong>{" "}
+                {formatTime(selectedVisit.actual_start_at)}
+              </p>
+            )}
+
+            {selectedVisit.actual_end_at && (
+              <p>
+                <strong className="text-gray-400">Completed:</strong>{" "}
+                {formatTime(selectedVisit.actual_end_at)}
               </p>
             )}
           </div>
@@ -255,7 +365,7 @@ export default function SmartCalendar({ jobs, view, toolbar }: SmartCalendarProp
             <button
               className="px-3 py-1.5 rounded-sm border border-zinc-700 
                          hover:bg-zinc-800 text-sm text-gray-200 transition-colors"
-              onClick={() => setSelectedJob(null)}
+              onClick={() => setSelectedVisit(null)}
             >
               Close
             </button>
@@ -264,14 +374,4 @@ export default function SmartCalendar({ jobs, view, toolbar }: SmartCalendarProp
       )}
     </div>
   );
-  /**       To be used after priority support is added to jobs
-      <p> 
-        <strong className="text-gray-400">Priority:</strong>{" "}
-        <span 
-          className="inline-block w-2 h-2 rounded-full mr-1"
-          style={{ backgroundColor: getPriorityColor(selectedJob.priority) }}
-        />
-        {selectedJob.priority || "normal"}
-      </p> 
-     */ 
 }

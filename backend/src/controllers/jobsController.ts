@@ -8,27 +8,54 @@ export const getAllJobs = async () => {
 	return await db.job.findMany({
 		include: {
 			client: true,
+			visits: {
+				include: {
+					visit_techs: {
+						include: {
+							tech: true,
+						},
+					},
+				},
+			},
 			notes: true,
-		}
+		},
 	});
 };
 
 export const getJobById = async (id: string) => {
-	return await db.job.findFirst({ 
-		where: { id: id }, 
+	return await db.job.findFirst({
+		where: { id: id },
 		include: {
 			client: true,
+			visits: {
+				include: {
+					visit_techs: {
+						include: {
+							tech: true,
+						},
+					},
+					notes: true,
+				},
+			},
 			notes: true,
-		}
+		},
 	});
 };
 
 export const getJobsByClientId = async (clientId: string) => {
 	return await db.job.findMany({
 		where: { client_id: clientId },
-		include: { 
-			job_tech: true,
+		include: {
 			client: true,
+			visits: {
+				include: {
+					visit_techs: {
+						include: {
+							tech: true,
+						},
+					},
+				},
+			},
 			notes: true,
 		},
 	});
@@ -65,17 +92,12 @@ export const insertJob = async (req: Request) => {
 		const created = await db.$transaction(async (tx) => {
 			const job = await tx.job.create({
 				data: {
-					id: undefined,
 					name: parsed.name,
 					description: parsed.description,
 					priority: parsed.priority,
 					client_id: parsed.client_id,
 					address: parsed.address,
 					status: parsed.status as job_status,
-					duration: parsed.duration,
-					start_date: parsed.start_date,
-					window_end: parsed.window_end,
-					schedule_type: parsed.schedule_type,
 				},
 			});
 
@@ -84,22 +106,16 @@ export const insertJob = async (req: Request) => {
 				data: { last_activity: new Date() },
 			});
 
-			if (parsed.tech_ids.length > 0) {
-				await tx.job_technician.createMany({
-					data: parsed.tech_ids.map((tech_id) => ({
-						job_id: job.id,
-						tech_id,
-					})),
-					skipDuplicates: true,
-				});
-			}
-
 			return tx.job.findUnique({
 				where: { id: job.id },
 				include: {
 					client: true,
-					job_tech: {
-						include: { tech: true },
+					visits: {
+						include: {
+							visit_techs: {
+								include: { tech: true },
+							},
+						},
 					},
 					notes: true,
 				},
@@ -119,7 +135,6 @@ export const insertJob = async (req: Request) => {
 	}
 };
 
-
 export const updateJob = async (req: Request) => {
 	try {
 		const id = (req as any).params.id;
@@ -133,21 +148,13 @@ export const updateJob = async (req: Request) => {
 			"client_id",
 			"address",
 			"status",
-			"duration",
-			"start_date",
-			"window_end",
-    		"schedule_type",	
 		] satisfies (keyof typeof updates)[];
 
 		const safeData: Record<string, any> = {};
 
 		for (const key of allowedFields) {
 			if (updates[key] !== undefined) {
-				if (key === "start_date") {
-					safeData.start_date = new Date(updates.start_date);
-				} else {
-					safeData[key] = updates[key];
-				}
+				safeData[key] = updates[key];
 			}
 		}
 
@@ -156,9 +163,14 @@ export const updateJob = async (req: Request) => {
 			data: safeData,
 			include: {
 				client: true,
-				job_tech: {
-					include: { tech: true },
+				visits: {
+					include: {
+						visit_techs: {
+							include: { tech: true },
+						},
+					},
 				},
+				notes: true,
 			},
 		});
 

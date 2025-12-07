@@ -19,10 +19,12 @@ export const createJobNoteSchema = z.object({
 	content: z.string().min(1, "Note content is required"),
 	tech_id: z.string().uuid().nullable().optional(),
 	dispatcher_id: z.string().uuid().nullable().optional(),
+  visit_id: z.string().uuid("Invalid visit ID").optional(),
 });
 
 export const updateJobNoteSchema = z.object({
 	content: z.string().min(1, "Note content is required"),
 	tech_id: z.string().uuid().nullable().optional(),
 	dispatcher_id: z.string().uuid().nullable().optional(),
+  visit_id: z.string().uuid("Invalid visit ID").optional().nullable(),
 });

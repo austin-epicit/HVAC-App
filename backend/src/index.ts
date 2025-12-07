@@ -9,16 +9,30 @@ import {
 	getJobsByClientId
 } from "./controllers/jobsController.js";
 import { 
-	getJobNotes, 
+	getJobNotes,
+	getJobNotesByVisitId,
 	insertJobNote, 
 	updateJobNote, 
 	deleteJobNote 
 } from "./controllers/jobNotesController.js";
 import {
+	getAllJobVisits,
+	getJobVisitById,
+	getJobVisitsByJobId,
+	getJobVisitsByTechId,
+	getJobVisitsByDateRange,
+	insertJobVisit,
+	updateJobVisit,
+	assignTechniciansToVisit,
+	deleteJobVisit,
+} from "./controllers/jobVisitsController.js";
+import {
 	ClientInsertResult,
 	ClientResponse,
 	JobInsertResult,
 	JobResponse,
+	JobVisitInsertResult,
+	JobVisitResponse,
 	ContactInsertResult,
 	ContactResponse,
 	NoteInsertResult,
@@ -150,6 +164,136 @@ app.patch("/jobs/:id", async (req, res) => {
 });
 
 // ============================================
+// JOB VISITS
+// ============================================
+
+app.get("/job-visits", async (req, res) => {
+	try {
+		const visits = await getAllJobVisits();
+		const resp: JobVisitResponse = { err: "", data: visits };
+		res.json(resp);
+	} catch (err) {
+		console.error(err);
+		res.status(500).json({ err: "Failed to fetch job visits", data: [] });
+	}
+});
+
+app.get("/job-visits/:id", async (req, res) => {
+	try {
+		const { id } = req.params;
+		const visit = await getJobVisitById(id);
+
+		if (!visit)
+			return res.status(404).json({ err: "Job visit not found", data: [] });
+
+		res.json({ err: "", data: [visit] });
+	} catch (err) {
+		console.error(err);
+		res.status(500).json({ err: "Failed to fetch job visit", data: [] });
+	}
+});
+
+app.get("/jobs/:jobId/visits", async (req, res) => {
+	try {
+		const { jobId } = req.params;
+		const visits = await getJobVisitsByJobId(jobId);
+		res.json({ err: "", data: visits });
+	} catch (err) {
+		console.error(err);
+		res.status(500).json({ err: "Failed to fetch job visits", data: [] });
+	}
+});
+
+app.get("/technicians/:techId/visits", async (req, res) => {
+	try {
+		const { techId } = req.params;
+		const visits = await getJobVisitsByTechId(techId);
+		res.json({ err: "", data: visits });
+	} catch (err) {
+		console.error(err);
+		res.status(500).json({ err: "Failed to fetch technician visits", data: [] });
+	}
+});
+
+app.get("/job-visits/date-range/:startDate/:endDate", async (req, res) => {
+	try {
+		const { startDate, endDate } = req.params;
+		const start = new Date(startDate);
+		const end = new Date(endDate);
+
+		if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+			return res.status(400).json({ err: "Invalid date format", data: [] });
+		}
+
+		const visits = await getJobVisitsByDateRange(start, end);
+		res.json({ err: "", data: visits });
+	} catch (err) {
+		console.error(err);
+		res.status(500).json({ err: "Failed to fetch job visits", data: [] });
+	}
+});
+
+app.post("/job-visits", async (req, res) => {
+	try {
+		const result: JobVisitInsertResult = await insertJobVisit(req);
+		if (result.err) {
+			return res.status(400).json({ err: result.err, data: [] });
+		}
+		res.status(201).json({ err: "", data: [result.item] });
+	} catch (err) {
+		console.error(err);
+		res.status(500).json({ err: "Failed to create job visit", data: [] });
+	}
+});
+
+app.put("/job-visits/:id", async (req, res) => {
+	try {
+		const result = await updateJobVisit(req);
+		if (result.err) {
+			return res.status(400).json({ err: result.err, data: [] });
+		}
+		res.json({ err: "", data: [result.item] });
+	} catch (err) {
+		console.error(err);
+		res.status(500).json({ err: "Failed to update job visit", data: [] });
+	}
+});
+
+app.put("/job-visits/:id/technicians", async (req, res) => {
+	try {
+		const { id } = req.params;
+		const { tech_ids } = req.body;
+
+		if (!Array.isArray(tech_ids)) {
+			return res.status(400).json({ err: "tech_ids must be an array", data: [] });
+		}
+
+		const result = await assignTechniciansToVisit(id, tech_ids);
+		if (result.err) {
+			return res.status(400).json({ err: result.err, data: [] });
+		}
+		res.json({ err: "", data: [result.item] });
+	} catch (err) {
+		console.error(err);
+		res.status(500).json({ err: "Failed to assign technicians", data: [] });
+	}
+});
+
+app.delete("/job-visits/:id", async (req, res) => {
+	try {
+		const { id } = req.params;
+		const result = await deleteJobVisit(id);
+		if (result.err) {
+			return res.status(400).json(result);
+		}
+		res.json(result);
+	} catch (err) {
+		console.error(err);
+		res.status(500).json({ err: "Failed to delete job visit" });
+	}
+});
+
+// ============================================
 // JOB NOTES
 // ============================================
 
@@ -160,7 +304,18 @@ app.get("/jobs/:jobId/notes", async (req, res) => {
 		return res.json({ err: "", data: notes });
 	} catch (err) {
 		console.error(err);
-		return res.status(500).json({ err: "Failed to fetch notes" });
+		return res.status(500).json({ err: "Failed to fetch notes", data: [] });
+	}
+});
+
+app.get("/jobs/:jobId/visits/:visitId/notes", async (req, res) => {
+	try {
+		const { jobId, visitId } = req.params;
+		const notes = await getJobNotesByVisitId(jobId, visitId);
+		return res.json({ err: "", data: notes });
+	} catch (err) {
+		console.error(err);
+		return res.status(500).json({ err: "Failed to fetch visit notes", data: [] });
 	}
 });
 

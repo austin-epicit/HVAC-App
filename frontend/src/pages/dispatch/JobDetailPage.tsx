@@ -1,6 +1,6 @@
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { ChevronLeft, Edit2, User, Calendar, MapPin, Clock, Users, TrendingUp, Map } from "lucide-react";
-import { useJobByIdQuery } from "../../hooks/useJobs";
+import { ChevronLeft, Edit2, User, Calendar, MapPin, Clock, Users, TrendingUp, Map, Plus } from "lucide-react";
+import { useJobByIdQuery, useJobVisitsByJobIdQuery } from "../../hooks/useJobs";
 import JobNoteManager from "../../components/jobs/JobNoteManager";
 import Card from "../../components/ui/Card";
 import EditJob from "../../components/jobs/EditJob";
@@ -10,7 +10,9 @@ export default function JobDetailPage() {
 	const { jobId } = useParams<{ jobId: string }>();
 	const navigate = useNavigate();
 	const { data: job, isLoading } = useJobByIdQuery(jobId!);
+	const { data: visits = [] } = useJobVisitsByJobIdQuery(jobId!);
 	const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+	const [isCreateVisitModalOpen, setIsCreateVisitModalOpen] = useState(false);
 
 	if (isLoading) {
 		return (
@@ -28,23 +30,12 @@ export default function JobDetailPage() {
 		);
 	}
 
-	const formatScheduleType = (type: string) => {
-		switch (type) {
-			case "all_day":
-				return "All Day";
-			case "exact":
-				return "Exact Time";
-			case "window":
-				return "Time Window";
-			default:
-				return type;
-		}
-	};
-
 	const getStatusColor = (status: string) => {
 		switch (status) {
 			case "Completed":
 				return "bg-green-500/20 text-green-400 border-green-500/30";
+			case "InProgress":
+				return "bg-blue-500/20 text-blue-400 border-blue-500/30";
 			case "In Progress":
 				return "bg-blue-500/20 text-blue-400 border-blue-500/30";
 			case "Scheduled":
@@ -57,6 +48,63 @@ export default function JobDetailPage() {
 				return "bg-zinc-500/20 text-zinc-400 border-zinc-500/30";
 		}
 	};
+
+	const getVisitStatusColor = (status: string) => {
+		switch (status) {
+			case "Scheduled": return "text-blue-400";
+			case "InProgress": return "text-amber-400";
+			case "Completed": return "text-green-400";
+			case "Cancelled": return "text-red-400";
+			default: return "text-gray-400";
+		}
+	};
+
+	const getPriorityColor = (priority: string) => {
+		switch (priority?.toLowerCase()) {
+			case "high": return "text-red-400";
+			case "medium": return "text-amber-400";
+			case "low": return "text-green-400";
+			case "normal":
+			default: return "text-blue-400";
+		}
+	};
+
+	const formatDateTime = (date: Date | string) => {
+		const d = typeof date === 'string' ? new Date(date) : date;
+		return d.toLocaleDateString("en-US", {
+			month: "short",
+			day: "numeric",
+			year: "numeric",
+		}) + " at " + d.toLocaleTimeString("en-US", {
+			hour: "numeric",
+			minute: "2-digit",
+		});
+	};
+
+	const formatTime = (date: Date | string) => {
+		const d = typeof date === 'string' ? new Date(date) : date;
+		return d.toLocaleTimeString("en-US", {
+			hour: "numeric",
+			minute: "2-digit",
+		});
+	};
+
+	const formatDateTimeRange = (visit: any) => {
+		const start = new Date(visit.scheduled_start_at);
+		const end = new Date(visit.scheduled_end_at);
+
+		if (visit.schedule_type === "all_day") {
+			return "All Day";
+		} else if (visit.schedule_type === "window" && visit.arrival_window_start && visit.arrival_window_end) {
+			return `${formatTime(visit.arrival_window_start)} - ${formatTime(visit.arrival_window_end)} (window)`;
+		} else {
+			return `${formatTime(start)} - ${formatTime(end)}`;
+		}
+	};
+
+	const sortedVisits = [...visits].sort((a, b) => 
+		new Date(a.scheduled_start_at).getTime() - new Date(b.scheduled_start_at).getTime()
+	);
 
 	return (
 		<div className="text-white space-y-6">
@@ -115,45 +163,27 @@ export default function JobDetailPage() {
 							<div className="grid grid-cols-2 gap-4">
 								<div>
 									<h3 className="text-zinc-400 text-sm mb-1 flex items-center gap-2">
-										<Calendar size={14} />
-										Start Date
+										<TrendingUp size={14} />
+										Priority
 									</h3>
-									<p className="text-white">
-										{new Date(job.start_date).toLocaleDateString("en-US", {
-											year: "numeric",
-											month: "short",
-											day: "numeric",
-										})}
+									<p className={`font-medium capitalize ${getPriorityColor(job.priority)}`}>
+										{job.priority || "normal"}
 									</p>
 								</div>
 								<div>
 									<h3 className="text-zinc-400 text-sm mb-1 flex items-center gap-2">
-										<Clock size={14} />
-										Schedule Type
+										<Calendar size={14} />
+										Created
 									</h3>
-									<p className="text-white">{formatScheduleType(job.schedule_type)}</p>
-								</div>
-							</div>
-
-							{job.duration && (
-								<div>
-									<h3 className="text-zinc-400 text-sm mb-1">Duration</h3>
-									<p className="text-white">{job.duration} minutes</p>
-								</div>
-							)}
-
-							{job.window_end && (
-								<div>
-									<h3 className="text-zinc-400 text-sm mb-1">Window End</h3>
 									<p className="text-white">
-										{new Date(job.window_end).toLocaleDateString("en-US", {
+										{new Date(job.created_at).toLocaleDateString("en-US", {
 											year: "numeric",
 											month: "short",
 											day: "numeric",
 										})}
 									</p>
 								</div>
-							)}
+							</div>
 						</div>
 					</Card>
 				</div>
@@ -205,6 +235,96 @@ export default function JobDetailPage() {
 				</div>
 			</div>
 
+			{/* Scheduled Visits - Full Width */}
+			<Card
+				title="Scheduled Visits"
+				headerAction={
+					<button
+						onClick={() => setIsCreateVisitModalOpen(true)}
+						className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-md text-sm font-medium transition-colors"
+					>
+						<Plus size={16} />
+						Create Visit
+					</button>
+				}
+			>
+				{visits.length === 0 ? (
+					<div className="text-center py-12">
+						<Calendar size={48} className="mx-auto mb-3 opacity-50 text-zinc-600" />
+						<p className="text-lg font-medium mb-2 text-zinc-400">No visits scheduled</p>
+						<p className="text-sm text-zinc-500 mb-4">Create a visit to schedule this job</p>
+						<button
+							onClick={() => setIsCreateVisitModalOpen(true)}
+							className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-md text-sm font-medium transition-colors"
+						>
+							<Plus size={16} />
+							Create First Visit
+						</button>
+					</div>
+				) : (
+					<div className="space-y-3">
+						{sortedVisits.map((visit) => (
+							<div
+								key={visit.id}
+								className="bg-zinc-800 border border-zinc-700 rounded-lg p-4 hover:border-zinc-600 transition-colors"
+							>
+								<div className="flex items-start justify-between mb-3">
+									<div className="flex items-center gap-3">
+										<div className={`font-medium ${getVisitStatusColor(visit.status)}`}>
+											{visit.status}
+										</div>
+										<span className="text-gray-500">•</span>
+										<span className="text-sm text-gray-400 capitalize">
+											{visit.schedule_type.replace('_', ' ')}
+										</span>
+									</div>
+									<button className="text-gray-400 hover:text-white transition-colors">
+										<Edit2 size={16} />
+									</button>
+								</div>
+
+								<div className="space-y-2">
+									{/* Date & Time */}
+									<div className="flex items-center gap-2 text-sm">
+										<Clock size={16} className="text-gray-400" />
+										{visit.schedule_type === "all_day" ? (
+											<span className="text-gray-300">
+												{formatDateTime(visit.scheduled_start_at).split(' at ')[0]} - All Day
+											</span>
+										) : visit.schedule_type === "window" && visit.arrival_window_start && visit.arrival_window_end ? (
+											<span className="text-gray-300">
+												{formatDateTime(visit.scheduled_start_at).split(' at ')[0]} • Window: {formatTime(visit.arrival_window_start)} - {formatTime(visit.arrival_window_end)}
+											</span>
+										) : (
+											<span className="text-gray-300">
+												{formatDateTime(visit.scheduled_start_at)} - {formatTime(visit.scheduled_end_at)}
+											</span>
+										)}
+									</div>
+
+									{/* Technicians */}
+									{visit.visit_techs && visit.visit_techs.length > 0 && (
+										<div className="flex items-center gap-2 text-sm">
+											<Users size={16} className="text-gray-400" />
+											<span className="text-gray-300">
+												{visit.visit_techs.map((vt: any) => vt.tech.name).join(", ")}
+											</span>
+										</div>
+									)}
+
+									{/* Actual Times (if completed) */}
+									{visit.actual_start_at && visit.actual_end_at && (
+										<div className="mt-2 pt-2 border-t border-zinc-700 text-xs text-gray-400">
+											Actual: {formatTime(visit.actual_start_at)} - {formatTime(visit.actual_end_at)}
+										</div>
+									)}
+								</div>
+							</div>
+						))}
+					</div>
+				)}
+			</Card>
+
 			{/* Status Timeline - Full Width */}
 			<Card title="Status Timeline" className="h-fit">
 				<div className="py-8">
@@ -224,10 +344,17 @@ export default function JobDetailPage() {
 									<p className="text-white text-sm font-medium">{job.status}</p>
 								</div>
 							</div>
+							<div className="flex items-center gap-3">
+								<div className="w-3 h-3 rounded-full bg-blue-500 flex-shrink-0"></div>
+								<div>
+									<p className="text-zinc-400 text-xs">Total Visits</p>
+									<p className="text-white text-sm font-medium">{visits.length}</p>
+								</div>
+							</div>
 							<div className="flex items-center gap-3 opacity-50">
 								<div className="w-3 h-3 rounded-full bg-zinc-600 flex-shrink-0"></div>
 								<div>
-									<p className="text-zinc-500 text-xs">Timeline tracking coming soon</p>
+									<p className="text-zinc-500 text-xs">Detailed timeline coming soon</p>
 								</div>
 							</div>
 						</div>
@@ -239,29 +366,21 @@ export default function JobDetailPage() {
 			<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 				<Card
 					title="Assigned Technicians"
-					headerAction={
-						<button
-							disabled
-							className="flex items-center gap-2 px-3 py-2 bg-zinc-700 text-zinc-400 rounded-md text-sm font-medium cursor-not-allowed"
-						>
-							<Users size={14} />
-							Assign
-						</button>
-					}
 					className="h-fit"
 				>
 					<div className="text-center py-12">
 						<Users size={48} className="mx-auto text-zinc-600 mb-3" />
-						<h3 className="text-zinc-400 text-lg font-medium mb-2">Technician Assignment</h3>
+						<h3 className="text-zinc-400 text-lg font-medium mb-2">Visit-Based Assignment</h3>
 						<p className="text-zinc-500 text-sm max-w-sm mx-auto">
-							Technician management will be available soon. Assign and track technicians for this
-							job.
+							Technicians are now assigned to specific visits. Create a visit to assign technicians.
 						</p>
-						<div className="mt-4 px-4 py-2 bg-zinc-800 rounded-md inline-block">
-							<p className="text-xs text-zinc-400">
-								Tech IDs: {job.tech_ids?.length > 0 ? job.tech_ids.join(", ") : "None assigned"}
-							</p>
-						</div>
+						{visits.length > 0 && (
+							<div className="mt-4 px-4 py-2 bg-zinc-800 rounded-md inline-block">
+								<p className="text-xs text-zinc-400">
+									{visits.reduce((acc, v) => acc + (v.visit_techs?.length || 0), 0)} technician assignments across {visits.length} visits
+								</p>
+							</div>
+						)}
 					</div>
 				</Card>
 
@@ -286,13 +405,36 @@ export default function JobDetailPage() {
 			</div>
 
 			{/* Job Notes - Full Width at Bottom */}
-			<JobNoteManager jobId={jobId!} />
+			<JobNoteManager jobId={jobId!} visits={visits} />
 
 			<EditJob
 				isModalOpen={isEditModalOpen}
 				setIsModalOpen={setIsEditModalOpen}
 				job={job}
 			/>
+
+			{/* Create Visit Modal - Placeholder */}
+			{isCreateVisitModalOpen && (
+				<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+					<div className="bg-zinc-900 border border-zinc-700 rounded-lg p-6 max-w-2xl w-full mx-4">
+						<h2 className="text-xl font-bold mb-4">Create Visit</h2>
+						<p className="text-gray-400 mb-4">Visit creation form will go here</p>
+						<div className="flex justify-end gap-2">
+							<button
+								onClick={() => setIsCreateVisitModalOpen(false)}
+								className="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 rounded-lg transition-colors"
+							>
+								Cancel
+							</button>
+							<button
+								className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+							>
+								Create Visit
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 }

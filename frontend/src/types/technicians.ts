@@ -1,29 +1,38 @@
 import z from "zod";
 
-// Technician
-
+// Technician Status
 export type TechnicianStatus = "Offline" | "Available" | "Busy" | "Break";
 
-// Basic job info that comes with job_tech relation
-export interface TechnicianJob {
-	id: string;
-	name: string;
-	description: string;
-	status: string;
-	address: string;
-	start_date: Date;
-	created_at: Date;
-	client_id: string;
-	priority: string;
-	duration: number;
-	window_end: Date | null;
-	schedule_type: string;
-}
-
-export interface JobTechnician {
-	job_id: string;
+export interface VisitTechnician {
+	visit_id: string;
 	tech_id: string;
-	job: TechnicianJob;
+	visit: {
+		id: string;
+		job_id: string;
+		schedule_type: "all_day" | "exact" | "window";
+		scheduled_start_at: Date;
+		scheduled_end_at: Date;
+		arrival_window_start?: Date | null;
+		arrival_window_end?: Date | null;
+		actual_start_at?: Date | null;
+		actual_end_at?: Date | null;
+		status: "Scheduled" | "InProgress" | "Completed" | "Cancelled";
+		job: {
+			id: string;
+			name: string;
+			description: string;
+			status: string;
+			address: string;
+			priority: string;
+			created_at: Date;
+			client_id: string;
+			client: {
+				id: string;
+				name: string;
+				address: string;
+			};
+		};
+	};
 }
 
 export interface Technician {
@@ -36,7 +45,7 @@ export interface Technician {
 	status: TechnicianStatus;
 	hire_date: Date;
 	last_login: Date;
-	job_tech?: JobTechnician[];
+	visit_techs?: VisitTechnician[];
 	logs?: any[];
 	audit_logs?: any[];
 	created_client_notes?: any[];

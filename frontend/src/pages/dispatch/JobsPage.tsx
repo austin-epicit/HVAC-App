@@ -48,28 +48,45 @@ export default function JobsPage() {
 				const clientName = j.client?.name?.toLowerCase() || "";
 				const jobName = j.name?.toLowerCase() || "";
 				const status = j.status?.toLowerCase() || "";
+				const address = j.address?.toLowerCase() || "";
 				
 				return (
 					jobName.includes(searchLower) ||
 					clientName.includes(searchLower) ||
-					status.includes(searchLower)
+					status.includes(searchLower) ||
+					address.includes(searchLower)
 				);
 			});
 		}
 		
 		return filtered
-			.map((j) => ({
-				id: j.id, // Keep ID for navigation
-				name: j.name,
-				technicians: Array.isArray(j.tech_ids) ? j.tech_ids.join(", ") : j.tech_ids,
-				client: j.client?.name || "Unknown Client", // Use client name from relation
-				date: new Date(j.start_date).toLocaleDateString("en-US", {
-					month: "short",
-					day: "numeric",
-					year: "numeric",
-				}),
-				status: j.status,
-			}))
+			.map((j) => {
+				// Get next scheduled visit
+				const scheduledVisits = j.visits
+					.filter(v => v.status === "Scheduled")
+					.sort((a, b) => new Date(a.scheduled_start_at).getTime() - new Date(b.scheduled_start_at).getTime());
+				
+				const nextVisit = scheduledVisits[0];
+				
+				// Get assigned technicians from next visit
+				const techNames = nextVisit?.visit_techs?.map(vt => vt.tech.name).join(", ") || "Unassigned";
+				
+				return {
+					id: j.id,
+					name: j.name,
+					technicians: techNames,
+					client: j.client?.name || "Unknown Client",
+					nextVisit: nextVisit 
+						? new Date(nextVisit.scheduled_start_at).toLocaleDateString("en-US", {
+							month: "short",
+							day: "numeric",
+							year: "numeric",
+						})
+						: "No visits scheduled",
+					visits: `${j.visits.length} visit${j.visits.length !== 1 ? 's' : ''}`,
+					status: j.status,
+				};
+			})
 			.sort(
 				(a, b) =>
 					JobStatusValues.indexOf(a.status) -

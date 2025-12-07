@@ -3,8 +3,9 @@ import {
 	client_contact,
 	client_note,
 	job,
-	job_technician,  
-	job_note,                          
+	job_visit,
+	job_visit_technician,
+	job_note,
 	technician,
 	log,
 	audit_log
@@ -13,17 +14,23 @@ import {
 //JOB RESPONSE TYPES
 export interface JobResponse {
 	err: string;
-	data: job[];
+	data: any[];
 }
-
-type JobWithRelations = job & {
-	client: client;
-	job_tech: (job_technician & { tech: technician })[];
-};
 
 export interface JobInsertResult {
 	err: string;
-	item?: JobWithRelations | null;
+	item?: any;
+}
+
+// JOB VISIT RESPONSE TYPES
+export interface JobVisitResponse {
+	err: string;
+	data: any[];
+}
+
+export interface JobVisitInsertResult {
+	err: string;
+	item?: any;
 }
 
 // CLIENT RESPONSE TYPES
@@ -31,12 +38,6 @@ export interface ClientResponse {
 	err: string;
 	data: client[];
 }
-
-type ClientWithRelations = client & {
-	jobs: job[];
-	contacts: client_contact[];
-	notes: client_note[];
-};
 
 export interface ClientInsertResult {
 	err: string;
@@ -49,10 +50,6 @@ export interface ContactResponse {
 	data: client_contact[];
 }
 
-type ContactWithRelations = client_contact & {
-	client: client;
-};
-
 export interface ContactInsertResult {
 	err: string;
 	item?: client_contact | null;
@@ -63,10 +60,6 @@ export interface NoteResponse {
 	err: string;
 	data: client_note[];
 }
-
-type NoteWithRelations = client_note & {
-	client: client;
-};
 
 export interface NoteInsertResult {
 	err: string;
@@ -79,19 +72,9 @@ export interface TechnicianResponse {
 	data: technician[];
 }
 
-type TechnicianWithRelations = technician & {
-	job_tech: (job_technician & { job: job })[];
-	logs: log[];
-	audit_logs: audit_log[];
-	created_client_notes: client_note[];
-	last_edited_client_notes: client_note[];
-	created_job_notes: job_note[];
-	last_edited_job_notes: job_note[];
-};
-
 export interface TechnicianInsertResult {
 	err: string;
-	item?: TechnicianWithRelations | null;
+	item?: any;
 }
 
 // DELETE RESPONSE TYPE

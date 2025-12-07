@@ -5,36 +5,40 @@ import { createTechnicianSchema, updateTechnicianSchema } from "../lib/validate/
 export const getAllTechnicians = async () => {
 	return await db.technician.findMany({
 		include: {
-			job_tech: {
+			visit_techs: {
 				include: {
-					job: true,
+					visit: {
+						include: {
+							job: {
+								include: {
+									client: true,
+								},
+							},
+						},
+					},
 				},
 			},
-			logs: true,
-			audit_logs: true,
-			created_client_notes: true,
-			last_edited_client_notes: true,
-			created_job_notes: true,
-			last_edited_job_notes: true,
 		},
 	});
 };
 
 export const getTechnicianById = async (id: string) => {
-	return await db.technician.findFirst({
-		where: { id: id },
+	return await db.technician.findUnique({
+		where: { id },
 		include: {
-			job_tech: {
+			visit_techs: {
 				include: {
-					job: true,
+					visit: {
+						include: {
+							job: {
+								include: {
+									client: true,
+								},
+							},
+						},
+					},
 				},
 			},
-			logs: true,
-			audit_logs: true,
-			created_client_notes: true,
-			last_edited_client_notes: true,
-			created_job_notes: true,
-			last_edited_job_notes: true,
 		},
 	});
 };
@@ -43,50 +47,45 @@ export const insertTechnician = async (data: unknown) => {
 	try {
 		const parsed = createTechnicianSchema.parse(data);
 
-		const created = await db.$transaction(async (tx) => {
-			// Check if email already exists
-			const existingTech = await tx.technician.findUnique({
-				where: { email: parsed.email },
-			});
-			if (existingTech) {
-				throw new Error("Email already exists");
-			}
+		// Check if email already exists
+		const existing = await db.technician.findUnique({
+			where: { email: parsed.email },
+		});
 
-			const technician = await tx.technician.create({
-				data: {
-					name: parsed.name,
-					email: parsed.email,
-					phone: parsed.phone,
-					password: parsed.password, 
-					title: parsed.title,
-					description: parsed.description,
-					status: parsed.status,
-					hire_date: parsed.hire_date,
-					last_login: new Date(),
-				} as any,
-			});
+		if (existing) {
+			return { err: "Email already exists" };
+		}
 
-			return tx.technician.findUnique({
-				where: { id: technician.id },
-				include: {
-					job_tech: {
-						include: {
-							job: true,
+		const created = await db.technician.create({
+			data: {
+				name: parsed.name,
+				email: parsed.email,
+				phone: parsed.phone,
+				password: parsed.password,
+				title: parsed.title,
+				description: parsed.description,
+				status: parsed.status,
+				hire_date: parsed.hire_date,
+			},
+			include: {
+				visit_techs: {
+					include: {
+						visit: {
+							include: {
+								job: {
+									include: {
+										client: true,
+									},
+								},
+							},
 						},
 					},
-					logs: true,
-					audit_logs: true,
-					created_client_notes: true,
-					last_edited_client_notes: true,
-					created_job_notes: true,
-					last_edited_job_notes: true,
 				},
-			});
+			},
 		});
 
 		return { err: "", item: created };
 	} catch (e) {
-		console.error("Insert technician error:", e);
 		if (e instanceof ZodError) {
 			return {
 				err: `Validation failed: ${e.issues
@@ -94,9 +93,7 @@ export const insertTechnician = async (data: unknown) => {
 					.join(", ")}`,
 			};
 		}
-		if (e instanceof Error && e.message === "Email already exists") {
-			return { err: "Email already exists" };
-		}
+		console.error("Error inserting technician:", e);
 		return { err: "Internal server error" };
 	}
 };
@@ -105,56 +102,59 @@ export const updateTechnician = async (id: string, data: unknown) => {
 	try {
 		const parsed = updateTechnicianSchema.parse(data);
 
-		const existing = await db.technician.findUnique({ where: { id } });
+		// Verify technician exists
+		const existing = await db.technician.findUnique({
+			where: { id },
+		});
+
 		if (!existing) {
 			return { err: "Technician not found" };
 		}
 
-		// Check email uniqueness if email is being updated
+		// If updating email, check if new email is already taken
 		if (parsed.email && parsed.email !== existing.email) {
-			const emailExists = await db.technician.findUnique({
+			const emailTaken = await db.technician.findUnique({
 				where: { email: parsed.email },
 			});
-			if (emailExists) {
+
+			if (emailTaken) {
 				return { err: "Email already exists" };
 			}
 		}
 
-		const updated = await db.$transaction(async (tx) => {
-			const technician = await tx.technician.update({
-				where: { id },
-				data: {
-					...(parsed.name !== undefined && { name: parsed.name }),
-					...(parsed.email !== undefined && { email: parsed.email }),
-					...(parsed.phone !== undefined && { phone: parsed.phone }),
-					...(parsed.password !== undefined && { password: parsed.password }), 
-					...(parsed.title !== undefined && { title: parsed.title }),
-					...(parsed.description !== undefined && { description: parsed.description }),
-					...(parsed.status !== undefined && { status: parsed.status }),
-					...(parsed.hire_date !== undefined && { hire_date: parsed.hire_date }),
-					...(parsed.last_login !== undefined && { last_login: parsed.last_login }),
-				},
-			});
+		const updateData: any = {};
 
-			return tx.technician.findUnique({
-				where: { id: technician.id },
-				include: {
-					job_tech: {
-						include: {
-							job: true,
+		// Only update provided fields
+		if (parsed.name !== undefined) updateData.name = parsed.name;
+		if (parsed.email !== undefined) updateData.email = parsed.email;
+		if (parsed.phone !== undefined) updateData.phone = parsed.phone;
+		if (parsed.password !== undefined) updateData.password = parsed.password;
+		if (parsed.title !== undefined) updateData.title = parsed.title;
+		if (parsed.description !== undefined) updateData.description = parsed.description;
+		if (parsed.status !== undefined) updateData.status = parsed.status;
+		if (parsed.hire_date !== undefined) updateData.hire_date = parsed.hire_date;
+
+		const updated = await db.technician.update({
+			where: { id },
+			data: updateData,
+			include: {
+				visit_techs: {
+					include: {
+						visit: {
+							include: {
+								job: {
+									include: {
+										client: true,
+									},
+								},
+							},
 						},
 					},
-					logs: true,
-					audit_logs: true,
-					created_client_notes: true,
-					last_edited_client_notes: true,
-					created_job_notes: true,
-					last_edited_job_notes: true,
 				},
-			});
+			},
 		});
 
-		return { err: "", item: updated ?? undefined };
+		return { err: "", item: updated };
 	} catch (e) {
 		if (e instanceof ZodError) {
 			return {
@@ -163,56 +163,55 @@ export const updateTechnician = async (id: string, data: unknown) => {
 					.join(", ")}`,
 			};
 		}
+		console.error("Error updating technician:", e);
 		return { err: "Internal server error" };
 	}
 };
 
 export const deleteTechnician = async (id: string) => {
 	try {
-		const existing = await db.technician.findUnique({ where: { id } });
+		// Verify technician exists
+		const existing = await db.technician.findUnique({
+			where: { id },
+		});
+
 		if (!existing) {
 			return { err: "Technician not found" };
 		}
 
-		await db.$transaction(async (tx) => {
-			// Note: We cannot delete job_technician records as jobs may still need to exist, remove the technician from jobs instead
-			await tx.job_technician.deleteMany({ where: { tech_id: id } });
-			
-			// Update notes to remove technician references (set to null)
-			await tx.client_note.updateMany({
-				where: { 
-					OR: [
-						{ creator_tech_id: id },
-						{ last_editor_tech_id: id }
-					]
+		// Check if technician has any scheduled visits
+		const upcomingVisits = await db.job_visit_technician.count({
+			where: {
+				tech_id: id,
+				visit: {
+					status: {
+						in: ["Scheduled", "InProgress"],
+					},
 				},
-				data: {
-					creator_tech_id: null,
-					last_editor_tech_id: null,
-				},
-			});
-
-			await tx.job_note.updateMany({
-				where: { 
-					OR: [
-						{ creator_tech_id: id },
-						{ last_editor_tech_id: id }
-					]
-				},
-				data: {
-					creator_tech_id: null,
-					last_editor_tech_id: null,
-				},
-			});
-
-			// Delete Log but Keep audit_logs for compliance but they'll be orphaned
-			await tx.log.deleteMany({ where: { tech_id: id } });
-		
-			await tx.technician.delete({ where: { id } });
+			},
 		});
+
+		if (upcomingVisits > 0) {
+			return {
+				err: `Cannot delete technician with ${upcomingVisits} scheduled or in-progress visits`,
+			};
+		}
+
+		await db.$transaction(async (tx) => {
+			// Delete visit assignments
+			await tx.job_visit_technician.deleteMany({ 
+				where: { tech_id: id } 
+			});
+
+			// Delete the technician
+			await tx.technician.delete({
+				where: { id },
+			});
+		});
+
 		return { err: "", message: "Technician deleted successfully" };
 	} catch (error) {
-		console.error("Delete technician error:", error);
-		return { err: "Failed to delete technician. It may have related records." };
+		console.error("Error deleting technician:", error);
+		return { err: "Internal server error" };
 	}
 };

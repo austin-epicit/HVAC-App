@@ -8,6 +8,7 @@ import ClientsPage from "./pages/dispatch/ClientsPage";
 import ClientDetailsPage from "./pages/dispatch/ClientDetailPage";
 import TechniciansPage from "./pages/dispatch/TechniciansPage";
 import TechnicianDetailsPage from "./pages/dispatch/TechnicianDetailPage";
+import MapPage from "./pages/dispatch/MapPage";
 import ReportingPage from "./pages/dispatch/ReportingPage";
 import SettingsPage from "./pages/dispatch/SettingsPage";
 
@@ -42,6 +43,7 @@ export default function AppRoutes() {
 				<Route path="jobs/:jobId" element={<JobDetailPage />} />
 				<Route path="technicians" element={<TechniciansPage />} />
 				<Route path="technicians/:technicianId" element={<TechnicianDetailsPage />} />
+				<Route path="map" element={<MapPage />} />
 				<Route path="reporting" element={<ReportingPage />} />
 				<Route path="settings" element={<SettingsPage />} />
 				<Route path="inventory" element={<InventoryPage />} />

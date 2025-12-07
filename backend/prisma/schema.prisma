@@ -22,23 +22,51 @@ enum job_status {
   Cancelled
 }
 
+enum schedule_type {
+  all_day
+  exact
+  window
+}
+
+enum visit_status {
+  Scheduled
+  InProgress
+  Completed
+  Cancelled
+}
+
 model job {
   id            String @unique @id @default(uuid())
   name          String
   description   String
   priority      String
-  client_id     String
-  client        client @relation(fields: [client_id], references: [id])
-  job_tech      job_technician[]
   address       String
   created_at    DateTime @default(now())
   status        job_status
-  duration      Int @default(0)   // In minutes
-  start_date    DateTime 
-  window_end    DateTime?
-  schedule_type String  @default("exact") // "all_day" | "exact" | "window"
+  client_id     String
+  client        client @relation(fields: [client_id], references: [id])
+  visits        job_visit[]
   notes         job_note[]
   @@index([client_id])
+}
+
+model job_visit {
+  id                  String        @id @default(uuid())
+  job_id              String
+  job                 job           @relation(fields: [job_id], references: [id])
+  schedule_type       schedule_type @default(exact)
+  scheduled_start_at  DateTime
+  scheduled_end_at    DateTime
+  arrival_window_start DateTime?
+  arrival_window_end   DateTime?
+  actual_start_at     DateTime?
+  actual_end_at       DateTime?
+  status              visit_status  @default(Scheduled)
+  visit_techs         job_visit_technician[]
+  notes               job_note[]    @relation("VisitNotes")
+  @@index([job_id])
+  @@index([scheduled_start_at])
+  @@index([scheduled_end_at])
 }
 
 
@@ -52,6 +80,11 @@ model job_note {
   last_editor_tech_id       String?
   last_editor_dispatcher_id   String?
   updated_at                DateTime    @updatedAt
+
+  // Do we want notes per visit?
+  visit_id                  String?
+  visit                     job_visit?  @relation("VisitNotes", fields: [visit_id], references: [id])
+
   job                       job         @relation(fields: [job_id], references: [id], onDelete: Cascade)
   creator_tech              technician? @relation("JobNoteCreator", fields: [creator_tech_id], references: [id])
   creator_dispatcher        dispatcher? @relation("JobNoteCreator", fields: [creator_dispatcher_id], references: [id])
@@ -92,23 +125,25 @@ model technician {
   hire_date     DateTime
   last_pos      Unsupported("point")?   //Optional for dev
   last_login    DateTime @default(now())
-  job_tech      job_technician[]
+  visit_techs   job_visit_technician[]
+
   logs          log[]
   audit_logs    audit_log[]
   created_client_notes        client_note[] @relation("ClientNoteCreator")
   last_edited_client_notes    client_note[] @relation("ClientNoteEditor")
-  created_job_notes           job_note[] @relation("JobNoteCreator")
-  last_edited_job_notes       job_note[] @relation("JobNoteEditor")
+  created_job_notes           job_note[]    @relation("JobNoteCreator")
+  last_edited_job_notes       job_note[]    @relation("JobNoteEditor")
 }
 
-model job_technician {
-  job_id  String
-  tech_id String
-  job     job       @relation(fields: [job_id], references: [id])
-  tech    technician @relation(fields: [tech_id], references: [id])
-  @@id([job_id, tech_id])
+model job_visit_technician {
+  visit_id String
+  tech_id  String
+  visit    job_visit   @relation(fields: [visit_id], references: [id])
+  tech     technician  @relation(fields: [tech_id], references: [id])
+  @@id([visit_id, tech_id])
   @@index([tech_id])
 }
+
 
 model client {
   id            String @unique @id @default(uuid())
@@ -168,12 +203,12 @@ model dispatcher {
   description   String
   last_login    DateTime @default(now())
   logs          log[]
+  audit_logs    audit_log[]
   created_client_notes      client_note[] @relation("ClientNoteCreator")
   last_edited_client_notes  client_note[] @relation("ClientNoteEditor")
   created_job_notes         job_note[] @relation("JobNoteCreator")
   last_edited_job_notes     job_note[] @relation("JobNoteEditor")
-  
-  audit_logs                audit_log[]
+ 
 }
 
 //(record system actions)
