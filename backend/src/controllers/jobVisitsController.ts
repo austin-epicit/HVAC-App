@@ -125,7 +125,7 @@ export const getJobVisitsByDateRange = async (startDate: Date, endDate: Date) =>
 
 export const insertJobVisit = async (req: Request) => {
 	try {
-		const parsed = createJobVisitSchema.parse(req);
+		const parsed = createJobVisitSchema.parse(req.body);
 
 		// Verify job exists
 		const job = await db.job.findUnique({

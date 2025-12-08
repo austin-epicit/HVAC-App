@@ -85,7 +85,7 @@ export default function EditClientModal({ isOpen, onClose, client }: EditClientM
 
 				<form onSubmit={handleSubmit} className="space-y-4">
 					<div>
-						<label className="block text-sm font-medium text-zinc-300 mb-2">
+						<label className="mb-1">
 							Client Name
 						</label>
 						<input
@@ -99,7 +99,7 @@ export default function EditClientModal({ isOpen, onClose, client }: EditClientM
 					</div>
 
 					<div>
-						<label className="block text-sm font-medium text-zinc-300 mb-2">
+						<label className="mb-1">
 							Address
 						</label>
 						<textarea
@@ -120,7 +120,7 @@ export default function EditClientModal({ isOpen, onClose, client }: EditClientM
 							onChange={handleChange}
 							className="w-4 h-4 text-blue-600 bg-zinc-800 border-zinc-700 rounded focus:ring-blue-500"
 						/>
-						<label className="ml-2 text-sm text-zinc-300">Active Client</label>
+						<label className="ml-2 ">Active Client</label>
 					</div>
 
 					<div className="flex gap-3 pt-4">

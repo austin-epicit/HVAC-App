@@ -20,6 +20,7 @@ import {
 	getAllJobs, 
 	getJobById, 
 	updateJob, 
+	deleteJob,
 	getJobNotes, 
 	createJobNote, 
 	updateJobNote, 
@@ -86,6 +87,30 @@ export const useUpdateJobMutation = () => {
 		},
 		onError: (err) => {
 			console.error("Failed to update job:", err);
+		},
+	});
+};
+
+export const useDeleteJobMutation = (): UseMutationResult<
+	{ message: string },
+	Error,
+	string
+> => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: deleteJob,
+		onSuccess: async (_, jobId) => {
+			await queryClient.invalidateQueries({ queryKey: ["allJobs"] });
+			await queryClient.invalidateQueries({ queryKey: ["jobs"] });
+			await queryClient.invalidateQueries({ queryKey: ["clients"] });
+			await queryClient.invalidateQueries({ queryKey: ["jobVisits"] });
+			await queryClient.invalidateQueries({ queryKey: ["technicians"] });
+
+			queryClient.removeQueries({ queryKey: ["jobById", jobId] });
+		},
+		onError: (error) => {
+			console.error("Failed to delete job:", error);
 		},
 	});
 };

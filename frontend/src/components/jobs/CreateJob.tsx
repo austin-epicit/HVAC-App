@@ -28,7 +28,6 @@ const CreateJob = ({ isModalOpen, setIsModalOpen, createJob }: CreateJobProps) =
 	} = useAllClientsQuery();
 
 	let dropdownEntries;
-
 	if (clients && clients.length) {
 		dropdownEntries = (
 			<>
@@ -48,6 +47,15 @@ const CreateJob = ({ isModalOpen, setIsModalOpen, createJob }: CreateJobProps) =
 			</>
 		);
 	}
+
+	let priorityEntries = (
+		<>
+			<option value="low" className="text-black">Low</option>
+			<option value="normal" className="text-black">Normal</option>
+			<option value="medium" className="text-black">Medium</option>
+			<option value="high" className="text-black">High</option>
+		</>
+	);
 
 	const invokeCreate = async () => {
 		if (
@@ -110,7 +118,7 @@ const CreateJob = ({ isModalOpen, setIsModalOpen, createJob }: CreateJobProps) =
 		<>
 			<h2 className="text-2xl font-bold mb-4">Create New Job</h2>
 
-			<p className="mb-1 hover:color-accent">Name *</p>
+			<p className="mb-1 hover:color-accent">Name</p>
 			<input
 				type="text"
 				placeholder="Job Name"
@@ -129,7 +137,7 @@ const CreateJob = ({ isModalOpen, setIsModalOpen, createJob }: CreateJobProps) =
 				</div>
 			)}
 
-			<p className="mb-1 mt-3 hover:color-accent">Client *</p>
+			<p className="mb-1 mt-3 hover:color-accent">Client</p>
 			<div className="border border-zinc-800 rounded-sm">
 				<Dropdown refToApply={clientRef} entries={dropdownEntries} />
 			</div>
@@ -145,17 +153,7 @@ const CreateJob = ({ isModalOpen, setIsModalOpen, createJob }: CreateJobProps) =
 			)}
 
 			<p className="mb-1 mt-3 hover:color-accent">Priority</p>
-			<select
-				ref={priorityRef}
-				className="border border-zinc-800 p-2 w-full rounded-sm bg-zinc-900 text-white"
-				disabled={isLoading}
-				defaultValue="normal"
-			>
-				<option value="low" className="text-white bg-zinc-900">Low</option>
-				<option value="normal" className="text-white bg-zinc-900">Normal</option>
-				<option value="medium" className="text-white bg-zinc-900">Medium</option>
-				<option value="high" className="text-white bg-zinc-900">High</option>
-			</select>
+			<Dropdown refToApply={priorityRef} entries={priorityEntries} />
 
 			<p className="mb-1 mt-3 hover:color-accent">Address</p>
 			<input

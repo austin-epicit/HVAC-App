@@ -6,6 +6,7 @@ import {
 	getJobById,
 	insertJob,
 	updateJob,
+	deleteJob,
 	getJobsByClientId
 } from "./controllers/jobsController.js";
 import { 
@@ -160,6 +161,21 @@ app.patch("/jobs/:id", async (req, res) => {
 	} catch (err) {
 		console.error(err);
 		return res.status(500).json({ err: "Failed to update job", data: [] });
+	}
+});
+app.delete("/jobs/:id", async (req, res) => {
+	try {
+		const { id } = req.params;
+		const result = await deleteJob(id);
+
+		if (result.err) {
+			return res.status(400).json({ err: result.err, data: [] });
+		}
+
+		return res.json({ err: "", message: "Job deleted", id });
+	} catch (err) {
+		console.error(err);
+		return res.status(500).json({ err: "Failed to delete job", data: [] });
 	}
 });
 

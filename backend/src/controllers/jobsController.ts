@@ -180,3 +180,40 @@ export const updateJob = async (req: Request) => {
 		return { err: "Failed to update job" };
 	}
 };
+export const deleteJob = async (id: string) => {
+	try {
+		const job = await db.job.findUnique({
+			where: { id },
+			include: { visits: true },
+		});
+
+		if (!job) {
+			return { err: "Job not found" };
+		}
+
+		await db.$transaction(async (tx) => {
+			if (job.visits.length > 0) {
+				const visitIds = job.visits.map(v => v.id);
+				
+				await tx.job_visit_technician.deleteMany({
+					where: { visit_id: { in: visitIds } },
+				});
+				await tx.job_visit.deleteMany({
+					where: { job_id: id },
+				});
+			}
+
+			await tx.job_note.deleteMany({
+				where: { job_id: id },
+			});
+			await tx.job.delete({
+				where: { id },
+			});
+		});
+
+		return { err: "", item: { id } };
+	} catch (e) {
+		console.error("Error deleting job:", e);
+		return { err: "Failed to delete job" };
+	}
+};

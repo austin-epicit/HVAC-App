@@ -3,6 +3,7 @@ import Button from "../ui/Button";
 import { useRef, useState } from "react";
 import type { ZodError } from "zod";
 import FullPopup from "../ui/FullPopup";
+import DatePicker from "../ui/DatePicker";
 import { CreateTechnicianSchema, type CreateTechnicianInput } from "../../types/technicians";
 
 interface CreateTechnicianProps {
@@ -19,7 +20,7 @@ const CreateTechnician = ({ isModalOpen, setIsModalOpen, createTechnician }: Cre
 	const titleRef = useRef<HTMLInputElement>(null);
 	const descriptionRef = useRef<HTMLTextAreaElement>(null);
 	const statusRef = useRef<HTMLSelectElement>(null);
-	const hireDateRef = useRef<HTMLInputElement>(null);
+	const [hireDate, setHireDate] = useState<Date>(new Date());
 	const [isLoading, setIsLoading] = useState(false);
 	const [errors, setErrors] = useState<ZodError | null>(null);
 
@@ -32,27 +33,17 @@ const CreateTechnician = ({ isModalOpen, setIsModalOpen, createTechnician }: Cre
 			titleRef.current &&
 			descriptionRef.current &&
 			statusRef.current &&
-			hireDateRef.current &&
 			!isLoading
 		) {
-			const nameValue = nameRef.current.value.trim();
-			const emailValue = emailRef.current.value.trim();
-			const phoneValue = phoneRef.current.value.trim();
-			const passwordValue = passwordRef.current.value.trim();
-			const titleValue = titleRef.current.value.trim();
-			const descriptionValue = descriptionRef.current.value.trim();
-			const statusValue = statusRef.current.value as CreateTechnicianInput["status"];
-			const hireDateValue = hireDateRef.current.value ? new Date(hireDateRef.current.value) : new Date();
-
 			const newTechnician: CreateTechnicianInput = {
-				name: nameValue,
-				email: emailValue,
-				phone: phoneValue,
-				password: passwordValue,
-				title: titleValue,
-				description: descriptionValue,
-				status: statusValue,
-				hire_date: hireDateValue,
+				name: nameRef.current.value.trim(),
+				email: emailRef.current.value.trim(),
+				phone: phoneRef.current.value.trim(),
+				password: passwordRef.current.value.trim(),
+				title: titleRef.current.value.trim(),
+				description: descriptionRef.current.value.trim(),
+				status: statusRef.current.value as CreateTechnicianInput["status"],
+				hire_date: hireDate,
 			};
 
 			const parseResult = CreateTechnicianSchema.safeParse(newTechnician);
@@ -72,12 +63,7 @@ const CreateTechnician = ({ isModalOpen, setIsModalOpen, createTechnician }: Cre
 		}
 	};
 
-	let nameErrors;
-	let emailErrors;
-	let phoneErrors;
-	let passwordErrors;
-	let titleErrors;
-
+	let nameErrors, emailErrors, phoneErrors, passwordErrors, titleErrors;
 	if (errors) {
 		nameErrors = errors.issues.filter((err) => err.path[0] == "name");
 		emailErrors = errors.issues.filter((err) => err.path[0] == "email");
@@ -89,7 +75,7 @@ const CreateTechnician = ({ isModalOpen, setIsModalOpen, createTechnician }: Cre
 	const content = (
 		<>
 			<h2 className="text-2xl font-bold mb-4">Create New Technician</h2>
-			
+
 			<p className="mb-1 hover:color-accent">Name</p>
 			<input
 				type="text"
@@ -98,15 +84,7 @@ const CreateTechnician = ({ isModalOpen, setIsModalOpen, createTechnician }: Cre
 				disabled={isLoading}
 				ref={nameRef}
 			/>
-			{nameErrors && (
-				<div>
-					{nameErrors.map((err) => (
-						<h3 className="my-1 text-red-300" key={err.message}>
-							{err.message}
-						</h3>
-					))}
-				</div>
-			)}
+			{nameErrors && nameErrors.map((err) => <h3 key={err.message} className="my-1 text-red-300">{err.message}</h3>)}
 
 			<p className="mb-1 mt-3 hover:color-accent">Email</p>
 			<input
@@ -116,15 +94,7 @@ const CreateTechnician = ({ isModalOpen, setIsModalOpen, createTechnician }: Cre
 				disabled={isLoading}
 				ref={emailRef}
 			/>
-			{emailErrors && (
-				<div>
-					{emailErrors.map((err) => (
-						<h3 className="my-1 text-red-300" key={err.message}>
-							{err.message}
-						</h3>
-					))}
-				</div>
-			)}
+			{emailErrors && emailErrors.map((err) => <h3 key={err.message} className="my-1 text-red-300">{err.message}</h3>)}
 
 			<p className="mb-1 mt-3 hover:color-accent">Phone</p>
 			<input
@@ -134,15 +104,7 @@ const CreateTechnician = ({ isModalOpen, setIsModalOpen, createTechnician }: Cre
 				disabled={isLoading}
 				ref={phoneRef}
 			/>
-			{phoneErrors && (
-				<div>
-					{phoneErrors.map((err) => (
-						<h3 className="my-1 text-red-300" key={err.message}>
-							{err.message}
-						</h3>
-					))}
-				</div>
-			)}
+			{phoneErrors && phoneErrors.map((err) => <h3 key={err.message} className="my-1 text-red-300">{err.message}</h3>)}
 
 			<p className="mb-1 mt-3 hover:color-accent">Password</p>
 			<input
@@ -152,15 +114,7 @@ const CreateTechnician = ({ isModalOpen, setIsModalOpen, createTechnician }: Cre
 				disabled={isLoading}
 				ref={passwordRef}
 			/>
-			{passwordErrors && (
-				<div>
-					{passwordErrors.map((err) => (
-						<h3 className="my-1 text-red-300" key={err.message}>
-							{err.message}
-						</h3>
-					))}
-				</div>
-			)}
+			{passwordErrors && passwordErrors.map((err) => <h3 key={err.message} className="my-1 text-red-300">{err.message}</h3>)}
 
 			<p className="mb-1 mt-3 hover:color-accent">Title</p>
 			<input
@@ -170,15 +124,7 @@ const CreateTechnician = ({ isModalOpen, setIsModalOpen, createTechnician }: Cre
 				disabled={isLoading}
 				ref={titleRef}
 			/>
-			{titleErrors && (
-				<div>
-					{titleErrors.map((err) => (
-						<h3 className="my-1 text-red-300" key={err.message}>
-							{err.message}
-						</h3>
-					))}
-				</div>
-			)}
+			{titleErrors && titleErrors.map((err) => <h3 key={err.message} className="my-1 text-red-300">{err.message}</h3>)}
 
 			<p className="mb-1 mt-3 hover:color-accent">Description</p>
 			<textarea
@@ -203,15 +149,11 @@ const CreateTechnician = ({ isModalOpen, setIsModalOpen, createTechnician }: Cre
 						<option value="Break">Break</option>
 					</select>
 				</div>
-
 				<div>
 					<p className="mb-1 hover:color-accent">Hire Date</p>
-					<input
-						type="date"
-						className="border border-zinc-800 p-2 w-full rounded-sm bg-zinc-900 text-white"
-						disabled={isLoading}
-						ref={hireDateRef}
-						defaultValue={new Date().toISOString().split('T')[0]}
+					<DatePicker 
+						value={hireDate}
+						onChange={setHireDate}
 					/>
 				</div>
 			</div>
@@ -229,9 +171,7 @@ const CreateTechnician = ({ isModalOpen, setIsModalOpen, createTechnician }: Cre
 						</div>
 						<div
 							className="border-1 border-zinc-800 rounded-sm cursor-pointer hover:bg-zinc-800 transition-all font-bold"
-							onClick={() => {
-								invokeCreate();
-							}}
+							onClick={invokeCreate}
 						>
 							<Button label="Create" />
 						</div>
@@ -241,7 +181,13 @@ const CreateTechnician = ({ isModalOpen, setIsModalOpen, createTechnician }: Cre
 		</>
 	);
 
-	return <FullPopup content={content} isModalOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />;
+	return (
+		<FullPopup 
+			content={content} 
+			isModalOpen={isModalOpen} 
+			onClose={() => setIsModalOpen(false)} 
+		/>
+	);
 };
 
 export default CreateTechnician;

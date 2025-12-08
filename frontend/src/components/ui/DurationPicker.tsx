@@ -2,13 +2,11 @@ import { useState, useRef, useEffect } from "react";
 import { Clock } from "lucide-react";
 
 interface DurationPickerProps {
-  label?: string;
   value: number; // total minutes
   onChange: (mins: number) => void;
 }
 
 export default function DurationPicker({
-  label = "Duration",
   value,
   onChange,
 }: DurationPickerProps) {
@@ -232,7 +230,6 @@ export default function DurationPicker({
 
   return (
     <div className="relative w-full" ref={containerRef}>
-      {label && <label className="block mb-1.5">{label}</label>}
 
       {/* Input display */}
       <div 

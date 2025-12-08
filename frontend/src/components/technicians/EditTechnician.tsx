@@ -124,7 +124,7 @@ export default function EditTechnician({ isOpen, onClose, technician }: EditTech
 
 				<form onSubmit={handleSubmit} className="space-y-4">
 					<div>
-						<p className="mb-1 text-sm font-medium text-zinc-300">Name</p>
+						<p className="mb-1">Name</p>
 						<input
 							type="text"
 							name="name"
@@ -137,7 +137,7 @@ export default function EditTechnician({ isOpen, onClose, technician }: EditTech
 					</div>
 
 					<div>
-						<p className="mb-1 text-sm font-medium text-zinc-300">Email</p>
+						<p className="mb-1">Email</p>
 						<input
 							type="email"
 							name="email"
@@ -150,7 +150,7 @@ export default function EditTechnician({ isOpen, onClose, technician }: EditTech
 					</div>
 
 					<div>
-						<p className="mb-1 text-sm font-medium text-zinc-300">Phone</p>
+						<p className="mb-1">Phone</p>
 						<input
 							type="tel"
 							name="phone"
@@ -163,7 +163,7 @@ export default function EditTechnician({ isOpen, onClose, technician }: EditTech
 					</div>
 
 					<div>
-						<p className="mb-1 text-sm font-medium text-zinc-300">Password</p>
+						<p className="mb-1">Password</p>
 						<input
 							type="password"
 							name="password"
@@ -174,7 +174,7 @@ export default function EditTechnician({ isOpen, onClose, technician }: EditTech
 					</div>
 
 					<div>
-						<p className="mb-1 text-sm font-medium text-zinc-300">Title</p>
+						<p className="mb-1">Title</p>
 						<input
 							type="text"
 							name="title"
@@ -187,7 +187,7 @@ export default function EditTechnician({ isOpen, onClose, technician }: EditTech
 					</div>
 
 					<div>
-						<p className="mb-1 text-sm font-medium text-zinc-300">Description</p>
+						<p className="mb-1">Description</p>
 						<textarea
 							name="description"
 							value={formData.description || ""}
@@ -198,23 +198,27 @@ export default function EditTechnician({ isOpen, onClose, technician }: EditTech
 						/>
 					</div>
 
-					<div>
-						<p className="mb-1 text-sm font-medium text-zinc-300">Status</p>
-						<select
-							name="status"
-							value={formData.status}
-							onChange={handleChange}
-							className="border border-zinc-800 p-2 w-full rounded-sm bg-zinc-900 text-white"
-							required
-						>
-							<option value="Offline">Offline</option>
-							<option value="Available">Available</option>
-							<option value="Busy">Busy</option>
-							<option value="Break">Break</option>
-						</select>
+					<div className="grid grid-cols-2 gap-4">
+						<div>
+							<p className="mb-1">Status</p>
+							<select
+								name="status"
+								value={formData.status}
+								onChange={handleChange}
+								className="border border-zinc-800 p-2 w-full rounded-sm bg-zinc-900 text-white"
+								required
+							>
+								<option value="Offline">Offline</option>
+								<option value="Available">Available</option>
+								<option value="Busy">Busy</option>
+								<option value="Break">Break</option>
+							</select>
+						</div>
+						<div>
+							<p className="mb-1">Hire Date</p>
+							<DatePicker value={hireDate} onChange={setHireDate} />
+						</div>
 					</div>
-
-					<DatePicker label="Hire Date" value={hireDate} onChange={setHireDate} />
 
 					<div className="flex gap-3 pt-4">
 						<button

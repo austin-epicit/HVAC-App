@@ -2,12 +2,11 @@ import { useState, useRef, useEffect } from "react";
 import { Clock } from "lucide-react";
 
 interface TimePickerProps {
-  label?: string;
   value: Date | null;
   onChange: (v: Date) => void;
 }
 
-export default function TimePicker({ label, value, onChange }: TimePickerProps) {
+export default function TimePicker({ value, onChange }: TimePickerProps) {
   const [open, setOpen] = useState(false);
   const [focusedSection, setFocusedSection] = useState<'hour' | 'minute' | 'period' | null>(null);
   
@@ -304,7 +303,6 @@ export default function TimePicker({ label, value, onChange }: TimePickerProps) 
 
   return (
     <div className="relative w-full" ref={containerRef}>
-      {label && <label className="block mb-1.5">{label}</label>}
 
       {/* Input display */}
       <div 

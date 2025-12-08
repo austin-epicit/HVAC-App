@@ -1,10 +1,8 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { X, Trash2 } from "lucide-react";
-import { useUpdateJobMutation } from "../../hooks/useJobs";
+import { useUpdateJobMutation, useDeleteJobMutation } from "../../hooks/useJobs";
 import type { Job, JobStatus } from "../../types/jobs";
-import DatePicker from "../ui/DatePicker";
-import TimePicker from "../ui/TimePicker";
-import DurationPicker from "../ui/DurationPicker";
 
 interface EditJobProps {
 	isModalOpen: boolean;
@@ -13,66 +11,43 @@ interface EditJobProps {
 }
 
 export default function EditJob({ isModalOpen, setIsModalOpen, job }: EditJobProps) {
+	const navigate = useNavigate();
 	const updateJob = useUpdateJobMutation();
+	const deleteJob = useDeleteJobMutation();
 	
 	const [formData, setFormData] = useState({
 		name: job.name,
 		description: job.description,
 		address: job.address,
+		priority: job.priority || "normal",
 		status: job.status,
 	});
+	const [deleteConfirm, setDeleteConfirm] = useState(false);
 
-	const [startDate, setStartDate] = useState<Date>(new Date(job.start_date));
-	const [when, setWhen] = useState<"all_day" | "exact" | "window">(job.schedule_type);
-	const [exactTime, setExactTime] = useState<Date | null>(new Date(job.start_date));
-	const [windowStart, setWindowStart] = useState<Date | null>(new Date(job.start_date));
-	const [windowEnd, setWindowEnd] = useState<Date | null>(
-		job.window_end ? new Date(job.window_end) : null
-	);
-	const [duration, setDuration] = useState<number>(job.duration || 60);
-
+	// Reset form data when modal opens with new job
 	useEffect(() => {
-		setFormData({
-			name: job.name,
-			description: job.description,
-			address: job.address,
-			status: job.status,
-		});
-
-		setStartDate(new Date(job.start_date));
-		setWhen(job.schedule_type);
-		setExactTime(new Date(job.start_date));
-		setWindowStart(new Date(job.start_date));
-		setWindowEnd(job.window_end ? new Date(job.window_end) : null);
-		setDuration(job.duration || 60);
-	}, [job]);
+		if (isModalOpen) {
+			setFormData({
+				name: job.name,
+				description: job.description,
+				address: job.address,
+				priority: job.priority || "normal",
+				status: job.status,
+			});
+			setDeleteConfirm(false);
+		}
+	}, [isModalOpen, job]);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 
 		try {
-			let combinedStart = new Date(startDate);
-			if (when === "all_day") {
-				combinedStart.setHours(6, 0, 0, 0);
-			}
-			if (when === "exact" && exactTime) {
-				combinedStart.setHours(exactTime.getHours());
-				combinedStart.setMinutes(exactTime.getMinutes());
-			}
-			if (when === "window" && windowStart) {
-				combinedStart.setHours(windowStart.getHours());
-				combinedStart.setMinutes(windowStart.getMinutes());
-			}
-
 			const updates: Partial<Job> = {
 				name: formData.name,
 				description: formData.description,
 				address: formData.address,
+				priority: formData.priority,
 				status: formData.status as JobStatus,
-				schedule_type: when,
-				start_date: combinedStart.toISOString(),
-				duration: duration,
-				window_end: when === "window" && windowEnd ? windowEnd.toISOString() : null,
 			};
 
 			await updateJob.mutateAsync({
@@ -83,6 +58,21 @@ export default function EditJob({ isModalOpen, setIsModalOpen, job }: EditJobPro
 			setIsModalOpen(false);
 		} catch (error) {
 			console.error("Failed to update job:", error);
+		}
+	};
+
+	const handleDelete = async () => {
+		if (!deleteConfirm) {
+			setDeleteConfirm(true);
+			return;
+		}
+
+		try {
+			await deleteJob.mutateAsync(job.id);
+			setIsModalOpen(false);
+			navigate("/dispatch/jobs");
+		} catch (error) {
+			console.error("Failed to delete job:", error);
 		}
 	};
 
@@ -107,11 +97,11 @@ export default function EditJob({ isModalOpen, setIsModalOpen, job }: EditJobPro
 			className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" 
 			onClick={handleBackdropClick}
 		>
-			<div 
+			<div
 				className="bg-zinc-900 rounded-xl p-6 w-full max-w-md border border-zinc-800 max-h-[90vh] overflow-y-auto"
 				style={{
-					scrollbarWidth: 'none', // Firefox
-					msOverflowStyle: 'none', // IE and Edge
+					scrollbarWidth: "none", // Firefox
+					msOverflowStyle: "none", // IE/Edge
 				}}
 			>
 				<style>{`
@@ -131,38 +121,21 @@ export default function EditJob({ isModalOpen, setIsModalOpen, job }: EditJobPro
 
 				<form onSubmit={handleSubmit} className="space-y-4">
 					<div>
-						<label className="block text-sm font-medium text-zinc-300 mb-2">
-							Job Name
-						</label>
+						<p className="mb-1">Job Name</p>
 						<input
 							type="text"
 							name="name"
 							value={formData.name}
 							onChange={handleChange}
-							className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+							placeholder="Job Name"
+							className="border border-zinc-800 p-2 w-full rounded-sm bg-zinc-900 text-white"
 							required
 						/>
 					</div>
 
 					<div>
-						<label className="block text-sm font-medium text-zinc-300 mb-2">
-							Address
-						</label>
-						<input
-							type="text"
-							name="address"
-							value={formData.address}
-							onChange={handleChange}
-							className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-							required
-						/>
-					</div>
-
-					<div>
-						<label className="block text-sm font-medium text-zinc-300 mb-2">
-							Client
-						</label>
-						<div className="w-full px-3 py-2 bg-zinc-800/50 border border-zinc-700 rounded-md text-zinc-400">
+						<p className="mb-1">Client</p>
+						<div className="border border-zinc-800 p-2 w-full rounded-sm bg-zinc-800/50 text-zinc-400">
 							{job.client?.name || "Unknown Client"}
 						</div>
 						<p className="text-xs text-zinc-500 mt-1">
@@ -171,107 +144,59 @@ export default function EditJob({ isModalOpen, setIsModalOpen, job }: EditJobPro
 					</div>
 
 					<div>
-						<label className="block text-sm font-medium text-zinc-300 mb-2">
-							Status
-						</label>
+						<p className="mb-1">Priority</p>
+						<select
+							name="priority"
+							value={formData.priority}
+							onChange={handleChange}
+							className="border border-zinc-800 p-2 w-full rounded-sm bg-zinc-900 text-white"
+							required
+						>
+							<option value="low">Low</option>
+							<option value="normal">Normal</option>
+							<option value="medium">Medium</option>
+							<option value="high">High</option>
+						</select>
+					</div>
+
+					<div>
+						<p className="mb-1">Status</p>
 						<select
 							name="status"
 							value={formData.status}
 							onChange={handleChange}
-							className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+							className="border border-zinc-800 p-2 w-full rounded-sm bg-zinc-900 text-white"
 							required
 						>
 							<option value="Unscheduled">Unscheduled</option>
 							<option value="Scheduled">Scheduled</option>
-							<option value="In Progress">In Progress</option>
+							<option value="InProgress">In Progress</option>
 							<option value="Completed">Completed</option>
 							<option value="Cancelled">Cancelled</option>
 						</select>
 					</div>
 
-					<DatePicker label="Start Date" value={startDate} onChange={setStartDate} />
-
 					<div>
-						<label className="block text-sm font-medium text-zinc-300 mb-2">
-							When
-						</label>
-						<div className="flex w-full border border-zinc-700 rounded-md overflow-hidden">
-							<button
-								type="button"
-								className={`flex-1 py-2 text-sm ${
-									when === "all_day"
-										? "bg-blue-600 text-white"
-										: "bg-zinc-900 text-gray-300 hover:bg-zinc-800"
-								}`}
-								onClick={() => setWhen("all_day")}
-							>
-								All Day
-							</button>
-							<button
-								type="button"
-								className={`flex-1 py-2 text-sm ${
-									when === "exact"
-										? "bg-blue-600 text-white"
-										: "bg-zinc-900 text-gray-300 hover:bg-zinc-800"
-								}`}
-								onClick={() => setWhen("exact")}
-							>
-								Exact Time
-							</button>
-							<button
-								type="button"
-								className={`flex-1 py-2 text-sm ${
-									when === "window"
-										? "bg-blue-600 text-white"
-										: "bg-zinc-900 text-gray-300 hover:bg-zinc-800"
-								}`}
-								onClick={() => setWhen("window")}
-							>
-								Arrival Window
-							</button>
-						</div>
+						<p className="mb-1">Address</p>
+						<input
+							type="text"
+							name="address"
+							value={formData.address}
+							onChange={handleChange}
+							placeholder="Job Address"
+							className="border border-zinc-800 p-2 w-full rounded-sm bg-zinc-900 text-white"
+						/>
 					</div>
 
-					{when === "exact" && (
-						<div className="flex gap-4">
-							<div className="flex-1">
-								<TimePicker label="Start Time" value={exactTime} onChange={setExactTime} />
-							</div>
-							<div className="flex-1">
-								<DurationPicker label="Duration" value={duration} onChange={setDuration} />
-							</div>
-						</div>
-					)}
-
-					{when === "window" && (
-						<>
-							<div className="flex gap-4">
-								<div className="flex-1">
-									<TimePicker label="Start Time" value={windowStart} onChange={setWindowStart} />
-								</div>
-								<div className="flex-1">
-									<DurationPicker label="Duration" value={duration} onChange={setDuration} />
-								</div>
-							</div>
-							<div className="flex gap-4">
-								<div className="flex-1">
-									<TimePicker label="End Time" value={windowEnd} onChange={setWindowEnd} />
-								</div>
-								<div className="flex-1"></div>
-							</div>
-						</>
-					)}
-
 					<div>
-						<label className="block text-sm font-medium text-zinc-300 mb-2">
-							Description
-						</label>
+						<p className="mb-1">Description</p>
 						<textarea
 							name="description"
-							value={formData.description}
+							value={formData.description || ""}
 							onChange={handleChange}
+							placeholder="Brief description or notes..."
 							rows={3}
-							className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+							className="border border-zinc-800 p-2 w-full rounded-sm bg-zinc-900 text-white h-20 resize-none"
 						/>
 					</div>
 
@@ -285,10 +210,21 @@ export default function EditJob({ isModalOpen, setIsModalOpen, job }: EditJobPro
 						</button>
 						<button
 							type="button"
-							className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors`}
+							onClick={handleDelete}
+							onMouseLeave={() => setDeleteConfirm(false)}
+							disabled={deleteJob.isPending}
+							className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
+								deleteConfirm
+									? "bg-red-600 hover:bg-red-700 text-white"
+									: "bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
+							} disabled:opacity-50 disabled:cursor-not-allowed`}
 						>
 							<Trash2 size={16} />
-							
+							{deleteJob.isPending
+								? "Deleting..."
+								: deleteConfirm
+								? "Confirm Delete"
+								: "Delete"}
 						</button>
 					</div>
 				</form>

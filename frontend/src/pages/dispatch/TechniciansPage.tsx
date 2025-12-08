@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Search, Plus, Share, X } from "lucide-react";
 import { useAllTechniciansQuery, useCreateTechnicianMutation } from "../../hooks/useTechnicians";
-import CreateTechnician from "../../components/technicians/createTechnician";
+import CreateTechnician from "../../components/technicians/CreateTechnician";
 import TechnicianCard from "../../components/technicians/TechnicianCard";
 import LoadSvg from "../../assets/icons/loading.svg?react";
 import BoxSvg from "../../assets/icons/box.svg?react";

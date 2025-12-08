@@ -37,15 +37,12 @@ export const getAllJobs = async (): Promise<Job[]> => {
 };
 
 export const getJobById = async (id: string): Promise<Job> => {
-	try {
-		console.log("Fetching job with ID:", id);
-		
+	try {		
 		if (!id) {
 			throw new Error("Job ID is required");
 		}
 		
 		const response = await api.get<JobResponse>(`/jobs/${id}`);
-		console.log("Job response:", response.data);
 
 		if (response.data.err) {
 			console.error("API returned error:", response.data.err);
@@ -63,7 +60,6 @@ export const getJobById = async (id: string): Promise<Job> => {
 			throw new Error("Job not found");
 		}
 		
-		console.log("Successfully fetched job:", job);
 		return job;
 	} catch (error) {
 		if (error instanceof Error) {
@@ -95,6 +91,18 @@ export const updateJob = async (id: string, updates: Partial<Job>): Promise<Job>
 		return response.data.data[0];
 	} catch (error) {
 		console.error("Failed to update job: ", error);
+		throw error;
+	}
+};
+
+export const deleteJob = async (id: string): Promise<{ message: string }> => {
+	try {
+		const response = await api.delete<{ err: string; message?: string }>(`/jobs/${id}`);
+
+		if (response.data.err) throw new Error(response.data.err);
+		return { message: response.data.message || "Job deleted successfully" };
+	} catch (error) {
+		console.error("Failed to delete job: ", error);
 		throw error;
 	}
 };

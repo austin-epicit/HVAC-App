@@ -1,10 +1,13 @@
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { ChevronLeft, Edit2, User, Calendar, MapPin, Clock, Users, TrendingUp, Map, Plus } from "lucide-react";
-import { useJobByIdQuery, useJobVisitsByJobIdQuery } from "../../hooks/useJobs";
+import { useJobByIdQuery, useJobVisitsByJobIdQuery, useCreateJobVisitMutation } from "../../hooks/useJobs";
 import JobNoteManager from "../../components/jobs/JobNoteManager";
 import Card from "../../components/ui/Card";
 import EditJob from "../../components/jobs/EditJob";
+import CreateJobVisit from "../../components/jobs/CreateJobVisit";
+import EditJobVisit from "../../components/jobs/EditJobVisit";
 import { useState } from "react";
+import type { CreateJobVisitInput } from "../../types/jobs";
 
 export default function JobDetailPage() {
 	const { jobId } = useParams<{ jobId: string }>();
@@ -13,6 +16,14 @@ export default function JobDetailPage() {
 	const { data: visits = [] } = useJobVisitsByJobIdQuery(jobId!);
 	const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 	const [isCreateVisitModalOpen, setIsCreateVisitModalOpen] = useState(false);
+	const [editingVisitId, setEditingVisitId] = useState<string | null>(null);
+	const createVisitMutation = useCreateJobVisitMutation();
+
+	const handleCreateVisit = async (input: CreateJobVisitInput) => {
+		await createVisitMutation.mutateAsync(input);
+	};
+
+	const editingVisit = visits.find(v => v.id === editingVisitId);
 
 	if (isLoading) {
 		return (
@@ -239,13 +250,15 @@ export default function JobDetailPage() {
 			<Card
 				title="Scheduled Visits"
 				headerAction={
-					<button
-						onClick={() => setIsCreateVisitModalOpen(true)}
-						className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-md text-sm font-medium transition-colors"
-					>
-						<Plus size={16} />
-						Create Visit
-					</button>
+					visits.length > 0 ? (
+						<button
+							onClick={() => setIsCreateVisitModalOpen(true)}
+							className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-md text-sm font-medium transition-colors"
+						>
+							<Plus size={16} />
+							Create Visit
+						</button>
+					) : undefined
 				}
 			>
 				{visits.length === 0 ? (
@@ -278,7 +291,10 @@ export default function JobDetailPage() {
 											{visit.schedule_type.replace('_', ' ')}
 										</span>
 									</div>
-									<button className="text-gray-400 hover:text-white transition-colors">
+									<button 
+										onClick={() => setEditingVisitId(visit.id)}
+										className="text-gray-400 hover:text-white transition-colors"
+									>
 										<Edit2 size={16} />
 									</button>
 								</div>
@@ -366,22 +382,106 @@ export default function JobDetailPage() {
 			<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 				<Card
 					title="Assigned Technicians"
+					headerAction={
+						visits.length > 0 && visits.some(v => v.visit_techs && v.visit_techs.length > 0) ? (
+							<span className="text-sm text-zinc-400">
+								{visits.reduce((acc, v) => acc + (v.visit_techs?.length || 0), 0)} assignments
+							</span>
+						) : undefined
+					}
 					className="h-fit"
 				>
-					<div className="text-center py-12">
-						<Users size={48} className="mx-auto text-zinc-600 mb-3" />
-						<h3 className="text-zinc-400 text-lg font-medium mb-2">Visit-Based Assignment</h3>
-						<p className="text-zinc-500 text-sm max-w-sm mx-auto">
-							Technicians are now assigned to specific visits. Create a visit to assign technicians.
-						</p>
-						{visits.length > 0 && (
-							<div className="mt-4 px-4 py-2 bg-zinc-800 rounded-md inline-block">
-								<p className="text-xs text-zinc-400">
-									{visits.reduce((acc, v) => acc + (v.visit_techs?.length || 0), 0)} technician assignments across {visits.length} visits
-								</p>
-							</div>
-						)}
-					</div>
+					{visits.length === 0 ? (
+						<div className="text-center py-12">
+							<Users size={48} className="mx-auto text-zinc-600 mb-3" />
+							<h3 className="text-zinc-400 text-lg font-medium mb-2">No Visits Created</h3>
+							<p className="text-zinc-500 text-sm max-w-sm mx-auto">
+								Create a visit to assign technicians to this job.
+							</p>
+						</div>
+					) : visits.every(v => !v.visit_techs || v.visit_techs.length === 0) ? (
+						<div className="text-center py-12">
+							<Users size={48} className="mx-auto text-zinc-600 mb-3" />
+							<h3 className="text-zinc-400 text-lg font-medium mb-2">No Technicians Assigned</h3>
+							<p className="text-zinc-500 text-sm max-w-sm mx-auto">
+								Edit a visit to assign technicians to the job.
+							</p>
+						</div>
+					) : (
+						<div className="space-y-3">
+							{sortedVisits
+								.filter(visit => visit.visit_techs && visit.visit_techs.length > 0)
+								.map((visit) => (
+									<div key={visit.id} className="space-y-2">
+										{/* Visit Header */}
+										<div className="flex items-center gap-2 text-xs text-zinc-500 mb-2">
+											<Calendar size={12} />
+											<span>
+												{formatDateTime(visit.scheduled_start_at).split(' at ')[0]} • {formatTime(visit.scheduled_start_at)} - {formatTime(visit.scheduled_end_at)}
+											</span>
+											<span className={`ml-auto px-2 py-0.5 rounded ${
+												visit.status === "Scheduled" ? "bg-blue-500/20 text-blue-400" :
+												visit.status === "InProgress" ? "bg-amber-500/20 text-amber-400" :
+												visit.status === "Completed" ? "bg-green-500/20 text-green-400" :
+												"bg-zinc-500/20 text-zinc-400"
+											}`}>
+												{visit.status}
+											</span>
+										</div>
+
+										{/* Technician Cards */}
+										{visit.visit_techs.map((vt) => (
+											<button
+												key={vt.tech_id}
+												onClick={() => navigate(`/dispatch/technicians/${vt.tech_id}`)}
+												className="w-full bg-zinc-800 hover:bg-zinc-750 border border-zinc-700 hover:border-zinc-600 rounded-lg p-3 transition-all cursor-pointer text-left group"
+											>
+												<div className="flex items-center gap-3">
+													{/* Profile Picture / Avatar */}
+													<div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0 text-white font-semibold text-sm">
+														{vt.tech.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+													</div>
+
+													{/* Tech Info */}
+													<div className="flex-1 min-w-0">
+														<div className="flex items-center gap-2 mb-1">
+															<h4 className="text-white font-medium text-sm truncate group-hover:text-blue-400 transition-colors">
+																{vt.tech.name}
+															</h4>
+														</div>
+														<div className="flex items-center gap-2 text-xs text-zinc-400">
+															<span className="truncate">{vt.tech.title}</span>
+															{vt.tech.phone && (
+																<>
+																	<span>•</span>
+																	<span className="truncate">{vt.tech.phone}</span>
+																</>
+															)}
+														</div>
+													</div>
+
+													{/* Status Badge */}
+													<div className="flex items-center gap-2 flex-shrink-0">
+														<span className={`px-2 py-1 rounded text-xs font-medium ${
+															vt.tech.status === "Available" 
+																? "bg-green-500/20 text-green-400 border border-green-500/30"
+																: vt.tech.status === "Busy"
+																? "bg-red-500/20 text-red-400 border border-red-500/30"
+																: vt.tech.status === "Offline"
+																? "bg-zinc-500/20 text-zinc-400 border border-zinc-500/30"
+																: "bg-blue-500/20 text-blue-400 border border-blue-500/30"
+														}`}>
+															{vt.tech.status}
+														</span>
+														<ChevronLeft size={16} className="text-zinc-400 rotate-180 group-hover:translate-x-1 transition-transform" />
+													</div>
+												</div>
+											</button>
+										))}
+									</div>
+								))}
+						</div>
+					)}
 				</Card>
 
 				<Card title="Technician Location" className="h-fit">
@@ -407,33 +507,28 @@ export default function JobDetailPage() {
 			{/* Job Notes - Full Width at Bottom */}
 			<JobNoteManager jobId={jobId!} visits={visits} />
 
-			<EditJob
-				isModalOpen={isEditModalOpen}
-				setIsModalOpen={setIsEditModalOpen}
-				job={job}
+			{job && (
+				<EditJob
+					isModalOpen={isEditModalOpen}
+					setIsModalOpen={setIsEditModalOpen}
+					job={job}
+				/>
+			)}
+
+			<CreateJobVisit
+				isModalOpen={isCreateVisitModalOpen}
+				setIsModalOpen={setIsCreateVisitModalOpen}
+				jobId={jobId!}
+				createVisit={handleCreateVisit}
 			/>
 
-			{/* Create Visit Modal - Placeholder */}
-			{isCreateVisitModalOpen && (
-				<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-					<div className="bg-zinc-900 border border-zinc-700 rounded-lg p-6 max-w-2xl w-full mx-4">
-						<h2 className="text-xl font-bold mb-4">Create Visit</h2>
-						<p className="text-gray-400 mb-4">Visit creation form will go here</p>
-						<div className="flex justify-end gap-2">
-							<button
-								onClick={() => setIsCreateVisitModalOpen(false)}
-								className="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 rounded-lg transition-colors"
-							>
-								Cancel
-							</button>
-							<button
-								className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
-							>
-								Create Visit
-							</button>
-						</div>
-					</div>
-				</div>
+			{editingVisitId && editingVisit && (
+				<EditJobVisit
+					isModalOpen={true}
+					setIsModalOpen={(open) => !open && setEditingVisitId(null)}
+					visit={editingVisit}
+					jobId={jobId!}
+				/>
 			)}
 		</div>
 	);
