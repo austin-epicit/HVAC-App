@@ -3,7 +3,7 @@ import Button from "../ui/Button";
 import { useRef, useState } from "react";
 import type { ZodError } from "zod";
 import FullPopup from "../ui/FullPopup";
-import { CreateJobSchema, type CreateJobInput } from "../../types/jobs";
+import { CreateJobSchema, JobPriorityValues, type CreateJobInput } from "../../types/jobs";
 import { useAllClientsQuery } from "../../hooks/useClients";
 import Dropdown from "../ui/Dropdown";
 
@@ -48,15 +48,15 @@ const CreateJob = ({ isModalOpen, setIsModalOpen, createJob }: CreateJobProps) =
 		);
 	}
 
-	let priorityEntries = (
+	const priorityEntries = (
 		<>
-			<option value="low" className="text-black">Low</option>
-			<option value="normal" className="text-black">Normal</option>
-			<option value="medium" className="text-black">Medium</option>
-			<option value="high" className="text-black">High</option>
+			{JobPriorityValues.map((v) => (
+				<option key={v} value={v} className="text-black">
+					{v}
+				</option>
+			))}
 		</>
 	);
-
 	const invokeCreate = async () => {
 		if (
 			nameRef.current &&
@@ -153,7 +153,9 @@ const CreateJob = ({ isModalOpen, setIsModalOpen, createJob }: CreateJobProps) =
 			)}
 
 			<p className="mb-1 mt-3 hover:color-accent">Priority</p>
-			<Dropdown refToApply={priorityRef} entries={priorityEntries} />
+			<div className="border border-zinc-800 rounded-sm">
+				<Dropdown refToApply={priorityRef} entries={priorityEntries} />
+			</div>
 
 			<p className="mb-1 mt-3 hover:color-accent">Address</p>
 			<input
