@@ -1,6 +1,9 @@
 import { ZodError } from "zod";
 import { db } from "../db.js";
-import { createClientSchema, updateClientSchema } from "../lib/validate/clients.js";
+import {
+	createClientSchema,
+	updateClientSchema,
+} from "../lib/validate/clients.js";
 
 export const getAllClients = async () => {
 	return await db.client.findMany({
@@ -32,6 +35,7 @@ export const insertClient = async (data: unknown) => {
 				data: {
 					name: parsed.name,
 					address: parsed.address,
+					coords: parsed.coords,
 					is_active: parsed.is_active,
 					last_activity: parsed.last_activity,
 				},
@@ -75,8 +79,15 @@ export const updateClient = async (id: string, data: unknown) => {
 				where: { id },
 				data: {
 					...(parsed.name !== undefined && { name: parsed.name }),
-					...(parsed.address !== undefined && { address: parsed.address }),
-					...(parsed.is_active !== undefined && { is_active: parsed.is_active }),
+					...(parsed.address !== undefined && {
+						address: parsed.address,
+					}),
+					...(parsed.coords !== undefined && {
+						coords: parsed.coords,
+					}),
+					...(parsed.is_active !== undefined && {
+						is_active: parsed.is_active,
+					}),
 					last_activity: new Date(),
 				},
 			});
@@ -109,7 +120,7 @@ export const deleteClient = async (id: string) => {
 		console.log("Attempting to delete client with id:", id);
 		const existing = await db.client.findUnique({ where: { id } });
 		console.log("Found client:", existing);
-		
+
 		if (!existing) {
 			return { err: "Client not found" };
 		}
@@ -119,7 +130,7 @@ export const deleteClient = async (id: string) => {
 			await tx.client_contact.deleteMany({ where: { client_id: id } });
 			await tx.client_note.deleteMany({ where: { client_id: id } });
 			await tx.job.deleteMany({ where: { client_id: id } });
-			
+
 			await tx.client.delete({ where: { id } });
 		});
 

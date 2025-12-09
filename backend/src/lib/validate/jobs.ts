@@ -7,6 +7,10 @@ export const createJobSchema = z.object({
 	client_id: z.string().uuid("Invalid client ID"),
 	tech_ids: z.array(z.string().uuid("Invalid technician ID")).default([]),
 	address: z.string().optional().default(""),
+	coords: z.object({
+		lat: z.number(),
+		lon: z.number(),
+	}),
 	status: z
 		.enum([
 			"Unscheduled",

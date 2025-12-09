@@ -97,6 +97,7 @@ export const insertJob = async (req: Request) => {
 					priority: parsed.priority,
 					client_id: parsed.client_id,
 					address: parsed.address,
+					coords: parsed.coords,
 					status: parsed.status as job_status,
 				},
 			});
@@ -147,6 +148,7 @@ export const updateJob = async (req: Request) => {
 			"priority",
 			"client_id",
 			"address",
+			"coords",
 			"status",
 		] satisfies (keyof typeof updates)[];
 
@@ -193,8 +195,8 @@ export const deleteJob = async (id: string) => {
 
 		await db.$transaction(async (tx) => {
 			if (job.visits.length > 0) {
-				const visitIds = job.visits.map(v => v.id);
-				
+				const visitIds = job.visits.map((v) => v.id);
+
 				await tx.job_visit_technician.deleteMany({
 					where: { visit_id: { in: visitIds } },
 				});
