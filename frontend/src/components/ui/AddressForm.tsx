@@ -27,7 +27,7 @@ const AddressForm = ({ handleChange }: AddressFormProps) => {
 			borderRadius: "6px",
 
 			// Colors
-			colorBackground: "#27272a", // bg-zinc-800
+			colorBackground: "#17171aff", // bg-zinc-800
 			colorBackgroundHover: "#3f3f46", // bg-zinc-700
 			colorBackgroundActive: "#3f3f46",
 			colorText: "#ffffffff", // text-white
@@ -35,7 +35,7 @@ const AddressForm = ({ handleChange }: AddressFormProps) => {
 			colorSecondary: "#3f3f46",
 
 			// Border
-			border: "1px solid #3f3f46", // border-zinc-700
+			border: "1px solid #2b2b30ff", // border-zinc-700
 
 			// Modal / listbox padding
 			paddingModal: "0.5rem",

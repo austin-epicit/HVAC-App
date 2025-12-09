@@ -6,6 +6,8 @@ import FullPopup from "../ui/FullPopup";
 import { CreateJobSchema, JobPriorityValues, type CreateJobInput } from "../../types/jobs";
 import { useAllClientsQuery } from "../../hooks/useClients";
 import Dropdown from "../ui/Dropdown";
+import type { GeocodeResult } from "../../types/location";
+import AddressForm from "../ui/AddressForm";
 
 interface CreateJobProps {
 	isModalOpen: boolean;
@@ -15,7 +17,7 @@ interface CreateJobProps {
 
 const CreateJob = ({ isModalOpen, setIsModalOpen, createJob }: CreateJobProps) => {
 	const nameRef = useRef<HTMLInputElement>(null);
-	const addressRef = useRef<HTMLInputElement>(null);
+	const [geoData, setGeoData] = useState<GeocodeResult | null>();
 	const descRef = useRef<HTMLTextAreaElement>(null);
 	const clientRef = useRef<HTMLSelectElement>(null);
 	const priorityRef = useRef<HTMLSelectElement>(null);
@@ -61,14 +63,14 @@ const CreateJob = ({ isModalOpen, setIsModalOpen, createJob }: CreateJobProps) =
 		if (
 			nameRef.current &&
 			clientRef.current &&
-			addressRef.current &&
+			geoData &&
 			descRef.current &&
 			priorityRef.current &&
 			!isLoading
 		) {
 			const labelValue = nameRef.current.value.trim();
 			const clientValue = clientRef.current.value.trim();
-			const addressValue = addressRef.current.value.trim();
+			const addressValue = geoData.address.trim();
 			const descValue = descRef.current.value.trim();
 			const priorityValue = priorityRef.current.value.trim();
 
@@ -76,6 +78,7 @@ const CreateJob = ({ isModalOpen, setIsModalOpen, createJob }: CreateJobProps) =
 				name: labelValue,
 				client_id: clientValue,
 				address: addressValue,
+				coords: geoData.coords,
 				description: descValue,
 				priority: priorityValue,
 				status: "Unscheduled",
@@ -97,11 +100,18 @@ const CreateJob = ({ isModalOpen, setIsModalOpen, createJob }: CreateJobProps) =
 
 			// Reset form values before closing
 			if (nameRef.current) nameRef.current.value = "";
-			if (addressRef.current) addressRef.current.value = "";
+			setGeoData(null);
 			if (descRef.current) descRef.current.value = "";
 
 			setIsModalOpen(false);
 		}
+	};
+
+	const handleChangeAddress = (geoData: GeocodeResult) => {
+		setGeoData(() => ({
+			address: geoData.address,
+			coords: geoData.coords,
+		}));
 	};
 
 	let nameErrors;
@@ -158,13 +168,7 @@ const CreateJob = ({ isModalOpen, setIsModalOpen, createJob }: CreateJobProps) =
 			</div>
 
 			<p className="mb-1 mt-3 hover:color-accent">Address</p>
-			<input
-				type="text"
-				placeholder="Job Address"
-				className="border border-zinc-800 p-2 w-full rounded-sm"
-				disabled={isLoading}
-				ref={addressRef}
-			/>
+			<AddressForm handleChange={handleChangeAddress} />
 
 			{addressErrors && (
 				<div>

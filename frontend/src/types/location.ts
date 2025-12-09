@@ -1,4 +1,6 @@
 export interface GeocodeResult {
 	address: string;
-	coords: { lat: number; lon: number };
+	coords: Coordinates;
 }
+
+export type Coordinates = { lat: number; lon: number };

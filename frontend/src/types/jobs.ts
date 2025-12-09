@@ -1,5 +1,6 @@
 import z from "zod";
 import type { Client } from "./clients";
+import type { Coordinates } from "./location";
 
 export const JobStatusValues = [
 	"Unscheduled",
@@ -100,6 +101,7 @@ export interface Job {
 	client_id: string;
 	client: Client;
 	address: string;
+	coords: Coordinates;
 	description: string;
 	priority: string;
 	status: JobStatus;
@@ -113,6 +115,7 @@ export interface CreateJobInput {
 	name: string;
 	client_id: string;
 	address: string;
+	coords: Coordinates;
 	description: string;
 	priority?: string;
 	status?: JobStatus;

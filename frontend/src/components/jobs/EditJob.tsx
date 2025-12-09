@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { X, Trash2 } from "lucide-react";
 import { useUpdateJobMutation, useDeleteJobMutation } from "../../hooks/useJobs";
 import type { Job, JobStatus } from "../../types/jobs";
+import type { GeocodeResult } from "../../types/location";
+import AddressForm from "../ui/AddressForm";
 
 interface EditJobProps {
 	isModalOpen: boolean;
@@ -14,11 +16,12 @@ export default function EditJob({ isModalOpen, setIsModalOpen, job }: EditJobPro
 	const navigate = useNavigate();
 	const updateJob = useUpdateJobMutation();
 	const deleteJob = useDeleteJobMutation();
-	
+
 	const [formData, setFormData] = useState({
 		name: job.name,
 		description: job.description,
 		address: job.address,
+		coords: job.coords,
 		priority: job.priority || "normal",
 		status: job.status,
 	});
@@ -31,6 +34,7 @@ export default function EditJob({ isModalOpen, setIsModalOpen, job }: EditJobPro
 				name: job.name,
 				description: job.description,
 				address: job.address,
+				coords: job.coords,
 				priority: job.priority || "normal",
 				status: job.status,
 			});
@@ -46,6 +50,7 @@ export default function EditJob({ isModalOpen, setIsModalOpen, job }: EditJobPro
 				name: formData.name,
 				description: formData.description,
 				address: formData.address,
+				coords: formData.coords,
 				priority: formData.priority,
 				status: formData.status as JobStatus,
 			};
@@ -76,11 +81,21 @@ export default function EditJob({ isModalOpen, setIsModalOpen, job }: EditJobPro
 		}
 	};
 
-	const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+	const handleChange = (
+		e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+	) => {
 		const { name, value } = e.target;
 		setFormData((prev) => ({
 			...prev,
 			[name]: value,
+		}));
+	};
+
+	const handleChangeAddress = (geoData: GeocodeResult) => {
+		setFormData((prev) => ({
+			...prev,
+			address: geoData.address,
+			coords: geoData.coords,
 		}));
 	};
 
@@ -93,8 +108,8 @@ export default function EditJob({ isModalOpen, setIsModalOpen, job }: EditJobPro
 	if (!isModalOpen) return null;
 
 	return (
-		<div 
-			className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" 
+		<div
+			className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
 			onClick={handleBackdropClick}
 		>
 			<div
@@ -168,9 +183,13 @@ export default function EditJob({ isModalOpen, setIsModalOpen, job }: EditJobPro
 							className="border border-zinc-800 p-2 w-full rounded-sm bg-zinc-900 text-white"
 							required
 						>
-							<option value="Unscheduled">Unscheduled</option>
+							<option value="Unscheduled">
+								Unscheduled
+							</option>
 							<option value="Scheduled">Scheduled</option>
-							<option value="InProgress">In Progress</option>
+							<option value="InProgress">
+								In Progress
+							</option>
 							<option value="Completed">Completed</option>
 							<option value="Cancelled">Cancelled</option>
 						</select>
@@ -178,14 +197,7 @@ export default function EditJob({ isModalOpen, setIsModalOpen, job }: EditJobPro
 
 					<div>
 						<p className="mb-1">Address</p>
-						<input
-							type="text"
-							name="address"
-							value={formData.address}
-							onChange={handleChange}
-							placeholder="Job Address"
-							className="border border-zinc-800 p-2 w-full rounded-sm bg-zinc-900 text-white"
-						/>
+						<AddressForm handleChange={handleChangeAddress} />
 					</div>
 
 					<div>
@@ -206,7 +218,9 @@ export default function EditJob({ isModalOpen, setIsModalOpen, job }: EditJobPro
 							disabled={updateJob.isPending}
 							className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:cursor-not-allowed text-white rounded-md transition-colors"
 						>
-							{updateJob.isPending ? "Saving..." : "Save Changes"}
+							{updateJob.isPending
+								? "Saving..."
+								: "Save Changes"}
 						</button>
 						<button
 							type="button"
@@ -223,8 +237,8 @@ export default function EditJob({ isModalOpen, setIsModalOpen, job }: EditJobPro
 							{deleteJob.isPending
 								? "Deleting..."
 								: deleteConfirm
-								? "Confirm Delete"
-								: "Delete"}
+									? "Confirm Delete"
+									: "Delete"}
 						</button>
 					</div>
 				</form>

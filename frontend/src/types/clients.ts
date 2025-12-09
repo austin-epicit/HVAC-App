@@ -1,5 +1,6 @@
 import type { Job } from "./jobs";
 import z from "zod";
+import type { Coordinates } from "./location";
 
 // Client
 
@@ -18,14 +19,14 @@ export interface Client {
 export interface CreateClientInput {
 	name: string;
 	address: string;
-	coords?: { lat: number; lon: number };
+	coords?: Coordinates;
 	is_active: boolean;
 }
 
 export interface UpdateClientInput {
 	name?: string;
 	address?: string;
-	coords?: { lat: number; lon: number };
+	coords?: Coordinates;
 	is_active?: boolean;
 }
 
