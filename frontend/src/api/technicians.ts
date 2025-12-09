@@ -39,12 +39,26 @@ export const getTechnicianById = async (id: string): Promise<Technician> => {
 
 export const createTechnician = async (input: CreateTechnicianInput): Promise<Technician> => {
 	try {
-		const response = await api.post<{ err: string; item?: Technician }>(`/technicians`, input);
-
+		const technicianData = {
+			...input,
+			coords: input.coords || { lat: 0, lon: 0 }
+		};
+		
+		const response = await api.post<{ err: string; item?: Technician }>(`/technicians`, technicianData);
+		
 		if (response.data.err) throw new Error(response.data.err);
-		return response.data.item!;
+		
+		if (!response.data.item) {
+			console.error("Unexpected response format:", response.data);
+			throw new Error("Server returned invalid response format");
+		}
+		
+		return response.data.item;
 	} catch (error) {
 		console.error("Failed to create technician: ", error);
+		if (axios.isAxiosError(error) && error.response) {
+			console.error("Server response:", error.response.data);
+		}
 		throw error;
 	}
 };
@@ -54,7 +68,12 @@ export const updateTechnician = async (id: string, data: UpdateTechnicianInput):
 		const response = await api.put<{ err: string; item?: Technician }>(`/technicians/${id}`, data);
 
 		if (response.data.err) throw new Error(response.data.err);
-		return response.data.item!;
+		
+		if (!response.data.item) {
+			throw new Error("Server returned invalid response format");
+		}
+		
+		return response.data.item;
 	} catch (error) {
 		console.error("Failed to update technician: ", error);
 		throw error;

@@ -2,6 +2,8 @@ import z from "zod";
 
 // Technician Status
 export type TechnicianStatus = "Offline" | "Available" | "Busy" | "Break";
+export type ScheduleType = "all_day" | "exact" | "window";
+export type VisitStatus = "Scheduled" | "InProgress" | "Completed" | "Cancelled";
 
 export interface VisitTechnician {
 	visit_id: string;
@@ -9,14 +11,14 @@ export interface VisitTechnician {
 	visit: {
 		id: string;
 		job_id: string;
-		schedule_type: "all_day" | "exact" | "window";
+		schedule_type: ScheduleType;
 		scheduled_start_at: Date;
 		scheduled_end_at: Date;
 		arrival_window_start?: Date | null;
 		arrival_window_end?: Date | null;
 		actual_start_at?: Date | null;
 		actual_end_at?: Date | null;
-		status: "Scheduled" | "InProgress" | "Completed" | "Cancelled";
+		status: VisitStatus;
 		job: {
 			id: string;
 			name: string;
@@ -63,6 +65,10 @@ export interface CreateTechnicianInput {
 	description?: string;
 	status?: TechnicianStatus;
 	hire_date?: Date;
+	coords?: {
+		lat: number;
+		lon: number;
+	}
 }
 
 export interface UpdateTechnicianInput {
@@ -86,6 +92,10 @@ export const CreateTechnicianSchema = z.object({
 	description: z.string().default(""),
 	status: z.enum(["Offline", "Available", "Busy", "Break"]).default("Offline"),
 	hire_date: z.coerce.date().optional().default(() => new Date()),
+	coords: z.object({
+		lat: z.number(),
+		lon: z.number(),
+	}).default({ lat: 0, lon: 0 }),
 });
 
 export const UpdateTechnicianSchema = z.object({
