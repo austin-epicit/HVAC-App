@@ -4,6 +4,8 @@ import { useRef, useState } from "react";
 import type { ZodError } from "zod";
 import FullPopup from "../ui/FullPopup";
 import { CreateClientSchema, type CreateClientInput } from "../../types/clients";
+import type { GeocodeResult } from "../../types/location";
+import AddressForm from "../ui/AddressForm";
 
 interface CreateClientProps {
 	isModalOpen: boolean;
@@ -13,22 +15,32 @@ interface CreateClientProps {
 
 const CreateClient = ({ isModalOpen, setIsModalOpen, createClient }: CreateClientProps) => {
 	const nameRef = useRef<HTMLInputElement>(null);
-	const addressRef = useRef<HTMLInputElement>(null);
+	const [geoData, setGeoData] = useState<GeocodeResult>();
 	const activeRef = useRef<HTMLInputElement>(null);
 	const [isLoading, setIsLoading] = useState(false);
 	const [errors, setErrors] = useState<ZodError | null>(null);
 
+	const handleChangeAddress = (geoData: GeocodeResult) => {
+		setGeoData(() => ({
+			address: geoData.address,
+			coords: geoData.coords,
+		}));
+	};
+
 	const invokeCreate = async () => {
-		if (nameRef.current && addressRef.current && activeRef.current && !isLoading) {
+		if (nameRef.current && geoData && activeRef.current && !isLoading) {
 			const labelValue = nameRef.current.value.trim();
-			const addressValue = addressRef.current.value.trim();
+			const addressValue = geoData.address.trim();
 			const activeValue = activeRef.current.value.trim() == "Active";
 
 			const newClient: CreateClientInput = {
 				name: labelValue,
 				address: addressValue,
+				coords: geoData.coords,
 				is_active: activeValue,
 			};
+
+			console.log(newClient);
 
 			const parseResult = CreateClientSchema.safeParse(newClient);
 
@@ -79,13 +91,7 @@ const CreateClient = ({ isModalOpen, setIsModalOpen, createClient }: CreateClien
 			)}
 
 			<p className="mb-1 mt-3 hover:color-accent">Address</p>
-			<input
-				type="text"
-				placeholder="Client Address"
-				className="border border-zinc-800 p-2 w-full rounded-sm"
-				disabled={isLoading}
-				ref={addressRef}
-			/>
+			<AddressForm handleChange={handleChangeAddress} />
 
 			{addressErrors && (
 				<div>
@@ -133,7 +139,13 @@ const CreateClient = ({ isModalOpen, setIsModalOpen, createClient }: CreateClien
 		</>
 	);
 
-	return <FullPopup content={content} isModalOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />;
+	return (
+		<FullPopup
+			content={content}
+			isModalOpen={isModalOpen}
+			onClose={() => setIsModalOpen(false)}
+		/>
+	);
 };
 
 export default CreateClient;

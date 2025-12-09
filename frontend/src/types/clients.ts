@@ -18,6 +18,7 @@ export interface Client {
 export interface CreateClientInput {
 	name: string;
 	address: string;
+	coords?: { lat: number; lon: number };
 	is_active: boolean;
 }
 
