@@ -41,6 +41,7 @@ model job {
   description   String
   priority      String
   address       String
+  coords        Json
   created_at    DateTime @default(now())
   status        job_status
   client_id     String
@@ -51,19 +52,19 @@ model job {
 }
 
 model job_visit {
-  id                  String        @id @default(uuid())
-  job_id              String
-  job                 job           @relation(fields: [job_id], references: [id])
-  schedule_type       schedule_type @default(exact)
-  scheduled_start_at  DateTime
-  scheduled_end_at    DateTime
-  arrival_window_start DateTime?
-  arrival_window_end   DateTime?
-  actual_start_at     DateTime?
-  actual_end_at       DateTime?
-  status              visit_status  @default(Scheduled)
-  visit_techs         job_visit_technician[]
-  notes               job_note[]    @relation("VisitNotes")
+  id                    String        @id @default(uuid())
+  job_id                String
+  job                   job           @relation(fields: [job_id], references: [id])
+  schedule_type         schedule_type @default(exact)
+  scheduled_start_at    DateTime
+  scheduled_end_at      DateTime
+  arrival_window_start  DateTime?
+  arrival_window_end    DateTime?
+  actual_start_at       DateTime?
+  actual_end_at         DateTime?
+  status                visit_status  @default(Scheduled)
+  visit_techs           job_visit_technician[]
+  notes                 job_note[]    @relation("VisitNotes")
   @@index([job_id])
   @@index([scheduled_start_at])
   @@index([scheduled_end_at])
@@ -71,15 +72,15 @@ model job_visit {
 
 
 model job_note {
-  id                        String      @id @default(uuid())
-  job_id                    String
-  content                   String      @db.Text
-  creator_tech_id           String?
-  creator_dispatcher_id     String?
-  created_at                DateTime    @default(now())
-  last_editor_tech_id       String?
+  id                          String      @id @default(uuid())
+  job_id                      String
+  content                     String      @db.Text
+  creator_tech_id             String?
+  creator_dispatcher_id       String?
+  created_at                  DateTime    @default(now())
+  last_editor_tech_id         String?
   last_editor_dispatcher_id   String?
-  updated_at                DateTime    @updatedAt
+  updated_at                  DateTime    @updatedAt
 
   // Do we want notes per visit?
   visit_id                  String?
@@ -123,7 +124,7 @@ model technician {
   description   String
   status        technician_status
   hire_date     DateTime
-  last_pos      Unsupported("point")?   //Optional for dev
+  last_pos      Json
   last_login    DateTime @default(now())
   visit_techs   job_visit_technician[]
 
@@ -149,6 +150,7 @@ model client {
   id            String @unique @id @default(uuid())
   name          String
   address       String
+  coords        Json
   is_active     Boolean
   created_at    DateTime @default(now())
   last_activity DateTime
