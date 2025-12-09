@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { X, Trash2 } from "lucide-react";
 import { useUpdateJobMutation, useDeleteJobMutation } from "../../hooks/useJobs";
-import type { Job, JobStatus } from "../../types/jobs";
+import { JobPriorityValues, JobStatusValues, type Job, type JobStatus } from "../../types/jobs";
 import type { GeocodeResult } from "../../types/location";
 import AddressForm from "../ui/AddressForm";
+import { addSpacesToCamelCase } from "../../util/util";
 
 interface EditJobProps {
 	isModalOpen: boolean;
@@ -167,10 +168,11 @@ export default function EditJob({ isModalOpen, setIsModalOpen, job }: EditJobPro
 							className="border border-zinc-800 p-2 w-full rounded-sm bg-zinc-900 text-white"
 							required
 						>
-							<option value="low">Low</option>
-							<option value="normal">Normal</option>
-							<option value="medium">Medium</option>
-							<option value="high">High</option>
+							{JobPriorityValues.map((v) => (
+								<option value={v} key={v}>
+									{v}
+								</option>
+							))}
 						</select>
 					</div>
 
@@ -183,15 +185,11 @@ export default function EditJob({ isModalOpen, setIsModalOpen, job }: EditJobPro
 							className="border border-zinc-800 p-2 w-full rounded-sm bg-zinc-900 text-white"
 							required
 						>
-							<option value="Unscheduled">
-								Unscheduled
-							</option>
-							<option value="Scheduled">Scheduled</option>
-							<option value="InProgress">
-								In Progress
-							</option>
-							<option value="Completed">Completed</option>
-							<option value="Cancelled">Cancelled</option>
+							{JobStatusValues.map((v) => (
+								<option value={v} key={v}>
+									{addSpacesToCamelCase(v)}
+								</option>
+							))}
 						</select>
 					</div>
 
