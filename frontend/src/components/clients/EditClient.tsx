@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { X, Trash2 } from "lucide-react";
 import type { Client, UpdateClientInput } from "../../types/clients";
 import { useUpdateClientMutation, useDeleteClientMutation } from "../../hooks/useClients";
+import AddressForm from "../ui/AddressForm";
+import type { GeocodeResult } from "../../types/location";
 
 interface EditClientModalProps {
 	isOpen: boolean;
@@ -24,7 +26,7 @@ export default function EditClientModal({ isOpen, onClose, client }: EditClientM
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
-		
+
 		try {
 			await updateClient.mutateAsync({
 				id: client.id,
@@ -55,7 +57,18 @@ export default function EditClientModal({ isOpen, onClose, client }: EditClientM
 		const { name, value, type } = e.target;
 		setFormData((prev) => ({
 			...prev,
-			[name]: type === "checkbox" ? (e.target as HTMLInputElement).checked : value,
+			[name]:
+				type === "checkbox"
+					? (e.target as HTMLInputElement).checked
+					: value,
+		}));
+	};
+
+	const handleChangeAddress = (geoData: GeocodeResult) => {
+		setFormData((prev) => ({
+			...prev,
+			address: geoData.address,
+			coords: geoData.coords,
 		}));
 	};
 
@@ -68,13 +81,15 @@ export default function EditClientModal({ isOpen, onClose, client }: EditClientM
 	if (!isOpen) return null;
 
 	return (
-		<div 
-			className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" 
+		<div
+			className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
 			onClick={handleBackdropClick}
 		>
 			<div className="bg-zinc-900 rounded-xl p-6 w-full max-w-md border border-zinc-800 max-h-[90vh] overflow-y-auto scrollbar-hide">
 				<div className="flex justify-between items-center mb-6">
-					<h2 className="text-2xl font-bold text-white">Edit Client</h2>
+					<h2 className="text-2xl font-bold text-white">
+						Edit Client
+					</h2>
 					<button
 						onClick={onClose}
 						className="text-zinc-400 hover:text-white transition-colors"
@@ -85,9 +100,7 @@ export default function EditClientModal({ isOpen, onClose, client }: EditClientM
 
 				<form onSubmit={handleSubmit} className="space-y-4">
 					<div>
-						<label className="mb-1">
-							Client Name
-						</label>
+						<label className="mb-1">Client Name</label>
 						<input
 							type="text"
 							name="name"
@@ -98,18 +111,17 @@ export default function EditClientModal({ isOpen, onClose, client }: EditClientM
 						/>
 					</div>
 
-					<div>
-						<label className="mb-1">
-							Address
-						</label>
-						<textarea
+					<div className="">
+						<label className="mb-1">Address</label>
+						{/* <textarea
 							name="address"
 							value={formData.address}
 							onChange={handleChange}
 							rows={3}
 							className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
 							required
-						/>
+						/> */}
+						<AddressForm handleChange={handleChangeAddress} />
 					</div>
 
 					<div className="flex items-center">
@@ -129,7 +141,9 @@ export default function EditClientModal({ isOpen, onClose, client }: EditClientM
 							disabled={updateClient.isPending}
 							className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:cursor-not-allowed text-white rounded-md transition-colors"
 						>
-							{updateClient.isPending ? "Saving..." : "Save Changes"}
+							{updateClient.isPending
+								? "Saving..."
+								: "Save Changes"}
 						</button>
 						<button
 							type="button"
@@ -146,8 +160,8 @@ export default function EditClientModal({ isOpen, onClose, client }: EditClientM
 							{deleteClient.isPending
 								? "Deleting..."
 								: deleteConfirm
-								? "Confirm Delete"
-								: "Delete"}
+									? "Confirm Delete"
+									: "Delete"}
 						</button>
 					</div>
 				</form>

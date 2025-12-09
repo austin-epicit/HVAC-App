@@ -24,6 +24,7 @@ export interface CreateClientInput {
 export interface UpdateClientInput {
 	name?: string;
 	address?: string;
+	coords?: { lat: number; lon: number };
 	is_active?: boolean;
 }
 
@@ -74,16 +75,23 @@ export const CreateClientContactSchema = z.object({
 	description: z.string().default(""),
 });
 
-export const UpdateClientContactSchema = z.object({
-	name: z.string().min(1, "Contact name is required").optional(),
-	email: z.string().email("Invalid email address").optional(),
-	phone: z.string().min(1, "Phone number is required").optional(),
-	relation: z.string().min(1, "Relation is required").optional(),
-	description: z.string().optional(),
-}).refine(
-	(data) => data.name !== undefined || data.email !== undefined || data.phone !== undefined || data.relation !== undefined || data.description !== undefined,
-	{ message: "At least one field must be provided for update" }
-);
+export const UpdateClientContactSchema = z
+	.object({
+		name: z.string().min(1, "Contact name is required").optional(),
+		email: z.string().email("Invalid email address").optional(),
+		phone: z.string().min(1, "Phone number is required").optional(),
+		relation: z.string().min(1, "Relation is required").optional(),
+		description: z.string().optional(),
+	})
+	.refine(
+		(data) =>
+			data.name !== undefined ||
+			data.email !== undefined ||
+			data.phone !== undefined ||
+			data.relation !== undefined ||
+			data.description !== undefined,
+		{ message: "At least one field must be provided for update" }
+	);
 
 // Notes
 
