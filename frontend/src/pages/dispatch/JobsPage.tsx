@@ -6,6 +6,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Search, Plus, Share, Eye, X } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import CreateJob from "../../components/jobs/CreateJob";
+import { addSpacesToCamelCase } from "../../util/util";
 
 export default function JobsPage() {
 	const navigate = useNavigate();
@@ -17,9 +18,9 @@ export default function JobsPage() {
 
 	// Get filters from URL query params
 	const queryParams = new URLSearchParams(location.search);
-	const clientFilter = queryParams.get('client');
-	const searchFilter = queryParams.get('search');
-	
+	const clientFilter = queryParams.get("client");
+	const searchFilter = queryParams.get("search");
+
 	// Fetch client data if filtering by client
 	const { data: filterClient } = useClientByIdQuery(clientFilter);
 
@@ -30,17 +31,17 @@ export default function JobsPage() {
 
 	const display = useMemo(() => {
 		if (!jobs) return [];
-		
+
 		// Use searchInput for instant preview, searchFilter for committed filter
 		const activeSearch = searchInput || searchFilter;
-		
+
 		// Filter jobs based on client filter
 		let filtered = jobs;
-		
+
 		if (clientFilter) {
 			filtered = jobs.filter((j) => j.client_id === clientFilter);
 		}
-		
+
 		// Then filter by search (instant as user types)
 		if (activeSearch) {
 			filtered = filtered.filter((j) => {
@@ -49,7 +50,7 @@ export default function JobsPage() {
 				const jobName = j.name?.toLowerCase() || "";
 				const status = j.status?.toLowerCase() || "";
 				const address = j.address?.toLowerCase() || "";
-				
+
 				return (
 					jobName.includes(searchLower) ||
 					clientName.includes(searchLower) ||
@@ -58,33 +59,42 @@ export default function JobsPage() {
 				);
 			});
 		}
-		
+
 		return filtered
 			.map((j) => {
 				// Get next scheduled visit
 				const scheduledVisits = j.visits
-					.filter(v => v.status === "Scheduled")
-					.sort((a, b) => new Date(a.scheduled_start_at).getTime() - new Date(b.scheduled_start_at).getTime());
-				
+					.filter((v) => v.status === "Scheduled")
+					.sort(
+						(a, b) =>
+							new Date(a.scheduled_start_at).getTime() -
+							new Date(b.scheduled_start_at).getTime()
+					);
+
 				const nextVisit = scheduledVisits[0];
-				
+
 				// Get assigned technicians from next visit
-				const techNames = nextVisit?.visit_techs?.map(vt => vt.tech.name).join(", ") || "Unassigned";
-				
+				const techNames =
+					nextVisit?.visit_techs
+						?.map((vt) => vt.tech.name)
+						.join(", ") || "Unassigned";
+
 				return {
 					id: j.id,
 					name: j.name,
 					technicians: techNames,
 					client: j.client?.name || "Unknown Client",
-					nextVisit: nextVisit 
-						? new Date(nextVisit.scheduled_start_at).toLocaleDateString("en-US", {
-							month: "short",
-							day: "numeric",
-							year: "numeric",
-						})
+					nextVisit: nextVisit
+						? new Date(
+								nextVisit.scheduled_start_at
+							).toLocaleDateString("en-US", {
+								month: "short",
+								day: "numeric",
+								year: "numeric",
+							})
 						: "No visits scheduled",
-					visits: `${j.visits.length} visit${j.visits.length !== 1 ? 's' : ''}`,
-					status: j.status,
+					visits: `${j.visits.length} visit${j.visits.length !== 1 ? "s" : ""}`,
+					status: addSpacesToCamelCase(j.status),
 				};
 			})
 			.sort(
@@ -96,33 +106,33 @@ export default function JobsPage() {
 
 	const handleSearchSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
-		
+
 		const newParams = new URLSearchParams(location.search);
-		
+
 		if (searchInput.trim()) {
-			newParams.set('search', searchInput.trim());
+			newParams.set("search", searchInput.trim());
 		} else {
-			newParams.delete('search');
+			newParams.delete("search");
 		}
-		
+
 		// Navigate with updated search param
 		navigate(`/dispatch/jobs?${newParams.toString()}`);
 	};
 
-	const removeFilter = (filterType: 'client' | 'search') => {
+	const removeFilter = (filterType: "client" | "search") => {
 		const newParams = new URLSearchParams(location.search);
 		newParams.delete(filterType);
-		
-		if (filterType === 'search') {
+
+		if (filterType === "search") {
 			setSearchInput("");
 		}
-		
-		navigate(`/dispatch/jobs${newParams.toString() ? `?${newParams.toString()}` : ''}`);
+
+		navigate(`/dispatch/jobs${newParams.toString() ? `?${newParams.toString()}` : ""}`);
 	};
 
 	const clearAllFilters = () => {
 		setSearchInput("");
-		navigate('/dispatch/jobs');
+		navigate("/dispatch/jobs");
 	};
 
 	const hasFilters = clientFilter || searchFilter;
@@ -133,7 +143,10 @@ export default function JobsPage() {
 				<h2 className="text-2xl font-semibold">Jobs</h2>
 
 				<div className="flex gap-2 text-nowrap">
-					<form onSubmit={handleSearchSubmit} className="relative w-full">
+					<form
+						onSubmit={handleSearchSubmit}
+						className="relative w-full"
+					>
 						<Search
 							size={18}
 							className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
@@ -142,7 +155,9 @@ export default function JobsPage() {
 							type="text"
 							placeholder="Search jobs..."
 							value={searchInput}
-							onChange={(e) => setSearchInput(e.target.value)}
+							onChange={(e) =>
+								setSearchInput(e.target.value)
+							}
 							className="w-full pl-11 pr-3 py-2 rounded-md bg-zinc-800 border border-zinc-700 text-sm 
 							text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 
 							focus:ring-blue-500"
@@ -169,16 +184,27 @@ export default function JobsPage() {
 				<div className="mb-2 p-3 bg-zinc-800 rounded-lg border border-zinc-700">
 					<div className="flex items-center justify-between">
 						<div className="flex items-center gap-2 flex-wrap">
-							<span className="text-sm text-zinc-400">Active filters:</span>
-							
+							<span className="text-sm text-zinc-400">
+								Active filters:
+							</span>
+
 							{/* Client Filter Chip */}
 							{clientFilter && filterClient && (
 								<div className="flex items-center gap-2 px-3 py-1.5 bg-blue-600/20 border border-blue-500/30 rounded-md">
 									<span className="text-sm text-blue-300">
-										Client: <span className="font-medium text-white">{filterClient.name}</span>
+										Client:{" "}
+										<span className="font-medium text-white">
+											{
+												filterClient.name
+											}
+										</span>
 									</span>
 									<button
-										onClick={() => removeFilter('client')}
+										onClick={() =>
+											removeFilter(
+												"client"
+											)
+										}
 										className="text-blue-300 hover:text-white transition-colors"
 										aria-label="Remove client filter"
 									>
@@ -191,10 +217,21 @@ export default function JobsPage() {
 							{searchFilter && (
 								<div className="flex items-center gap-2 px-3 py-1.5 bg-purple-600/20 border border-purple-500/30 rounded-md">
 									<span className="text-sm text-purple-300">
-										Search: <span className="font-medium text-white">"{searchFilter}"</span>
+										Search:{" "}
+										<span className="font-medium text-white">
+											"
+											{
+												searchFilter
+											}
+											"
+										</span>
 									</span>
 									<button
-										onClick={() => removeFilter('search')}
+										onClick={() =>
+											removeFilter(
+												"search"
+											)
+										}
 										className="text-purple-300 hover:text-white transition-colors"
 										aria-label="Remove search filter"
 									>
@@ -205,7 +242,10 @@ export default function JobsPage() {
 
 							{/* Results Count */}
 							<span className="text-sm text-zinc-500">
-								• {display.length} {display.length === 1 ? 'result' : 'results'}
+								• {display.length}{" "}
+								{display.length === 1
+									? "result"
+									: "results"}
 							</span>
 						</div>
 
@@ -232,14 +272,16 @@ export default function JobsPage() {
 							<button
 								onClick={(e) => {
 									e.stopPropagation();
-									navigate(`/dispatch/jobs/${row.id}`);
+									navigate(
+										`/dispatch/jobs/${row.id}`
+									);
 								}}
 								className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded-md text-xs font-medium transition-colors"
 							>
 								<Eye size={14} />
 								View Details
 							</button>
-						)
+						),
 					}}
 				/>
 			</div>
