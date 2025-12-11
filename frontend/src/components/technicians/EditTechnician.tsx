@@ -71,9 +71,9 @@ export default function EditTechnician({ isOpen, onClose, technician }: EditTech
 		}
 
 		try {
+			navigate("/dispatch/technicians", { replace: true });
 			await deleteTechnician.mutateAsync(technician.id);
 			onClose();
-			navigate("/dispatch/technicians");
 		} catch (error) {
 			console.error("Failed to delete technician:", error);
 		}

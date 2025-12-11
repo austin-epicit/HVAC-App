@@ -27,10 +27,18 @@ export const useTechnicianByIdQuery = (
 		queryKey: ["technicians", id],
 		queryFn: () => technicianApi.getTechnicianById(id!),
 		enabled: options?.enabled !== undefined ? options.enabled : !!id,
+		// Automatically handles 404 errors as ApiError with NOT_FOUND code
+		retry: false,
+		refetchOnWindowFocus: false,
+		refetchOnReconnect: false,
 	});
 };
 
-export const useCreateTechnicianMutation = (): UseMutationResult<Technician, Error, CreateTechnicianInput> => {
+export const useCreateTechnicianMutation = (): UseMutationResult<
+	Technician, 
+	Error, 
+	CreateTechnicianInput
+> => {
 	const queryClient = useQueryClient();
 
 	return useMutation({
@@ -40,7 +48,7 @@ export const useCreateTechnicianMutation = (): UseMutationResult<Technician, Err
 			queryClient.setQueryData(["technicians", newTechnician.id], newTechnician);
 		},
 		onError: (error) => {
-			console.error("Failed to create technician:", error);
+			console.error(`Failed to create technician:`, error.message);
 		},
 	});
 };
@@ -60,13 +68,13 @@ export const useUpdateTechnicianMutation = (): UseMutationResult<
 			queryClient.setQueryData(["technicians", updatedTechnician.id], updatedTechnician);
 		},
 		onError: (error: Error) => {
-			console.error("Failed to update technician:", error);
+			console.error(`Failed to update technician:`, error.message);
 		},
 	});
 };
 
 export const useDeleteTechnicianMutation = (): UseMutationResult<
-	{ message: string },
+	{ message: string; id: string },
 	Error,
 	string
 > => {
@@ -74,11 +82,17 @@ export const useDeleteTechnicianMutation = (): UseMutationResult<
 
 	return useMutation({
 		mutationFn: technicianApi.deleteTechnician,
-		onSuccess: () => {
+		onMutate: async (deletedId: string) => {
+			await queryClient.cancelQueries({
+				queryKey: ["technicians", deletedId],
+			});
+		},
+		onSuccess: (data, deletedId) => {
 			queryClient.invalidateQueries({ queryKey: ["technicians"] });
+			queryClient.removeQueries({ queryKey: ["technicians", deletedId] });
 		},
 		onError: (error: Error) => {
-			console.error("Failed to delete technician:", error);
+			console.error(`Failed to delete technician:`, error.message);
 		},
 	});
 };

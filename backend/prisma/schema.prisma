@@ -227,7 +227,7 @@ model log {
   @@index([tech_id])
 }
 
-//Added to dispatch/technician (record user actions, templates placed (unreachable atm) in job/clientNotes controllers )
+//Added to dispatch/technician (record user actions, templates placed in job/clientNotes controllers )
 model audit_log {
   id                  String   @id @default(uuid())
   entity_type         String // "client_note", "job_note", "job", "client", etc.

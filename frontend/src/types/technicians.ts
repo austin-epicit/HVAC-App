@@ -1,6 +1,5 @@
 import z from "zod";
 
-// Technician Status
 export type TechnicianStatus = "Offline" | "Available" | "Busy" | "Break";
 export type ScheduleType = "all_day" | "exact" | "window";
 export type VisitStatus = "Scheduled" | "InProgress" | "Completed" | "Cancelled";
@@ -68,7 +67,7 @@ export interface CreateTechnicianInput {
 	coords?: {
 		lat: number;
 		lon: number;
-	}
+	};
 }
 
 export interface UpdateTechnicianInput {
@@ -121,8 +120,3 @@ export const UpdateTechnicianSchema = z.object({
 		data.last_login !== undefined,
 	{ message: "At least one field must be provided for update" }
 );
-
-export interface TechnicianResponse {
-	err: string;
-	data: Technician[];
-}

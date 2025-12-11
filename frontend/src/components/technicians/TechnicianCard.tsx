@@ -112,15 +112,12 @@ export default function TechnicianCard({ technician, onClick }: TechnicianCardPr
           <Briefcase size={16} className="text-zinc-400 flex-shrink-0" />
           <span className="truncate">{technician.title}</span>
         </div>
-
-        {technician.description && (
-          <div className="flex items-start gap-2 text-sm text-zinc-400">
-            <div className="w-4 flex-shrink-0" /> 
-            <p className="line-clamp-2 text-xs leading-relaxed">
-              {technician.description}
-            </p>
-          </div>
-        )}
+        <div className="flex items-start gap-2 text-sm text-zinc-400 min-h-[1.2rem]">
+          <div className="w-4 flex-shrink-0" /> 
+          <p className="line-clamp-2 text-xs leading-relaxed">
+            {technician.description}
+          </p>
+        </div>
       </div>
 
       <div className="flex items-center gap-2 text-xs text-zinc-400 pt-2 border-t border-zinc-800">

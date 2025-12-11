@@ -40,8 +40,6 @@ const CreateClient = ({ isModalOpen, setIsModalOpen, createClient }: CreateClien
 				is_active: activeValue,
 			};
 
-			console.log(newClient);
-
 			const parseResult = CreateClientSchema.safeParse(newClient);
 
 			if (!parseResult.success) {

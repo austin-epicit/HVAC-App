@@ -1,6 +1,16 @@
 import "dotenv/config";
 import cors from "cors";
 import express from "express";
+import type { Request, Response, NextFunction } from "express";
+
+// Response types and utilities
+import {
+	ErrorCodes,
+	createSuccessResponse,
+	createErrorResponse,
+} from "./types/responses.js";
+
+// Controllers
 import {
 	getAllJobs,
 	getJobById,
@@ -27,21 +37,6 @@ import {
 	assignTechniciansToVisit,
 	deleteJobVisit,
 } from "./controllers/jobVisitsController.js";
-import {
-	ClientInsertResult,
-	ClientResponse,
-	JobInsertResult,
-	JobResponse,
-	JobVisitInsertResult,
-	JobVisitResponse,
-	ContactInsertResult,
-	ContactResponse,
-	NoteInsertResult,
-	NoteResponse,
-	TechnicianInsertResult,
-	TechnicianResponse,
-	DeleteResult,
-} from "./types/responses.js";
 import {
 	getAllClients,
 	getClientById,
@@ -71,9 +66,63 @@ import {
 	deleteTechnician,
 } from "./controllers/techniciansController.js";
 
+// ============================================
+// MIDDLEWARE
+// ============================================
+
+const errorHandler = (err: any, req: Request, res: Response, next: NextFunction) => {
+	console.error(`[ERROR] ${req.method} ${req.path}:`, err);
+	
+	// Default to 500 if no status code is set
+	const statusCode = err.statusCode || 500;
+	
+	res.status(statusCode).json(
+		createErrorResponse(
+			err.code || ErrorCodes.SERVER_ERROR,
+			err.message || 'An unexpected error occurred',
+			process.env.NODE_ENV === 'development' ? err.stack : undefined
+		)
+	);
+};
+
+const requestLogger = (req: Request, res: Response, next: NextFunction) => {
+	const timestamp = new Date().toISOString();
+	console.log(`[${timestamp}] ${req.method} ${req.path}`);
+	next();
+};
+
+const notFoundHandler = (req: Request, res: Response) => {
+	res.status(404).json(
+		createErrorResponse(
+			ErrorCodes.NOT_FOUND,
+			`Route ${req.method} ${req.path} not found`
+		)
+	);
+};
+
+// ============================================
+// HELPER: Extract user info from request
+// TODO: Replace with actual auth middleware
+// ============================================
+
+const extractUserInfo = (req: Request): { userId?: string; userType?: 'tech' | 'dispatcher' } => {
+	const userId = req.headers['x-user-id'] as string;
+	const userType = req.headers['x-user-type'] as 'tech' | 'dispatcher';
+	
+	return { 
+		userId: userId || undefined, 
+		userType: userType || undefined 
+	};
+};
+
+// ============================================
+// APP SETUP
+// ============================================
+
 const app = express();
 
 app.use(express.json());
+app.use(requestLogger);
 
 let frontend: string | undefined = process.env["FRONTEND_URL"];
 if (!frontend) {
@@ -81,14 +130,13 @@ if (!frontend) {
 	frontend = "http://localhost:5173";
 }
 
-// app.use(
-// 	cors({
-// 		origin: frontend,
-// 		credentials: true,
-// 	})
-// );
-
-app.use(cors());
+// CORS configuration
+app.use(cors({
+	origin: process.env.NODE_ENV === 'production' 
+		? frontend 
+		: '*', // Allow all origins in development
+	credentials: true,
+}));
 
 let port: string | undefined = process.env["SERVER_PORT"];
 if (!port) {
@@ -97,85 +145,81 @@ if (!port) {
 }
 
 // ============================================
-// HELPER: Extract user info from request
-// TODO: Replace with actual auth middleware
-// ============================================
-const extractUserInfo = (req: express.Request): { userId?: string; userType?: 'tech' | 'dispatcher' } => {
-	const userId = req.headers['x-user-id'] as string;
-	const userType = req.headers['x-user-type'] as 'tech' | 'dispatcher';
-	
-	// Return undefined if not provided
-	return { 
-		userId: userId || undefined, 
-		userType: userType || undefined 
-	};
-};
-
-// ============================================
 // JOBS
 // ============================================
 
-app.get("/jobs", async (req, res) => {
+app.get("/jobs", async (req, res, next) => {
 	try {
 		const jobs = await getAllJobs();
-		const resp: JobResponse = { err: "", data: jobs };
-		res.json(resp);
+		res.json(createSuccessResponse(jobs, { count: jobs.length }));
 	} catch (err) {
-		console.error(err);
-		res.status(500).json({ err: "Failed to fetch jobs", data: [] });
+		next(err);
 	}
 });
 
-app.get("/jobs/:id", async (req, res) => {
+app.get("/jobs/:id", async (req, res, next) => {
 	try {
 		const { id } = req.params;
 		const job = await getJobById(id);
 
-		if (!job)
-			return res.status(404).json({ err: "Job not found", data: [] });
+		if (!job) {
+			return res.status(404).json(
+				createErrorResponse(ErrorCodes.NOT_FOUND, 'Job not found')
+			);
+		}
 
-		const resp: JobResponse = { err: "", data: [job] };
-		res.json(resp);
+		res.json(createSuccessResponse(job));
 	} catch (err) {
-		console.error(err);
-		res.status(500).json({ err: "Failed to fetch job", data: [] });
+		next(err);
 	}
 });
 
-app.post("/jobs", async (req, res) => {
-	const result: JobInsertResult = await insertJob(req.body);
-	if (result.err) {
-		return res.status(400).json({ err: result.err, data: [] });
-	}
+app.post("/jobs", async (req, res, next) => {
+	try {
+		const result = await insertJob(req.body);
+		
+		if (result.err) {
+			return res.status(400).json(
+				createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+			);
+		}
 
-	return res.status(201).json({ err: "", data: [result.item] });
+		res.status(201).json(createSuccessResponse(result.item));
+	} catch (err) {
+		next(err);
+	}
 });
 
-app.patch("/jobs/:id", async (req, res) => {
+app.patch("/jobs/:id", async (req, res, next) => {
 	try {
 		const result = await updateJob(req);
+		
 		if (result.err) {
-			return res.status(400).json({ err: result.err, data: [] });
+			return res.status(400).json(
+				createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+			);
 		}
-		return res.json({ err: "", data: [result.item] });
+		
+		res.json(createSuccessResponse(result.item));
 	} catch (err) {
-		console.error(err);
-		return res.status(500).json({ err: "Failed to update job", data: [] });
+		next(err);
 	}
 });
-app.delete("/jobs/:id", async (req, res) => {
+
+app.delete("/jobs/:id", async (req, res, next) => {
 	try {
 		const { id } = req.params;
 		const result = await deleteJob(id);
 
 		if (result.err) {
-			return res.status(400).json({ err: result.err, data: [] });
+			return res.status(400).json(
+				createErrorResponse(ErrorCodes.DELETE_ERROR, result.err)
+			);
 		}
 
-		return res.json({ err: "", message: "Job deleted", id });
+		res.status(200).json(createSuccessResponse({ message: 'Job deleted successfully', id }));
 	} catch (err) {
-		console.error(err);
-		return res.status(500).json({ err: "Failed to delete job", data: [] });
+		next(err);
 	}
 });
 
@@ -183,129 +227,142 @@ app.delete("/jobs/:id", async (req, res) => {
 // JOB VISITS
 // ============================================
 
-app.get("/job-visits", async (req, res) => {
+app.get("/job-visits", async (req, res, next) => {
 	try {
 		const visits = await getAllJobVisits();
-		const resp: JobVisitResponse = { err: "", data: visits };
-		res.json(resp);
+		res.json(createSuccessResponse(visits, { count: visits.length }));
 	} catch (err) {
-		console.error(err);
-		res.status(500).json({ err: "Failed to fetch job visits", data: [] });
+		next(err);
 	}
 });
 
-app.get("/job-visits/:id", async (req, res) => {
+app.get("/job-visits/:id", async (req, res, next) => {
 	try {
 		const { id } = req.params;
 		const visit = await getJobVisitById(id);
 
-		if (!visit)
-			return res.status(404).json({ err: "Job visit not found", data: [] });
+		if (!visit) {
+			return res.status(404).json(
+				createErrorResponse(ErrorCodes.NOT_FOUND, 'Job visit not found')
+			);
+		}
 
-		res.json({ err: "", data: [visit] });
+		res.json(createSuccessResponse(visit));
 	} catch (err) {
-		console.error(err);
-		res.status(500).json({ err: "Failed to fetch job visit", data: [] });
+		next(err);
 	}
 });
 
-app.get("/jobs/:jobId/visits", async (req, res) => {
+app.get("/jobs/:jobId/visits", async (req, res, next) => {
 	try {
 		const { jobId } = req.params;
 		const visits = await getJobVisitsByJobId(jobId);
-		res.json({ err: "", data: visits });
+		res.json(createSuccessResponse(visits, { count: visits.length }));
 	} catch (err) {
-		console.error(err);
-		res.status(500).json({ err: "Failed to fetch job visits", data: [] });
+		next(err);
 	}
 });
 
-app.get("/technicians/:techId/visits", async (req, res) => {
+app.get("/technicians/:techId/visits", async (req, res, next) => {
 	try {
 		const { techId } = req.params;
 		const visits = await getJobVisitsByTechId(techId);
-		res.json({ err: "", data: visits });
+		res.json(createSuccessResponse(visits, { count: visits.length }));
 	} catch (err) {
-		console.error(err);
-		res.status(500).json({ err: "Failed to fetch technician visits", data: [] });
+		next(err);
 	}
 });
 
-app.get("/job-visits/date-range/:startDate/:endDate", async (req, res) => {
+app.get("/job-visits/date-range/:startDate/:endDate", async (req, res, next) => {
 	try {
 		const { startDate, endDate } = req.params;
 		const start = new Date(startDate);
 		const end = new Date(endDate);
 
 		if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-			return res.status(400).json({ err: "Invalid date format", data: [] });
+			return res.status(400).json(
+				createErrorResponse(ErrorCodes.INVALID_INPUT, 'Invalid date format. Use YYYY-MM-DD')
+			);
 		}
 
 		const visits = await getJobVisitsByDateRange(start, end);
-		res.json({ err: "", data: visits });
+		res.json(createSuccessResponse(visits, { count: visits.length }));
 	} catch (err) {
-		console.error(err);
-		res.status(500).json({ err: "Failed to fetch job visits", data: [] });
+		next(err);
 	}
 });
 
-app.post("/job-visits", async (req, res) => {
+app.post("/job-visits", async (req, res, next) => {
 	try {
-		const result: JobVisitInsertResult = await insertJobVisit(req);
+		const result = await insertJobVisit(req);
+		
 		if (result.err) {
-			return res.status(400).json({ err: result.err, data: [] });
+			return res.status(400).json(
+				createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+			);
 		}
-		res.status(201).json({ err: "", data: [result.item] });
+		
+		res.status(201).json(createSuccessResponse(result.item));
 	} catch (err) {
-		console.error(err);
-		res.status(500).json({ err: "Failed to create job visit", data: [] });
+		next(err);
 	}
 });
 
-app.put("/job-visits/:id", async (req, res) => {
+app.put("/job-visits/:id", async (req, res, next) => {
 	try {
 		const result = await updateJobVisit(req);
+		
 		if (result.err) {
-			return res.status(400).json({ err: result.err, data: [] });
+			return res.status(400).json(
+				createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+			);
 		}
-		res.json({ err: "", data: [result.item] });
+		
+		res.json(createSuccessResponse(result.item));
 	} catch (err) {
-		console.error(err);
-		res.status(500).json({ err: "Failed to update job visit", data: [] });
+		next(err);
 	}
 });
 
-app.put("/job-visits/:id/technicians", async (req, res) => {
+app.put("/job-visits/:id/technicians", async (req, res, next) => {
 	try {
 		const { id } = req.params;
 		const { tech_ids } = req.body;
 
 		if (!Array.isArray(tech_ids)) {
-			return res.status(400).json({ err: "tech_ids must be an array", data: [] });
+			return res.status(400).json(
+				createErrorResponse(ErrorCodes.INVALID_INPUT, 'tech_ids must be an array', null, 'tech_ids')
+			);
 		}
 
 		const result = await assignTechniciansToVisit(id, tech_ids);
+		
 		if (result.err) {
-			return res.status(400).json({ err: result.err, data: [] });
+			return res.status(400).json(
+				createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+			);
 		}
-		res.json({ err: "", data: [result.item] });
+		
+		res.json(createSuccessResponse(result.item));
 	} catch (err) {
-		console.error(err);
-		res.status(500).json({ err: "Failed to assign technicians", data: [] });
+		next(err);
 	}
 });
 
-app.delete("/job-visits/:id", async (req, res) => {
+app.delete("/job-visits/:id", async (req, res, next) => {
 	try {
 		const { id } = req.params;
 		const result = await deleteJobVisit(id);
+		
 		if (result.err) {
-			return res.status(400).json(result);
+			return res.status(400).json(
+				createErrorResponse(ErrorCodes.DELETE_ERROR, result.err)
+			);
 		}
-		res.json(result);
+		
+		res.status(200).json(createSuccessResponse({ message: result.message || 'Job visit deleted successfully', id }));
 	} catch (err) {
-		console.error(err);
-		res.status(500).json({ err: "Failed to delete job visit" });
+		next(err);
 	}
 });
 
@@ -313,29 +370,27 @@ app.delete("/job-visits/:id", async (req, res) => {
 // JOB NOTES
 // ============================================
 
-app.get("/jobs/:jobId/notes", async (req, res) => {
+app.get("/jobs/:jobId/notes", async (req, res, next) => {
 	try {
 		const { jobId } = req.params;
 		const notes = await getJobNotes(jobId);
-		return res.json({ err: "", data: notes });
+		res.json(createSuccessResponse(notes, { count: notes.length }));
 	} catch (err) {
-		console.error(err);
-		return res.status(500).json({ err: "Failed to fetch notes", data: [] });
+		next(err);
 	}
 });
 
-app.get("/jobs/:jobId/visits/:visitId/notes", async (req, res) => {
+app.get("/jobs/:jobId/visits/:visitId/notes", async (req, res, next) => {
 	try {
 		const { jobId, visitId } = req.params;
 		const notes = await getJobNotesByVisitId(jobId, visitId);
-		return res.json({ err: "", data: notes });
+		res.json(createSuccessResponse(notes, { count: notes.length }));
 	} catch (err) {
-		console.error(err);
-		return res.status(500).json({ err: "Failed to fetch visit notes", data: [] });
+		next(err);
 	}
 });
 
-app.post("/jobs/:jobId/notes", async (req, res) => {
+app.post("/jobs/:jobId/notes", async (req, res, next) => {
 	try {
 		const { jobId } = req.params;
 		const { userId, userType } = extractUserInfo(req);
@@ -343,17 +398,18 @@ app.post("/jobs/:jobId/notes", async (req, res) => {
 		const result = await insertJobNote(jobId, req.body, userId, userType);
 		
 		if (result.err) {
-			return res.status(400).json({ err: result.err });
+			return res.status(400).json(
+				createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+			);
 		}
 
-		return res.status(201).json({ err: "", item: result.item });
+		res.status(201).json(createSuccessResponse(result.item));
 	} catch (err) {
-		console.error(err);
-		return res.status(500).json({ err: "Failed to create note" });
+		next(err);
 	}
 });
 
-app.put("/jobs/:jobId/notes/:noteId", async (req, res) => {
+app.put("/jobs/:jobId/notes/:noteId", async (req, res, next) => {
 	try {
 		const { jobId, noteId } = req.params;
 		const { userId, userType } = extractUserInfo(req);
@@ -361,17 +417,18 @@ app.put("/jobs/:jobId/notes/:noteId", async (req, res) => {
 		const result = await updateJobNote(jobId, noteId, req.body, userId, userType);
 		
 		if (result.err) {
-			return res.status(400).json({ err: result.err });
+			return res.status(400).json(
+				createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+			);
 		}
 
-		return res.json({ err: "", item: result.item });
+		res.json(createSuccessResponse(result.item));
 	} catch (err) {
-		console.error(err);
-		return res.status(500).json({ err: "Failed to update note" });
+		next(err);
 	}
 });
 
-app.delete("/jobs/:jobId/notes/:noteId", async (req, res) => {
+app.delete("/jobs/:jobId/notes/:noteId", async (req, res, next) => {
 	try {
 		const { jobId, noteId } = req.params;
 		const { userId, userType } = extractUserInfo(req);
@@ -379,13 +436,14 @@ app.delete("/jobs/:jobId/notes/:noteId", async (req, res) => {
 		const result = await deleteJobNote(jobId, noteId, userId, userType);
 		
 		if (result.err) {
-			return res.status(400).json({ err: result.err });
+			return res.status(400).json(
+				createErrorResponse(ErrorCodes.DELETE_ERROR, result.err)
+			);
 		}
 
-		return res.json({ err: "", message: result.message });
+		res.status(200).json(createSuccessResponse({ message: result.message || 'Note deleted successfully' }));
 	} catch (err) {
-		console.error(err);
-		return res.status(500).json({ err: "Failed to delete note" });
+		next(err);
 	}
 });
 
@@ -393,77 +451,87 @@ app.delete("/jobs/:jobId/notes/:noteId", async (req, res) => {
 // CLIENTS
 // ============================================
 
-app.get("/clients", async (req, res) => {
+app.get("/clients", async (req, res, next) => {
 	try {
 		const clients = await getAllClients();
-		const resp: ClientResponse = { err: "", data: clients };
-		res.json(resp);
+		res.json(createSuccessResponse(clients, { count: clients.length }));
 	} catch (err) {
-		console.error(err);
-		res.status(500).json({ err: "Failed to fetch clients", data: [] });
+		next(err);
 	}
 });
 
-app.get("/clients/:id", async (req, res) => {
+app.get("/clients/:id", async (req, res, next) => {
 	try {
 		const { id } = req.params;
 		const client = await getClientById(id);
 
-		if (!client)
-			return res.status(404).json({ err: "Client not found", data: [] });
-
-		const resp: ClientResponse = { err: "", data: [client] };
-		res.json(resp);
-	} catch (err) {
-		console.error(err);
-		res.status(500).json({ err: "Failed to fetch client", data: [] });
-	}
-});
-
-app.post("/clients", async (req, res) => {
-	try {
-		const result: ClientInsertResult = await insertClient(req.body);
-		if (result.err) {
-			console.error("Create client validation error:", result.err);
-			return res.status(400).json({ err: result.err });
+		if (!client) {
+			return res.status(404).json(
+				createErrorResponse(ErrorCodes.NOT_FOUND, 'Client not found')
+			);
 		}
 
-		return res.status(201).json({ err: "", item: result.item });
+		res.json(createSuccessResponse(client));
 	} catch (err) {
-		console.error("Create client error:", err);
-		return res.status(500).json({ err: "Failed to create client" });
+		next(err);
 	}
 });
 
-app.put("/clients/:id", async (req, res) => {
+app.post("/clients", async (req, res, next) => {
+	try {
+		const result = await insertClient(req.body);
+		
+		if (result.err) {
+			const isDuplicate = result.err.toLowerCase().includes('already exists');
+			return res.status(isDuplicate ? 409 : 400).json(
+				createErrorResponse(
+					isDuplicate ? ErrorCodes.CONFLICT : ErrorCodes.VALIDATION_ERROR,
+					result.err
+				)
+			);
+		}
+
+		res.status(201).json(createSuccessResponse(result.item));
+	} catch (err) {
+		next(err);
+	}
+});
+
+app.put("/clients/:id", async (req, res, next) => {
 	try {
 		const { id } = req.params;
 		const result = await updateClient(id, req.body);
 		
 		if (result.err) {
-			return res.status(400).json({ err: result.err });
+			const isDuplicate = result.err.toLowerCase().includes('already exists');
+			return res.status(isDuplicate ? 409 : 400).json(
+				createErrorResponse(
+					isDuplicate ? ErrorCodes.CONFLICT : ErrorCodes.VALIDATION_ERROR,
+					result.err
+				)
+			);
 		}
 
-		return res.json({ err: "", item: result.item });
+		res.json(createSuccessResponse(result.item));
 	} catch (err) {
-		console.error(err);
-		return res.status(500).json({ err: "Failed to update client" });
+		next(err);
 	}
 });
 
-app.delete("/clients/:id", async (req, res) => {
+app.delete("/clients/:id", async (req, res, next) => {
 	try {
 		const { id } = req.params;
-		const result: DeleteResult = await deleteClient(id);
+		const result = await deleteClient(id);
 		
 		if (result.err) {
-			return res.status(400).json({ err: result.err });
+			return res.status(400).json(
+				createErrorResponse(ErrorCodes.DELETE_ERROR, result.err)
+			);
 		}
 
-		return res.json({ err: "", message: result.message });
+		res.status(200).json(createSuccessResponse({ message: result.message || 'Client deleted successfully', id }));
 	} catch (err) {
-		console.error(err);
-		return res.status(500).json({ err: "Failed to delete client" });
+		next(err);
 	}
 });
 
@@ -471,79 +539,81 @@ app.delete("/clients/:id", async (req, res) => {
 // CLIENT CONTACTS
 // ============================================
 
-app.get("/clients/:clientId/contacts", async (req, res) => {
+app.get("/clients/:clientId/contacts", async (req, res, next) => {
 	try {
 		const { clientId } = req.params;
 		const contacts = await getClientContacts(clientId);
-		const resp: ContactResponse = { err: "", data: contacts };
-		res.json(resp);
+		res.json(createSuccessResponse(contacts, { count: contacts.length }));
 	} catch (err) {
-		console.error(err);
-		res.status(500).json({ err: "Failed to fetch contacts", data: [] });
+		next(err);
 	}
 });
 
-app.get("/clients/:clientId/contacts/:contactId", async (req, res) => {
+app.get("/clients/:clientId/contacts/:contactId", async (req, res, next) => {
 	try {
 		const { clientId, contactId } = req.params;
 		const contact = await getContactById(clientId, contactId);
 
-		if (!contact)
-			return res.status(404).json({ err: "Contact not found", data: [] });
-
-		const resp: ContactResponse = { err: "", data: [contact] };
-		res.json(resp);
-	} catch (err) {
-		console.error(err);
-		res.status(500).json({ err: "Failed to fetch contact", data: [] });
-	}
-});
-
-app.post("/clients/:clientId/contacts", async (req, res) => {
-	try {
-		const { clientId } = req.params;
-		const result: ContactInsertResult = await insertContact(clientId, req.body);
-		
-		if (result.err) {
-			return res.status(400).json({ err: result.err });
+		if (!contact) {
+			return res.status(404).json(
+				createErrorResponse(ErrorCodes.NOT_FOUND, 'Contact not found')
+			);
 		}
 
-		return res.status(201).json({ err: "", item: result.item });
+		res.json(createSuccessResponse(contact));
 	} catch (err) {
-		console.error(err);
-		return res.status(500).json({ err: "Failed to create contact" });
+		next(err);
 	}
 });
 
-app.put("/clients/:clientId/contacts/:contactId", async (req, res) => {
+app.post("/clients/:clientId/contacts", async (req, res, next) => {
+	try {
+		const { clientId } = req.params;
+		const result = await insertContact(clientId, req.body);
+		
+		if (result.err) {
+			return res.status(400).json(
+				createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+			);
+		}
+
+		res.status(201).json(createSuccessResponse(result.item));
+	} catch (err) {
+		next(err);
+	}
+});
+
+app.put("/clients/:clientId/contacts/:contactId", async (req, res, next) => {
 	try {
 		const { clientId, contactId } = req.params;
 		const result = await updateContact(clientId, contactId, req.body);
 		
 		if (result.err) {
-			return res.status(400).json({ err: result.err });
+			return res.status(400).json(
+				createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+			);
 		}
 
-		return res.json({ err: "", item: result.item });
+		res.json(createSuccessResponse(result.item));
 	} catch (err) {
-		console.error(err);
-		return res.status(500).json({ err: "Failed to update contact" });
+		next(err);
 	}
 });
 
-app.delete("/clients/:clientId/contacts/:contactId", async (req, res) => {
+app.delete("/clients/:clientId/contacts/:contactId", async (req, res, next) => {
 	try {
 		const { clientId, contactId } = req.params;
-		const result: DeleteResult = await deleteContact(clientId, contactId);
+		const result = await deleteContact(clientId, contactId);
 		
 		if (result.err) {
-			return res.status(400).json({ err: result.err });
+			return res.status(400).json(
+				createErrorResponse(ErrorCodes.DELETE_ERROR, result.err)
+			);
 		}
 
-		return res.json({ err: "", message: result.message });
+		res.status(200).json(createSuccessResponse({ message: result.message || 'Contact deleted successfully' }));
 	} catch (err) {
-		console.error(err);
-		return res.status(500).json({ err: "Failed to delete contact" });
+		next(err);
 	}
 });
 
@@ -551,53 +621,53 @@ app.delete("/clients/:clientId/contacts/:contactId", async (req, res) => {
 // CLIENT NOTES
 // ============================================
 
-app.get("/clients/:clientId/notes", async (req, res) => {
+app.get("/clients/:clientId/notes", async (req, res, next) => {
 	try {
 		const { clientId } = req.params;
 		const notes = await getClientNotes(clientId);
-		const resp: NoteResponse = { err: "", data: notes };
-		res.json(resp);
+		res.json(createSuccessResponse(notes, { count: notes.length }));
 	} catch (err) {
-		console.error(err);
-		res.status(500).json({ err: "Failed to fetch notes", data: [] });
+		next(err);
 	}
 });
 
-app.get("/clients/:clientId/notes/:noteId", async (req, res) => {
+app.get("/clients/:clientId/notes/:noteId", async (req, res, next) => {
 	try {
 		const { clientId, noteId } = req.params;
 		const note = await getNoteById(clientId, noteId);
 
-		if (!note)
-			return res.status(404).json({ err: "Note not found", data: [] });
+		if (!note) {
+			return res.status(404).json(
+				createErrorResponse(ErrorCodes.NOT_FOUND, 'Note not found')
+			);
+		}
 
-		const resp: NoteResponse = { err: "", data: [note] };
-		res.json(resp);
+		res.json(createSuccessResponse(note));
 	} catch (err) {
-		console.error(err);
-		res.status(500).json({ err: "Failed to fetch note", data: [] });
+		next(err);
 	}
 });
 
-app.post("/clients/:clientId/notes", async (req, res) => {
+app.post("/clients/:clientId/notes", async (req, res, next) => {
 	try {
 		const { clientId } = req.params;
 		const { userId, userType } = extractUserInfo(req);
 		
-		const result: NoteInsertResult = await insertNote(clientId, req.body, userId, userType);
+		const result = await insertNote(clientId, req.body, userId, userType);
 		
 		if (result.err) {
-			return res.status(400).json({ err: result.err });
+			return res.status(400).json(
+				createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+			);
 		}
 
-		return res.status(201).json({ err: "", item: result.item });
+		res.status(201).json(createSuccessResponse(result.item));
 	} catch (err) {
-		console.error(err);
-		return res.status(500).json({ err: "Failed to create note" });
+		next(err);
 	}
 });
 
-app.put("/clients/:clientId/notes/:noteId", async (req, res) => {
+app.put("/clients/:clientId/notes/:noteId", async (req, res, next) => {
 	try {
 		const { clientId, noteId } = req.params;
 		const { userId, userType } = extractUserInfo(req);
@@ -605,31 +675,33 @@ app.put("/clients/:clientId/notes/:noteId", async (req, res) => {
 		const result = await updateNote(clientId, noteId, req.body, userId, userType);
 		
 		if (result.err) {
-			return res.status(400).json({ err: result.err });
+			return res.status(400).json(
+				createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+			);
 		}
 
-		return res.json({ err: "", item: result.item });
+		res.json(createSuccessResponse(result.item));
 	} catch (err) {
-		console.error(err);
-		return res.status(500).json({ err: "Failed to update note" });
+		next(err);
 	}
 });
 
-app.delete("/clients/:clientId/notes/:noteId", async (req, res) => {
+app.delete("/clients/:clientId/notes/:noteId", async (req, res, next) => {
 	try {
 		const { clientId, noteId } = req.params;
 		const { userId, userType } = extractUserInfo(req);
 		
-		const result: DeleteResult = await deleteNote(clientId, noteId, userId, userType);
+		const result = await deleteNote(clientId, noteId, userId, userType);
 		
 		if (result.err) {
-			return res.status(400).json({ err: result.err });
+			return res.status(400).json(
+				createErrorResponse(ErrorCodes.DELETE_ERROR, result.err)
+			);
 		}
 
-		return res.json({ err: "", message: result.message });
+		res.status(200).json(createSuccessResponse({ message: result.message || 'Note deleted successfully' }));
 	} catch (err) {
-		console.error(err);
-		return res.status(500).json({ err: "Failed to delete note" });
+		next(err);
 	}
 });
 
@@ -637,15 +709,13 @@ app.delete("/clients/:clientId/notes/:noteId", async (req, res) => {
 // CLIENT JOBS (Read-only)
 // ============================================
 
-app.get("/clients/:clientId/jobs", async (req, res) => {
+app.get("/clients/:clientId/jobs", async (req, res, next) => {
 	try {
 		const { clientId } = req.params;
 		const jobs = await getJobsByClientId(clientId);
-		const resp: JobResponse = { err: "", data: jobs };
-		res.json(resp);
+		res.json(createSuccessResponse(jobs, { count: jobs.length }));
 	} catch (err) {
-		console.error(err);
-		res.status(500).json({ err: "Failed to fetch client jobs", data: [] });
+		next(err);
 	}
 });
 
@@ -653,80 +723,97 @@ app.get("/clients/:clientId/jobs", async (req, res) => {
 // TECHNICIANS
 // ============================================
 
-app.get("/technicians", async (req, res) => {
+app.get("/technicians", async (req, res, next) => {
 	try {
 		const technicians = await getAllTechnicians();
-		const resp: TechnicianResponse = { err: "", data: technicians };
-		res.json(resp);
+		res.json(createSuccessResponse(technicians, { count: technicians.length }));
 	} catch (err) {
-		console.error(err);
-		res.status(500).json({ err: "Failed to fetch technicians", data: [] });
+		next(err);
 	}
 });
 
-app.get("/technicians/:id", async (req, res) => {
+app.get("/technicians/:id", async (req, res, next) => {
 	try {
 		const { id } = req.params;
 		const technician = await getTechnicianById(id);
 
-		if (!technician)
-			return res.status(404).json({ err: "Technician not found", data: [] });
-
-		const resp: TechnicianResponse = { err: "", data: [technician] };
-		res.json(resp);
-	} catch (err) {
-		console.error(err);
-		res.status(500).json({ err: "Failed to fetch technician", data: [] });
-	}
-});
-
-app.post("/technicians", async (req, res) => {
-	try {
-		const result: TechnicianInsertResult = await insertTechnician(req.body);
-		if (result.err) {
-			console.error("Create technician validation error:", result.err);
-			return res.status(400).json({ err: result.err });
+		if (!technician) {
+			return res.status(404).json(
+				createErrorResponse(ErrorCodes.NOT_FOUND, 'Technician not found')
+			);
 		}
 
-		return res.status(201).json({ err: "", item: result.item });
+		res.json(createSuccessResponse(technician));
 	} catch (err) {
-		console.error("Create technician error:", err);
-		return res.status(500).json({ err: "Failed to create technician" });
+		next(err);
 	}
 });
 
-app.put("/technicians/:id", async (req, res) => {
+app.post("/technicians", async (req, res, next) => {
+	try {
+		const result = await insertTechnician(req.body);
+		
+		if (result.err) {
+			const isDuplicate = result.err.toLowerCase().includes('already exists');
+			return res.status(isDuplicate ? 409 : 400).json(
+				createErrorResponse(
+					isDuplicate ? ErrorCodes.CONFLICT : ErrorCodes.VALIDATION_ERROR,
+					result.err
+				)
+			);
+		}
+
+		res.status(201).json(createSuccessResponse(result.item));
+	} catch (err) {
+		next(err);
+	}
+});
+
+app.put("/technicians/:id", async (req, res, next) => {
 	try {
 		const { id } = req.params;
 		const result = await updateTechnician(id, req.body);
 		
 		if (result.err) {
-			return res.status(400).json({ err: result.err });
+			const isDuplicate = result.err.toLowerCase().includes('already exists');
+			return res.status(isDuplicate ? 409 : 400).json(
+				createErrorResponse(
+					isDuplicate ? ErrorCodes.CONFLICT : ErrorCodes.VALIDATION_ERROR,
+					result.err
+				)
+			);
 		}
 
-		return res.json({ err: "", item: result.item });
+		res.json(createSuccessResponse(result.item));
 	} catch (err) {
-		console.error(err);
-		return res.status(500).json({ err: "Failed to update technician" });
+		next(err);
 	}
 });
 
-app.delete("/technicians/:id", async (req, res) => {
+app.delete("/technicians/:id", async (req, res, next) => {
 	try {
 		const { id } = req.params;
-		const result: DeleteResult = await deleteTechnician(id);
+		const result = await deleteTechnician(id);
 		
 		if (result.err) {
-			return res.status(400).json({ err: result.err });
+			return res.status(400).json(
+				createErrorResponse(ErrorCodes.DELETE_ERROR, result.err)
+			);
 		}
 
-		return res.json({ err: "", message: result.message });
+		res.status(200).json(createSuccessResponse({ message: result.message || 'Technician deleted successfully', id }));
 	} catch (err) {
-		console.error(err);
-		return res.status(500).json({ err: "Failed to delete technician" });
+		next(err);
 	}
 });
 
+// ============================================
+// ERROR HANDLERS (Must be last)
+// ============================================
+
+app.use(notFoundHandler);
+app.use(errorHandler);
+
 app.listen(port, () => {
-	console.log(`Server running on http://localhost:${port}`);
+	console.log(`✓ Server running on http://localhost:${port}`);
 });

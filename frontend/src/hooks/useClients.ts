@@ -81,7 +81,7 @@ export const useUpdateClientMutation = (): UseMutationResult<
 };
 
 export const useDeleteClientMutation = (): UseMutationResult<
-	{ message: string },
+	{ message: string; id: string },
 	Error,
 	string
 > => {
@@ -89,8 +89,9 @@ export const useDeleteClientMutation = (): UseMutationResult<
 
 	return useMutation({
 		mutationFn: clientApi.deleteClient,
-		onSuccess: () => {
+		onSuccess: (data, deletedId) => {
 			queryClient.invalidateQueries({ queryKey: ["clients"] });
+			queryClient.removeQueries({ queryKey: ["clients", deletedId] });
 		},
 		onError: (error: Error) => {
 			console.error("Failed to delete client:", error);
@@ -138,15 +139,8 @@ export const useUpdateClientContactMutation = (): UseMutationResult<
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: ({
-			clientId,
-			contactId,
-			data,
-		}: {
-			clientId: string;
-			contactId: string;
-			data: UpdateClientContactInput;
-		}) => clientApi.updateClientContact(clientId, contactId, data),
+		mutationFn: ({clientId, contactId, data}: {clientId: string; contactId: string; data: UpdateClientContactInput;}) => 
+			clientApi.updateClientContact(clientId, contactId, data),
 		onSuccess: async (_, variables) => {
 			await queryClient.invalidateQueries({ queryKey: ["clients", variables.clientId] });
 			await queryClient.invalidateQueries({ queryKey: ["clients", variables.clientId, "contacts"] });
@@ -217,15 +211,8 @@ export const useUpdateClientNoteMutation = (): UseMutationResult<
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: ({
-			clientId,
-			noteId,
-			data,
-		}: {
-			clientId: string;
-			noteId: string;
-			data: UpdateClientNoteInput;
-		}) => clientApi.updateClientNote(clientId, noteId, data),
+		mutationFn: ({clientId, noteId, data}: {clientId: string; noteId: string; data: UpdateClientNoteInput;}) =>
+			clientApi.updateClientNote(clientId, noteId, data),
 		onSuccess: async (_, variables) => {
 			await queryClient.invalidateQueries({ queryKey: ["clients", variables.clientId] });
 			await queryClient.invalidateQueries({ queryKey: ["clients", variables.clientId, "notes"] });

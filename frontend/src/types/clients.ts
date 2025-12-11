@@ -120,6 +120,7 @@ export const UpdateClientNoteSchema = z.object({
 	content: z.string().min(1, "Note content is required"),
 });
 
+// @deprecated Use ApiResponse<Client[]> from types/api instead
 export interface ClientResponse {
 	err: string;
 	data: Client[];

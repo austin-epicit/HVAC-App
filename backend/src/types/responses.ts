@@ -1,84 +1,68 @@
-import {
-	client,
-	client_contact,
-	client_note,
-	job,
-	job_visit,
-	job_visit_technician,
-	job_note,
-	technician,
-	log,
-	audit_log
-} from "../../generated/prisma/client";
-
-//JOB RESPONSE TYPES
-export interface JobResponse {
-	err: string;
-	data: any[];
+export interface ApiResponse<T = any> {
+	success: boolean;
+	data: T | null;
+	error: ErrorDetails | null;
+	meta?: ResponseMeta;
 }
 
-export interface JobInsertResult {
-	err: string;
-	item?: any;
+export interface ErrorDetails {
+	code: string;
+	message: string;
+	details?: any;
+	field?: string;
 }
 
-// JOB VISIT RESPONSE TYPES
-export interface JobVisitResponse {
-	err: string;
-	data: any[];
+//Optional metadata for responses
+export interface ResponseMeta {
+	timestamp?: string;
+	count?: number;
 }
 
-export interface JobVisitInsertResult {
+export interface ControllerResult<T = any> {
 	err: string;
-	item?: any;
-}
-
-// CLIENT RESPONSE TYPES
-export interface ClientResponse {
-	err: string;
-	data: client[];
-}
-
-export interface ClientInsertResult {
-	err: string;
-	item?: client | null;
-}
-
-// CONTACT RESPONSE TYPES
-export interface ContactResponse {
-	err: string;
-	data: client_contact[];
-}
-
-export interface ContactInsertResult {
-	err: string;
-	item?: client_contact | null;
-}
-
-// NOTE RESPONSE TYPES
-export interface NoteResponse {
-	err: string;
-	data: client_note[];
-}
-
-export interface NoteInsertResult {
-	err: string;
-	item?: client_note | null;
-}
-
-// TECHNICIAN RESPONSE TYPES
-export interface TechnicianResponse {
-	err: string;
-	data: technician[];
-}
-
-export interface TechnicianInsertResult {
-	err: string;
-	item?: any;
-}
-
-// DELETE RESPONSE TYPE
-export interface DeleteResult {
-	err: string;
+	item?: T | null;
 	message?: string;
 }
+
+export const ErrorCodes = {
+	VALIDATION_ERROR: 'VALIDATION_ERROR',
+	NOT_FOUND: 'NOT_FOUND',
+	CONFLICT: 'CONFLICT',
+	INVALID_INPUT: 'INVALID_INPUT',
+	DELETE_ERROR: 'DELETE_ERROR',
+	SERVER_ERROR: 'SERVER_ERROR',
+} as const;
+
+export type ErrorCode = typeof ErrorCodes[keyof typeof ErrorCodes];
+
+export const createSuccessResponse = <T>(
+	data: T,
+	meta?: Partial<ResponseMeta>
+): ApiResponse<T> => ({
+	success: true,
+	data,
+	error: null,
+	meta: {
+		timestamp: new Date().toISOString(),
+		...meta,
+	},
+});
+
+export const createErrorResponse = (
+	code: ErrorCode | string,
+	message: string,
+	details?: any,
+	field?: string
+): ApiResponse<null> => ({
+	success: false,
+	data: null,
+	error: {
+		code,
+		message,
+		details,
+		field,
+	},
+	meta: {
+		timestamp: new Date().toISOString(),
+	},
+});

@@ -15,51 +15,36 @@ import type {
 	CreateJobVisitInput,
 	UpdateJobVisitInput,
 } from "../types/jobs";
-import { 
-	createJob, 
-	getAllJobs, 
-	getJobById, 
-	updateJob, 
-	deleteJob,
-	getJobNotes, 
-	createJobNote, 
-	updateJobNote, 
-	deleteJobNote,
-	getAllJobVisits,
-	getJobVisitById,
-	getJobVisitsByJobId,
-	getJobVisitsByTechId,
-	getJobVisitsByDateRange,
-	createJobVisit,
-	updateJobVisit,
-	assignTechniciansToVisit,
-	deleteJobVisit,
-} from "../api/jobs";
+import * as jobApi from "../api/jobs";
 
 // ============================================
-// JOB HOOKS
+// JOB QUERIES
 // ============================================
 
-export const useAllJobsQuery = () => {
-	return useQuery<Job[], Error>({
+export const useAllJobsQuery = (): UseQueryResult<Job[], Error> => {
+	return useQuery({
 		queryKey: ["allJobs"],
-		queryFn: getAllJobs,
+		queryFn: jobApi.getAllJobs,
 	});
 };
 
-export const useJobByIdQuery = (id: string) => {
-	return useQuery<Job, Error>({
+export const useJobByIdQuery = (id: string): UseQueryResult<Job, Error> => {
+	return useQuery({
 		queryKey: ["jobById", id],
-		queryFn: () => getJobById(id),
+		queryFn: () => jobApi.getJobById(id),
 		enabled: !!id,
 	});
 };
 
+// ============================================
+// JOB MUTATIONS
+// ============================================
+
 export const useCreateJobMutation = (): UseMutationResult<Job, Error, CreateJobInput> => {
 	const queryClient = useQueryClient();
 
-	return useMutation<Job, Error, CreateJobInput>({
-		mutationFn: createJob,
+	return useMutation({
+		mutationFn: jobApi.createJob,
 		onSuccess: async (newJob: Job) => {
 			await queryClient.invalidateQueries({ queryKey: ["allJobs"] });
 			await queryClient.invalidateQueries({ queryKey: ["clients", newJob.client_id] });
@@ -67,17 +52,18 @@ export const useCreateJobMutation = (): UseMutationResult<Job, Error, CreateJobI
 
 			queryClient.setQueryData(["jobById", newJob.id], newJob);
 		},
-		onError: (error) => {
-			console.error("Failed to create job:", error);
-		},
 	});
 };
 
-export const useUpdateJobMutation = () => {
+export const useUpdateJobMutation = (): UseMutationResult<
+	Job,
+	Error,
+	{ id: string; updates: Partial<Job> }
+> => {
 	const queryClient = useQueryClient();
 
-	return useMutation<Job, Error, { id: string; updates: Partial<Job> }>({
-		mutationFn: ({ id, updates }) => updateJob(id, updates),
+	return useMutation({
+		mutationFn: ({ id, updates }) => jobApi.updateJob(id, updates),
 		onSuccess: async (updatedJob) => {
 			await queryClient.invalidateQueries({ queryKey: ["allJobs"] });
 			await queryClient.invalidateQueries({ queryKey: ["clients", updatedJob.client_id] });
@@ -85,22 +71,19 @@ export const useUpdateJobMutation = () => {
 			
 			queryClient.setQueryData(["jobById", updatedJob.id], updatedJob);
 		},
-		onError: (err) => {
-			console.error("Failed to update job:", err);
-		},
 	});
 };
 
 export const useDeleteJobMutation = (): UseMutationResult<
-	{ message: string },
+	{ message: string; id: string },
 	Error,
 	string
 > => {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: deleteJob,
-		onSuccess: async (_, jobId) => {
+		mutationFn: jobApi.deleteJob,
+		onSuccess: async (data, jobId) => {
 			await queryClient.invalidateQueries({ queryKey: ["allJobs"] });
 			await queryClient.invalidateQueries({ queryKey: ["jobs"] });
 			await queryClient.invalidateQueries({ queryKey: ["clients"] });
@@ -109,27 +92,24 @@ export const useDeleteJobMutation = (): UseMutationResult<
 
 			queryClient.removeQueries({ queryKey: ["jobById", jobId] });
 		},
-		onError: (error) => {
-			console.error("Failed to delete job:", error);
-		},
 	});
 };
 
 // ============================================
-// JOB VISIT HOOKS
+// JOB VISIT QUERIES
 // ============================================
 
 export const useAllJobVisitsQuery = (): UseQueryResult<JobVisit[], Error> => {
 	return useQuery({
 		queryKey: ["jobVisits"],
-		queryFn: getAllJobVisits,
+		queryFn: jobApi.getAllJobVisits,
 	});
 };
 
 export const useJobVisitByIdQuery = (id: string): UseQueryResult<JobVisit, Error> => {
 	return useQuery({
 		queryKey: ["jobVisits", id],
-		queryFn: () => getJobVisitById(id),
+		queryFn: () => jobApi.getJobVisitById(id),
 		enabled: !!id,
 	});
 };
@@ -137,7 +117,7 @@ export const useJobVisitByIdQuery = (id: string): UseQueryResult<JobVisit, Error
 export const useJobVisitsByJobIdQuery = (jobId: string): UseQueryResult<JobVisit[], Error> => {
 	return useQuery({
 		queryKey: ["jobs", jobId, "visits"],
-		queryFn: () => getJobVisitsByJobId(jobId),
+		queryFn: () => jobApi.getJobVisitsByJobId(jobId),
 		enabled: !!jobId,
 	});
 };
@@ -145,7 +125,7 @@ export const useJobVisitsByJobIdQuery = (jobId: string): UseQueryResult<JobVisit
 export const useJobVisitsByTechIdQuery = (techId: string): UseQueryResult<JobVisit[], Error> => {
 	return useQuery({
 		queryKey: ["technicians", techId, "visits"],
-		queryFn: () => getJobVisitsByTechId(techId),
+		queryFn: () => jobApi.getJobVisitsByTechId(techId),
 		enabled: !!techId,
 	});
 };
@@ -157,10 +137,14 @@ export const useJobVisitsByDateRangeQuery = (
 ): UseQueryResult<JobVisit[], Error> => {
 	return useQuery({
 		queryKey: ["jobVisits", "dateRange", startDate.toISOString(), endDate.toISOString()],
-		queryFn: () => getJobVisitsByDateRange(startDate, endDate),
+		queryFn: () => jobApi.getJobVisitsByDateRange(startDate, endDate),
 		enabled: options?.enabled !== undefined ? options.enabled : true,
 	});
 };
+
+// ============================================
+// JOB VISIT MUTATIONS
+// ============================================
 
 export const useCreateJobVisitMutation = (): UseMutationResult<
 	JobVisit,
@@ -170,16 +154,14 @@ export const useCreateJobVisitMutation = (): UseMutationResult<
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: createJobVisit,
+		mutationFn: jobApi.createJobVisit,
 		onSuccess: async (newVisit) => {
 			// Invalidate job visits queries
 			await queryClient.invalidateQueries({ queryKey: ["jobVisits"] });
 			await queryClient.invalidateQueries({ queryKey: ["jobs", newVisit.job_id, "visits"] });
-			
 			// Invalidate the parent job
 			await queryClient.invalidateQueries({ queryKey: ["jobById", newVisit.job_id] });
 			await queryClient.invalidateQueries({ queryKey: ["allJobs"] });
-			
 			// Invalidate technician visits if techs are assigned
 			if (newVisit.visit_techs && newVisit.visit_techs.length > 0) {
 				for (const vt of newVisit.visit_techs) {
@@ -188,9 +170,6 @@ export const useCreateJobVisitMutation = (): UseMutationResult<
 			}
 
 			queryClient.setQueryData(["jobVisits", newVisit.id], newVisit);
-		},
-		onError: (error) => {
-			console.error("Failed to create job visit:", error);
 		},
 	});
 };
@@ -203,16 +182,14 @@ export const useUpdateJobVisitMutation = (): UseMutationResult<
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: ({ id, data }) => updateJobVisit(id, data),
+		mutationFn: ({ id, data }) => jobApi.updateJobVisit(id, data),
 		onSuccess: async (updatedVisit) => {
 			// Invalidate job visits queries
 			await queryClient.invalidateQueries({ queryKey: ["jobVisits"] });
 			await queryClient.invalidateQueries({ queryKey: ["jobs", updatedVisit.job_id, "visits"] });
-			
 			// Invalidate the parent job
 			await queryClient.invalidateQueries({ queryKey: ["jobById", updatedVisit.job_id] });
 			await queryClient.invalidateQueries({ queryKey: ["allJobs"] });
-			
 			// Invalidate technician visits
 			if (updatedVisit.visit_techs && updatedVisit.visit_techs.length > 0) {
 				for (const vt of updatedVisit.visit_techs) {
@@ -221,9 +198,6 @@ export const useUpdateJobVisitMutation = (): UseMutationResult<
 			}
 
 			queryClient.setQueryData(["jobVisits", updatedVisit.id], updatedVisit);
-		},
-		onError: (error) => {
-			console.error("Failed to update job visit:", error);
 		},
 	});
 };
@@ -236,22 +210,17 @@ export const useAssignTechniciansToVisitMutation = (): UseMutationResult<
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: ({ visitId, techIds }) => assignTechniciansToVisit(visitId, techIds),
+		mutationFn: ({ visitId, techIds }) => jobApi.assignTechniciansToVisit(visitId, techIds),
 		onSuccess: async (updatedVisit) => {
 			// Invalidate job visits queries
 			await queryClient.invalidateQueries({ queryKey: ["jobVisits"] });
 			await queryClient.invalidateQueries({ queryKey: ["jobs", updatedVisit.job_id, "visits"] });
-			
 			// Invalidate the parent job
 			await queryClient.invalidateQueries({ queryKey: ["jobById", updatedVisit.job_id] });
-			
 			// Invalidate all technician visits (old and new assignments)
 			await queryClient.invalidateQueries({ queryKey: ["technicians"] });
 
 			queryClient.setQueryData(["jobVisits", updatedVisit.id], updatedVisit);
-		},
-		onError: (error) => {
-			console.error("Failed to assign technicians:", error);
 		},
 	});
 };
@@ -264,36 +233,35 @@ export const useDeleteJobVisitMutation = (): UseMutationResult<
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: deleteJobVisit,
+		mutationFn: jobApi.deleteJobVisit,
 		onSuccess: async (_, visitId) => {
 			// Invalidate all job visits queries
 			await queryClient.invalidateQueries({ queryKey: ["jobVisits"] });
 			await queryClient.invalidateQueries({ queryKey: ["jobs"] });
 			await queryClient.invalidateQueries({ queryKey: ["allJobs"] });
-			
 			// Invalidate technician visits
 			await queryClient.invalidateQueries({ queryKey: ["technicians"] });
-
 			// Remove the deleted visit from cache
 			queryClient.removeQueries({ queryKey: ["jobVisits", visitId] });
-		},
-		onError: (error) => {
-			console.error("Failed to delete job visit:", error);
 		},
 	});
 };
 
 // ============================================
-// JOB NOTES HOOKS
+// JOB NOTE QUERIES
 // ============================================
 
 export const useJobNotesQuery = (jobId: string): UseQueryResult<JobNote[], Error> => {
 	return useQuery({
 		queryKey: ["jobs", jobId, "notes"],
-		queryFn: () => getJobNotes(jobId),
+		queryFn: () => jobApi.getJobNotes(jobId),
 		enabled: !!jobId,
 	});
 };
+
+// ============================================
+// JOB NOTE MUTATIONS
+// ============================================
 
 export const useCreateJobNoteMutation = (): UseMutationResult<
 	JobNote,
@@ -304,22 +272,15 @@ export const useCreateJobNoteMutation = (): UseMutationResult<
 
 	return useMutation({
 		mutationFn: ({ jobId, data }: { jobId: string; data: CreateJobNoteInput }) =>
-			createJobNote(jobId, data),
+			jobApi.createJobNote(jobId, data),
 		onSuccess: async (_, variables) => {
-			console.log("Job note created, invalidating queries");
 			await queryClient.invalidateQueries({ queryKey: ["jobs", variables.jobId] });
 			await queryClient.invalidateQueries({ queryKey: ["jobs", variables.jobId, "notes"] });
 			await queryClient.invalidateQueries({ queryKey: ["jobById", variables.jobId] });
-			
 			// If note is attached to a visit, invalidate that visit too
 			if (variables.data.visit_id) {
 				await queryClient.invalidateQueries({ queryKey: ["jobVisits", variables.data.visit_id] });
 			}
-			
-			console.log("Queries invalidated successfully");
-		},
-		onError: (error: Error) => {
-			console.error("Failed to create job note:", error);
 		},
 	});
 };
@@ -332,28 +293,17 @@ export const useUpdateJobNoteMutation = (): UseMutationResult<
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: ({
-			jobId,
-			noteId,
-			data,
-		}: {
-			jobId: string;
-			noteId: string;
-			data: UpdateJobNoteInput;
-		}) => updateJobNote(jobId, noteId, data),
+		mutationFn: ({jobId, noteId, data}: {jobId: string; noteId: string; data: UpdateJobNoteInput;}) => 
+			jobApi.updateJobNote(jobId, noteId, data),
 		onSuccess: async (_, variables) => {
 			await queryClient.invalidateQueries({ queryKey: ["jobs", variables.jobId] });
 			await queryClient.invalidateQueries({ queryKey: ["jobs", variables.jobId, "notes"] });
 			await queryClient.invalidateQueries({ queryKey: ["jobById", variables.jobId] });
-			
 			// If note is attached to a visit (or was moved to/from a visit), invalidate visits
 			if (variables.data.visit_id) {
 				await queryClient.invalidateQueries({ queryKey: ["jobVisits", variables.data.visit_id] });
 			}
 			await queryClient.invalidateQueries({ queryKey: ["jobVisits"] });
-		},
-		onError: (error: Error) => {
-			console.error("Failed to update job note:", error);
 		},
 	});
 };
@@ -367,17 +317,13 @@ export const useDeleteJobNoteMutation = (): UseMutationResult<
 
 	return useMutation({
 		mutationFn: ({ jobId, noteId }: { jobId: string; noteId: string }) =>
-			deleteJobNote(jobId, noteId),
+			jobApi.deleteJobNote(jobId, noteId),
 		onSuccess: async (_, variables) => {
 			await queryClient.invalidateQueries({ queryKey: ["jobs", variables.jobId] });
 			await queryClient.invalidateQueries({ queryKey: ["jobs", variables.jobId, "notes"] });
 			await queryClient.invalidateQueries({ queryKey: ["jobById", variables.jobId] });
-			
 			// Invalidate job visits in case the note was attached to a visit
 			await queryClient.invalidateQueries({ queryKey: ["jobVisits"] });
-		},
-		onError: (error: Error) => {
-			console.error("Failed to delete job note:", error);
 		},
 	});
 };

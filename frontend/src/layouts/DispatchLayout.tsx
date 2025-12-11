@@ -2,6 +2,7 @@ import { Outlet, useNavigate } from "react-router-dom";
 import { useAuthStore } from "../auth/authStore";
 import {
 	House,
+	Quote,
 	Calendar,
 	Users,
 	FileText,
@@ -68,6 +69,11 @@ export default function DispatchLayout() {
 						to="/dispatch/map"
 						icon={<Map size={ICON_SIZE} />}
 						label="Map"
+					/>
+					<SideNavItem
+						to="/dispatch/quotes"
+						icon={<Quote size={ICON_SIZE} />}
+						label="Quotes"
 					/>
 					<SideNavItem
 						to="/dispatch/reporting"

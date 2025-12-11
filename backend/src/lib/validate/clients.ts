@@ -29,7 +29,7 @@ export const updateClientSchema = z
 		coords: z.object({
 			lat: z.number(),
 			lon: z.number(),
-		}),
+		}).optional(),
 		is_active: z.boolean().optional(),
 		last_activity: z
 			.preprocess(

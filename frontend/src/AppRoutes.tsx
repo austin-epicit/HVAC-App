@@ -11,6 +11,7 @@ import TechnicianDetailsPage from "./pages/dispatch/TechnicianDetailPage";
 import MapPage from "./pages/dispatch/MapPage";
 import ReportingPage from "./pages/dispatch/ReportingPage";
 import SettingsPage from "./pages/dispatch/SettingsPage";
+import QuotesPage from "./pages/dispatch/QuotesPage";
 
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuthStore } from "./auth/authStore";
@@ -47,6 +48,7 @@ export default function AppRoutes() {
 				<Route path="reporting" element={<ReportingPage />} />
 				<Route path="settings" element={<SettingsPage />} />
 				<Route path="inventory" element={<InventoryPage />} />
+				<Route path="quotes" element={<QuotesPage />} />
 			</Route>
 
 			<Route path="*" element={<Navigate to="/login" replace />} />

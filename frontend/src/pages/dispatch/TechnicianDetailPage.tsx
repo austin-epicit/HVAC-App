@@ -10,7 +10,7 @@ export default function TechnicianDetailsPage() {
 	const navigate = useNavigate();
 	const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 	
-	const { data: technician, isLoading, error } = useTechnicianByIdQuery(technicianId!);
+	const { data: technician, isLoading, error } = useTechnicianByIdQuery(technicianId);
 
 	if (isLoading) {
 		return (
@@ -33,6 +33,14 @@ export default function TechnicianDetailsPage() {
 			</div>
 		);
 	}
+
+	const visitTechs = technician.visit_techs ?? [];
+
+	const currentVisit = visitTechs.find(
+		(vt) => vt.visit.status === "InProgress"
+	);
+
+	const recentVisits = visitTechs.slice(0, 5);
 
 	const getStatusColor = (status: string) => {
 		switch (status) {
@@ -215,84 +223,72 @@ export default function TechnicianDetailsPage() {
 						</div>
 					</Card>
 
-					<Card 
-						title="Recent Jobs"
-						headerAction={
-							technician.job_tech && technician.job_tech.length > 5 && (
-								<button 
-									onClick={() => navigate(`/dispatch/jobs?technician=${technician.id}`)}
-									className="text-sm text-blue-400 hover:text-blue-300"
-								>
-									View All
-								</button>
-							)
-						}
-						className="h-fit"
-					>
+					<Card title="Recent Jobs" className="h-fit">
 						<div className="space-y-3">
-							{technician.job_tech && technician.job_tech.length > 0 ? (
-								technician.job_tech.slice(0, 5).map((jobTech) => (
+							{recentVisits.length > 0 ? (
+								recentVisits.map((vt) => (
 									<div
-										onClick={() => navigate(`/dispatch/jobs/${jobTech.job.id}`)}
-										key={jobTech.job.id}
-										className="p-3 bg-zinc-800 rounded-lg border border-zinc-700 hover:border-zinc-600 transition-colors cursor-pointer group"
+										key={vt.visit.id}
+										onClick={() =>
+											navigate(`/dispatch/jobs/${vt.visit.job.id}`)
+										}
+										className="p-3 bg-zinc-800 rounded-lg border border-zinc-700 hover:border-zinc-600 cursor-pointer"
 									>
-										<div className="flex items-start justify-between mb-2">
-											<div className="flex items-center gap-2">
-												<p className="text-white text-sm font-medium group-hover:text-blue-400 transition-colors">
-													{jobTech.job.name}
-												</p>
-											</div>
-											<span className="text-xs text-zinc-500 px-2 py-1 bg-zinc-700 rounded">
-												{jobTech.job.status}
-											</span>
-										</div>
-										<p className="text-xs text-zinc-400 mb-1">
-											{jobTech.job.address}
+										<p className="text-white text-sm font-medium">
+											{vt.visit.job.name}
 										</p>
-										<p className="text-xs text-zinc-500">
-											{new Date(jobTech.job.start_date).toLocaleDateString('en-US', {
-												month: 'short',
-												day: 'numeric',
-												year: 'numeric'
-											})}
+										<p className="text-xs text-zinc-400">
+											{vt.visit.job.address}
 										</p>
 									</div>
 								))
 							) : (
 								<div className="text-center py-8">
 									<Briefcase size={32} className="text-zinc-600 mx-auto mb-2" />
-									<p className="text-zinc-400 text-sm">No jobs assigned</p>
+									<p className="text-zinc-400 text-sm">
+										No jobs assigned
+									</p>
 								</div>
 							)}
 						</div>
 					</Card>
 				</div>
 
-				{/* Job History Statistics */}
 				<Card title="Job Statistics">
 					<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
 						<div className="text-center p-4 bg-zinc-800/50 rounded-lg">
 							<p className="text-2xl font-bold text-white mb-1">
-								{technician.job_tech?.length || 0}
+								{visitTechs.length}
 							</p>
 							<p className="text-sm text-zinc-400">Total Jobs</p>
 						</div>
 						<div className="text-center p-4 bg-zinc-800/50 rounded-lg">
 							<p className="text-2xl font-bold text-green-400 mb-1">
-								{technician.job_tech?.filter((jt) => jt.job.status === "Completed").length || 0}
+								{
+									visitTechs.filter(
+										(vt) => vt.visit.status === "Completed"
+									).length
+								}
 							</p>
 							<p className="text-sm text-zinc-400">Completed</p>
 						</div>
 						<div className="text-center p-4 bg-zinc-800/50 rounded-lg">
 							<p className="text-2xl font-bold text-yellow-400 mb-1">
-								{technician.job_tech?.filter((jt) => jt.job.status === "InProgress").length || 0}
+								{
+									visitTechs.filter(
+										(vt) => vt.visit.status === "InProgress"
+									).length
+								}
 							</p>
 							<p className="text-sm text-zinc-400">In Progress</p>
 						</div>
 						<div className="text-center p-4 bg-zinc-800/50 rounded-lg">
 							<p className="text-2xl font-bold text-blue-400 mb-1">
-								{technician.job_tech?.filter((jt) => jt.job.status === "Scheduled").length || 0}
+								{
+									visitTechs.filter(
+										(vt) => vt.visit.status === "Scheduled"
+									).length
+								}
 							</p>
 							<p className="text-sm text-zinc-400">Scheduled</p>
 						</div>
