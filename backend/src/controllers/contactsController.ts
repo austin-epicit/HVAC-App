@@ -1,6 +1,15 @@
 import { ZodError } from "zod";
 import { db } from "../db.js";
 import { createContactSchema, updateContactSchema } from "../lib/validate/clientContacts.js";
+import { logAction } from "../services/logger.js";
+import { auditLog, calculateChanges } from "../services/auditLogger.js";
+
+export interface UserContext {
+	techId?: string;
+	dispatcherId?: string;
+	ipAddress?: string;
+	userAgent?: string;
+}
 
 export const getClientContacts = async (clientId: string) => {
 	return await db.client_contact.findMany({
@@ -18,7 +27,7 @@ export const getContactById = async (clientId: string, contactId: string) => {
 	});
 };
 
-export const insertContact = async (clientId: string, data: unknown) => {
+export const insertContact = async (clientId: string, data: unknown, context?: UserContext) => {
 	try {
 		const parsed = createContactSchema.parse(data);
 
@@ -37,6 +46,28 @@ export const insertContact = async (clientId: string, data: unknown) => {
 					relation: parsed.relation,
 					description: parsed.description || "",
 				}
+			});
+
+			await logAction({
+				description: `Created contact ${contact.name} for client: ${client.name}`,
+				techId: context?.techId,
+				dispatcherId: context?.dispatcherId,
+			});
+
+			await auditLog({
+				entityType: 'client_contact',
+				entityId: contact.id,
+				action: 'created',
+				changes: {
+					name: { old: null, new: contact.name },
+					email: { old: null, new: contact.email },
+					phone: { old: null, new: contact.phone },
+					relation: { old: null, new: contact.relation },
+				},
+				actorTechId: context?.techId,
+				actorDispatcherId: context?.dispatcherId,
+				ipAddress: context?.ipAddress,
+				userAgent: context?.userAgent,
 			});
 
 			await tx.client.update({
@@ -65,7 +96,12 @@ export const insertContact = async (clientId: string, data: unknown) => {
 	}
 };
 
-export const updateContact = async (clientId: string, contactId: string, data: unknown) => {
+export const updateContact = async (
+	clientId: string, 
+	contactId: string, 
+	data: unknown, 
+	context?: UserContext
+) => {
 	try {
 		const parsed = updateContactSchema.parse(data);
 
@@ -80,6 +116,8 @@ export const updateContact = async (clientId: string, contactId: string, data: u
 			return { err: "Contact not found" };
 		}
 
+		const changes = calculateChanges(existing, parsed);
+
 		const updated = await db.$transaction(async (tx) => {
 			const contact = await tx.client_contact.update({
 				where: { id: contactId },
@@ -91,6 +129,25 @@ export const updateContact = async (clientId: string, contactId: string, data: u
 					...(parsed.description !== undefined && { description: parsed.description }),
 				}
 			});
+
+			if (Object.keys(changes).length > 0) {
+				await logAction({
+					description: `Updated contact: ${contact.name}`,
+					techId: context?.techId,
+					dispatcherId: context?.dispatcherId,
+				});
+
+				await auditLog({
+					entityType: 'client_contact',
+					entityId: contactId,
+					action: 'updated',
+					changes,
+					actorTechId: context?.techId,
+					actorDispatcherId: context?.dispatcherId,
+					ipAddress: context?.ipAddress,
+					userAgent: context?.userAgent,
+				});
+			}
 
 			await tx.client.update({
 				where: { id: clientId },
@@ -118,7 +175,7 @@ export const updateContact = async (clientId: string, contactId: string, data: u
 	}
 };
 
-export const deleteContact = async (clientId: string, contactId: string) => {
+export const deleteContact = async (clientId: string, contactId: string, context?: UserContext) => {
 	try {
 		const existing = await db.client_contact.findFirst({
 			where: { 
@@ -131,8 +188,32 @@ export const deleteContact = async (clientId: string, contactId: string) => {
 			return { err: "Contact not found" };
 		}
 
-		await db.client_contact.delete({
-			where: { id: contactId }
+		await db.$transaction(async (tx) => {
+			await logAction({
+				description: `Deleted contact: ${existing.name}`,
+				techId: context?.techId,
+				dispatcherId: context?.dispatcherId,
+			});
+
+			await auditLog({
+				entityType: 'client_contact',
+				entityId: contactId,
+				action: 'deleted',
+				changes: {
+					name: { old: existing.name, new: null },
+					email: { old: existing.email, new: null },
+					phone: { old: existing.phone, new: null },
+					relation: { old: existing.relation, new: null },
+				},
+				actorTechId: context?.techId,
+				actorDispatcherId: context?.dispatcherId,
+				ipAddress: context?.ipAddress,
+				userAgent: context?.userAgent,
+			});
+
+			await tx.client_contact.delete({
+				where: { id: contactId }
+			});
 		});
 
 		return { err: "", message: "Contact deleted successfully" };

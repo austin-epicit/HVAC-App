@@ -4,6 +4,15 @@ import {
 	createClientSchema,
 	updateClientSchema,
 } from "../lib/validate/clients.js";
+import { logAction } from "../services/logger.js";
+import { auditLog, calculateChanges } from "../services/auditLogger.js";
+
+export interface UserContext {
+	techId?: string;
+	dispatcherId?: string;
+	ipAddress?: string;
+	userAgent?: string;
+}
 
 export const getAllClients = async () => {
 	return await db.client.findMany({
@@ -26,7 +35,7 @@ export const getClientById = async (id: string) => {
 	});
 };
 
-export const insertClient = async (data: unknown) => {
+export const insertClient = async (data: unknown, context?: UserContext) => {
 	try {
 		const parsed = createClientSchema.parse(data);
 
@@ -39,6 +48,27 @@ export const insertClient = async (data: unknown) => {
 					is_active: parsed.is_active,
 					last_activity: parsed.last_activity,
 				},
+			});
+
+			await logAction({
+				description: `Created client: ${client.name}`,
+				techId: context?.techId,
+				dispatcherId: context?.dispatcherId,
+			});
+
+			await auditLog({
+				entityType: 'client',
+				entityId: client.id,
+				action: 'created',
+				changes: {
+					name: { old: null, new: client.name },
+					address: { old: null, new: client.address },
+					is_active: { old: null, new: client.is_active },
+				},
+				actorTechId: context?.techId,
+				actorDispatcherId: context?.dispatcherId,
+				ipAddress: context?.ipAddress,
+				userAgent: context?.userAgent,
 			});
 
 			return tx.client.findUnique({
@@ -65,7 +95,7 @@ export const insertClient = async (data: unknown) => {
 	}
 };
 
-export const updateClient = async (id: string, data: unknown) => {
+export const updateClient = async (id: string, data: unknown, context?: UserContext) => {
 	try {
 		const parsed = updateClientSchema.parse(data);
 
@@ -73,6 +103,8 @@ export const updateClient = async (id: string, data: unknown) => {
 		if (!existing) {
 			return { err: "Client not found" };
 		}
+
+		const changes = calculateChanges(existing, parsed);
 
 		const updated = await db.$transaction(async (tx) => {
 			const client = await tx.client.update({
@@ -91,6 +123,25 @@ export const updateClient = async (id: string, data: unknown) => {
 					last_activity: new Date(),
 				},
 			});
+
+			if (Object.keys(changes).length > 0) {
+				await logAction({
+					description: `Updated client: ${client.name}`,
+					techId: context?.techId,
+					dispatcherId: context?.dispatcherId,
+				});
+
+				await auditLog({
+					entityType: 'client',
+					entityId: client.id,
+					action: 'updated',
+					changes,
+					actorTechId: context?.techId,
+					actorDispatcherId: context?.dispatcherId,
+					ipAddress: context?.ipAddress,
+					userAgent: context?.userAgent,
+				});
+			}
 
 			return tx.client.findUnique({
 				where: { id: client.id },
@@ -115,26 +166,43 @@ export const updateClient = async (id: string, data: unknown) => {
 	}
 };
 
-export const deleteClient = async (id: string) => {
+export const deleteClient = async (id: string, context?: UserContext) => {
 	try {
-		console.log("Attempting to delete client with id:", id);
 		const existing = await db.client.findUnique({ where: { id } });
-		console.log("Found client:", existing);
 
 		if (!existing) {
 			return { err: "Client not found" };
 		}
 
 		await db.$transaction(async (tx) => {
-			// Delete related data in order (respecting foreign keys)
 			await tx.client_contact.deleteMany({ where: { client_id: id } });
 			await tx.client_note.deleteMany({ where: { client_id: id } });
 			await tx.job.deleteMany({ where: { client_id: id } });
 
 			await tx.client.delete({ where: { id } });
+
+			await logAction({
+				description: `Deleted client: ${existing.name}`,
+				techId: context?.techId,
+				dispatcherId: context?.dispatcherId,
+			});
+
+			await auditLog({
+				entityType: 'client',
+				entityId: id,
+				action: 'deleted',
+				changes: {
+					name: { old: existing.name, new: null },
+					address: { old: existing.address, new: null },
+					is_active: { old: existing.is_active, new: null },
+				},
+				actorTechId: context?.techId,
+				actorDispatcherId: context?.dispatcherId,
+				ipAddress: context?.ipAddress,
+				userAgent: context?.userAgent,
+			});
 		});
 
-		console.log("Client deleted successfully");
 		return { err: "", message: "Client deleted successfully" };
 	} catch (error) {
 		console.error("Delete client error:", error);

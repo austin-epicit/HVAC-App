@@ -4,6 +4,15 @@ import {
 	createTechnicianSchema,
 	updateTechnicianSchema,
 } from "../lib/validate/technicians.js";
+import { logAction } from "../services/logger.js";
+import { auditLog, calculateChanges } from "../services/auditLogger.js";
+
+export interface UserContext {
+	techId?: string;
+	dispatcherId?: string;
+	ipAddress?: string;
+	userAgent?: string;
+}
 
 export const getAllTechnicians = async () => {
 	return await db.technician.findMany({
@@ -46,11 +55,10 @@ export const getTechnicianById = async (id: string) => {
 	});
 };
 
-export const insertTechnician = async (data: unknown) => {
+export const insertTechnician = async (data: unknown, context?: UserContext) => {
 	try {
 		const parsed = createTechnicianSchema.parse(data);
 
-		// Check if email already exists
 		const existing = await db.technician.findUnique({
 			where: { email: parsed.email },
 		});
@@ -59,33 +67,50 @@ export const insertTechnician = async (data: unknown) => {
 			return { err: "Email already exists" };
 		}
 
-		const created = await db.technician.create({
-			data: {
-				name: parsed.name,
-				email: parsed.email,
-				phone: parsed.phone,
-				password: parsed.password,
-				title: parsed.title,
-				description: parsed.description,
-				status: parsed.status,
-				hire_date: parsed.hire_date,
-				coords: parsed.coords,
-			},
-			include: {
-				visit_techs: {
-					include: {
-						visit: {
-							include: {
-								job: {
-									include: {
-										client: true,
+		const created = await db.$transaction(async (tx) => {
+			const technician = await tx.technician.create({
+				data: parsed,
+				include: {
+					visit_techs: {
+						include: {
+							visit: {
+								include: {
+									job: {
+										include: {
+											client: true,
+										},
 									},
 								},
 							},
 						},
 					},
 				},
-			},
+			});
+
+			await logAction({
+				description: `Created technician: ${technician.name}`,
+				techId: context?.techId,
+				dispatcherId: context?.dispatcherId,
+			});
+
+			await auditLog({
+				entityType: 'technician',
+				entityId: technician.id,
+				action: 'created',
+				changes: {
+					name: { old: null, new: technician.name },
+					email: { old: null, new: technician.email },
+					phone: { old: null, new: technician.phone },
+					title: { old: null, new: technician.title },
+					status: { old: null, new: technician.status },
+				},
+				actorTechId: context?.techId,
+				actorDispatcherId: context?.dispatcherId,
+				ipAddress: context?.ipAddress,
+				userAgent: context?.userAgent,
+			});
+
+			return technician;
 		});
 
 		return { err: "", item: created };
@@ -102,11 +127,10 @@ export const insertTechnician = async (data: unknown) => {
 	}
 };
 
-export const updateTechnician = async (id: string, data: unknown) => {
+export const updateTechnician = async (id: string, data: unknown, context?: UserContext) => {
 	try {
 		const parsed = updateTechnicianSchema.parse(data);
 
-		// Verify technician exists
 		const existing = await db.technician.findUnique({
 			where: { id },
 		});
@@ -115,7 +139,6 @@ export const updateTechnician = async (id: string, data: unknown) => {
 			return { err: "Technician not found" };
 		}
 
-		// If updating email, check if new email is already taken
 		if (parsed.email && parsed.email !== existing.email) {
 			const emailTaken = await db.technician.findUnique({
 				where: { email: parsed.email },
@@ -126,39 +149,49 @@ export const updateTechnician = async (id: string, data: unknown) => {
 			}
 		}
 
-		const updateData: any = {};
+		const changes = calculateChanges(existing, parsed);
 
-		// Only update provided fields
-		if (parsed.name !== undefined) updateData.name = parsed.name;
-		if (parsed.email !== undefined) updateData.email = parsed.email;
-		if (parsed.phone !== undefined) updateData.phone = parsed.phone;
-		if (parsed.password !== undefined)
-			updateData.password = parsed.password;
-		if (parsed.title !== undefined) updateData.title = parsed.title;
-		if (parsed.description !== undefined)
-			updateData.description = parsed.description;
-		if (parsed.status !== undefined) updateData.status = parsed.status;
-		if (parsed.hire_date !== undefined)
-			updateData.hire_date = parsed.hire_date;
-
-		const updated = await db.technician.update({
-			where: { id },
-			data: updateData,
-			include: {
-				visit_techs: {
-					include: {
-						visit: {
-							include: {
-								job: {
-									include: {
-										client: true,
+		const updated = await db.$transaction(async (tx) => {
+			const technician = await tx.technician.update({
+				where: { id },
+				data: parsed,
+				include: {
+					visit_techs: {
+						include: {
+							visit: {
+								include: {
+									job: {
+										include: {
+											client: true,
+										},
 									},
 								},
 							},
 						},
 					},
 				},
-			},
+			});
+
+			if (Object.keys(changes).length > 0) {
+				await logAction({
+					description: `Updated technician: ${technician.name}`,
+					techId: context?.techId,
+					dispatcherId: context?.dispatcherId,
+				});
+
+				await auditLog({
+					entityType: 'technician',
+					entityId: id,
+					action: 'updated',
+					changes,
+					actorTechId: context?.techId,
+					actorDispatcherId: context?.dispatcherId,
+					ipAddress: context?.ipAddress,
+					userAgent: context?.userAgent,
+				});
+			}
+
+			return technician;
 		});
 
 		return { err: "", item: updated };
@@ -175,9 +208,8 @@ export const updateTechnician = async (id: string, data: unknown) => {
 	}
 };
 
-export const deleteTechnician = async (id: string) => {
+export const deleteTechnician = async (id: string, context?: UserContext) => {
 	try {
-		// Verify technician exists
 		const existing = await db.technician.findUnique({
 			where: { id },
 		});
@@ -186,7 +218,6 @@ export const deleteTechnician = async (id: string) => {
 			return { err: "Technician not found" };
 		}
 
-		// Check if technician has any scheduled visits
 		const upcomingVisits = await db.job_visit_technician.count({
 			where: {
 				tech_id: id,
@@ -205,12 +236,31 @@ export const deleteTechnician = async (id: string) => {
 		}
 
 		await db.$transaction(async (tx) => {
-			// Delete visit assignments
 			await tx.job_visit_technician.deleteMany({
 				where: { tech_id: id },
 			});
 
-			// Delete the technician
+			await logAction({
+				description: `Deleted technician: ${existing.name}`,
+				techId: context?.techId,
+				dispatcherId: context?.dispatcherId,
+			});
+
+			await auditLog({
+				entityType: 'technician',
+				entityId: id,
+				action: 'deleted',
+				changes: {
+					name: { old: existing.name, new: null },
+					email: { old: existing.email, new: null },
+					status: { old: existing.status, new: null },
+				},
+				actorTechId: context?.techId,
+				actorDispatcherId: context?.dispatcherId,
+				ipAddress: context?.ipAddress,
+				userAgent: context?.userAgent,
+			});
+
 			await tx.technician.delete({
 				where: { id },
 			});

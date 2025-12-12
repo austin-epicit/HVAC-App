@@ -3,6 +3,15 @@ import { job_status } from "../../generated/prisma/enums.js";
 import { db } from "../db.js";
 import { createJobSchema } from "../lib/validate/jobs.js";
 import { Request } from "express";
+import { logAction } from "../services/logger.js";
+import { auditLog, calculateChanges } from "../services/auditLogger.js";
+
+export interface UserContext {
+	techId?: string;
+	dispatcherId?: string;
+	ipAddress?: string;
+	userAgent?: string;
+}
 
 export const getAllJobs = async () => {
 	return await db.job.findMany({
@@ -61,7 +70,7 @@ export const getJobsByClientId = async (clientId: string) => {
 	});
 };
 
-export const insertJob = async (req: Request) => {
+export const insertJob = async (req: Request, context?: UserContext) => {
 	try {
 		const parsed = createJobSchema.parse(req);
 
@@ -102,6 +111,29 @@ export const insertJob = async (req: Request) => {
 				},
 			});
 
+			await logAction({
+				description: `Created job: ${job.name} for client: ${client.name}`,
+				techId: context?.techId,
+				dispatcherId: context?.dispatcherId,
+			});
+
+			await auditLog({
+				entityType: 'job',
+				entityId: job.id,
+				action: 'created',
+				changes: {
+					name: { old: null, new: job.name },
+					description: { old: null, new: job.description },
+					priority: { old: null, new: job.priority },
+					status: { old: null, new: job.status },
+					client_id: { old: null, new: job.client_id },
+				},
+				actorTechId: context?.techId,
+				actorDispatcherId: context?.dispatcherId,
+				ipAddress: context?.ipAddress,
+				userAgent: context?.userAgent,
+			});
+
 			await tx.client.update({
 				where: { id: parsed.client_id },
 				data: { last_activity: new Date() },
@@ -136,12 +168,16 @@ export const insertJob = async (req: Request) => {
 	}
 };
 
-export const updateJob = async (req: Request) => {
+export const updateJob = async (req: Request, context?: UserContext) => {
 	try {
 		const id = (req as any).params.id;
 		const updates = (req as any).body;
 
-		// Allow only safe fields to be updated
+		const existing = await db.job.findUnique({ where: { id } });
+		if (!existing) {
+			return { err: "Job not found" };
+		}
+
 		const allowedFields = [
 			"name",
 			"description",
@@ -160,20 +196,45 @@ export const updateJob = async (req: Request) => {
 			}
 		}
 
-		const updated = await db.job.update({
-			where: { id },
-			data: safeData,
-			include: {
-				client: true,
-				visits: {
-					include: {
-						visit_techs: {
-							include: { tech: true },
+		const changes = calculateChanges(existing, safeData);
+
+		const updated = await db.$transaction(async (tx) => {
+			const job = await tx.job.update({
+				where: { id },
+				data: safeData,
+				include: {
+					client: true,
+					visits: {
+						include: {
+							visit_techs: {
+								include: { tech: true },
+							},
 						},
 					},
+					notes: true,
 				},
-				notes: true,
-			},
+			});
+
+			if (Object.keys(changes).length > 0) {
+				await logAction({
+					description: `Updated job: ${job.name}`,
+					techId: context?.techId,
+					dispatcherId: context?.dispatcherId,
+				});
+
+				await auditLog({
+					entityType: 'job',
+					entityId: id,
+					action: 'updated',
+					changes,
+					actorTechId: context?.techId,
+					actorDispatcherId: context?.dispatcherId,
+					ipAddress: context?.ipAddress,
+					userAgent: context?.userAgent,
+				});
+			}
+
+			return job;
 		});
 
 		return { err: "", item: updated };
@@ -182,7 +243,8 @@ export const updateJob = async (req: Request) => {
 		return { err: "Failed to update job" };
 	}
 };
-export const deleteJob = async (id: string) => {
+
+export const deleteJob = async (id: string, context?: UserContext) => {
 	try {
 		const job = await db.job.findUnique({
 			where: { id },
@@ -208,6 +270,28 @@ export const deleteJob = async (id: string) => {
 			await tx.job_note.deleteMany({
 				where: { job_id: id },
 			});
+
+			await logAction({
+				description: `Deleted job: ${job.name}`,
+				techId: context?.techId,
+				dispatcherId: context?.dispatcherId,
+			});
+
+			await auditLog({
+				entityType: 'job',
+				entityId: id,
+				action: 'deleted',
+				changes: {
+					name: { old: job.name, new: null },
+					description: { old: job.description, new: null },
+					status: { old: job.status, new: null },
+				},
+				actorTechId: context?.techId,
+				actorDispatcherId: context?.dispatcherId,
+				ipAddress: context?.ipAddress,
+				userAgent: context?.userAgent,
+			});
+
 			await tx.job.delete({
 				where: { id },
 			});
@@ -219,3 +303,111 @@ export const deleteJob = async (id: string) => {
 		return { err: "Failed to delete job" };
 	}
 };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -3,6 +3,15 @@ import { visit_status, schedule_type } from "../../generated/prisma/enums.js";
 import { db } from "../db.js";
 import { createJobVisitSchema, updateJobVisitSchema } from "../lib/validate/jobVisits.js";
 import { Request } from "express";
+import { logAction } from "../services/logger.js";
+import { auditLog, calculateChanges } from "../services/auditLogger.js";
+
+export interface UserContext {
+	techId?: string;
+	dispatcherId?: string;
+	ipAddress?: string;
+	userAgent?: string;
+}
 
 export const getAllJobVisits = async () => {
 	return await db.job_visit.findMany({
@@ -123,11 +132,10 @@ export const getJobVisitsByDateRange = async (startDate: Date, endDate: Date) =>
 	});
 };
 
-export const insertJobVisit = async (req: Request) => {
+export const insertJobVisit = async (req: Request, context?: UserContext) => {
 	try {
 		const parsed = createJobVisitSchema.parse(req.body);
 
-		// Verify job exists
 		const job = await db.job.findUnique({
 			where: { id: parsed.job_id },
 		});
@@ -136,7 +144,6 @@ export const insertJobVisit = async (req: Request) => {
 			return { err: "Invalid job id" };
 		}
 
-		// Verify technicians exist
 		if (parsed.tech_ids && parsed.tech_ids.length > 0) {
 			const existingTechs = await db.technician.findMany({
 				where: { id: { in: parsed.tech_ids } },
@@ -164,7 +171,6 @@ export const insertJobVisit = async (req: Request) => {
 				},
 			});
 
-			// Assign technicians to visit
 			if (parsed.tech_ids && parsed.tech_ids.length > 0) {
 				await tx.job_visit_technician.createMany({
 					data: parsed.tech_ids.map((tech_id) => ({
@@ -175,13 +181,34 @@ export const insertJobVisit = async (req: Request) => {
 				});
 			}
 
-			// Update job status if needed
 			if (parsed.status === "Scheduled" && job.status === "Unscheduled") {
 				await tx.job.update({
 					where: { id: parsed.job_id },
 					data: { status: "Scheduled" },
 				});
 			}
+
+			await logAction({
+				description: `Created visit for job: ${job.name}`,
+				techId: context?.techId,
+				dispatcherId: context?.dispatcherId,
+			});
+
+			await auditLog({
+				entityType: 'job_visit',
+				entityId: visit.id,
+				action: 'created',
+				changes: {
+					schedule_type: { old: null, new: visit.schedule_type },
+					scheduled_start_at: { old: null, new: visit.scheduled_start_at },
+					scheduled_end_at: { old: null, new: visit.scheduled_end_at },
+					status: { old: null, new: visit.status },
+				},
+				actorTechId: context?.techId,
+				actorDispatcherId: context?.dispatcherId,
+				ipAddress: context?.ipAddress,
+				userAgent: context?.userAgent,
+			});
 
 			return tx.job_visit.findUnique({
 				where: { id: visit.id },
@@ -213,10 +240,10 @@ export const insertJobVisit = async (req: Request) => {
 	}
 };
 
-export const updateJobVisit = async (req: Request) => {
+export const updateJobVisit = async (req: Request, context?: UserContext) => {
 	try {
 		const id = (req as any).params.id;
-		const updates = updateJobVisitSchema.parse((req as any).body);
+		const parsed = updateJobVisitSchema.parse((req as any).body);
 
 		const existingVisit = await db.job_visit.findUnique({
 			where: { id },
@@ -227,30 +254,12 @@ export const updateJobVisit = async (req: Request) => {
 			return { err: "Job visit not found" };
 		}
 
-		// Build update data
-		const updateData: Record<string, any> = {};
-
-		const allowedFields = [
-			"schedule_type",
-			"scheduled_start_at",
-			"scheduled_end_at",
-			"arrival_window_start",
-			"arrival_window_end",
-			"actual_start_at",
-			"actual_end_at",
-			"status",
-		] as const;
-
-		for (const key of allowedFields) {
-			if (updates[key] !== undefined) {
-				updateData[key] = updates[key];
-			}
-		}
+		const changes = calculateChanges(existingVisit, parsed);
 
 		const updated = await db.$transaction(async (tx) => {
 			const visit = await tx.job_visit.update({
 				where: { id },
-				data: updateData,
+				data: parsed,
 				include: {
 					job: true,
 					visit_techs: {
@@ -260,8 +269,7 @@ export const updateJobVisit = async (req: Request) => {
 				},
 			});
 
-			// Update job status based on visit status
-			if (updates.status) {
+			if (parsed.status) {
 				const allVisits = await tx.job_visit.findMany({
 					where: { job_id: existingVisit.job_id },
 				});
@@ -283,6 +291,25 @@ export const updateJobVisit = async (req: Request) => {
 				}
 			}
 
+			if (Object.keys(changes).length > 0) {
+				await logAction({
+					description: `Updated visit for job`,
+					techId: context?.techId,
+					dispatcherId: context?.dispatcherId,
+				});
+
+				await auditLog({
+					entityType: 'job_visit',
+					entityId: id,
+					action: 'updated',
+					changes,
+					actorTechId: context?.techId,
+					actorDispatcherId: context?.dispatcherId,
+					ipAddress: context?.ipAddress,
+					userAgent: context?.userAgent,
+				});
+			}
+
 			return visit;
 		});
 
@@ -302,19 +329,23 @@ export const updateJobVisit = async (req: Request) => {
 
 export const assignTechniciansToVisit = async (
 	visitId: string,
-	techIds: string[]
+	techIds: string[],
+	context?: UserContext
 ) => {
 	try {
-		// Verify visit exists
 		const visit = await db.job_visit.findUnique({
 			where: { id: visitId },
+			include: {
+				visit_techs: {
+					include: { tech: true }
+				}
+			}
 		});
 
 		if (!visit) {
 			return { err: "Job visit not found" };
 		}
 
-		// Verify technicians exist
 		const existingTechs = await db.technician.findMany({
 			where: { id: { in: techIds } },
 			select: { id: true },
@@ -329,18 +360,40 @@ export const assignTechniciansToVisit = async (
 			};
 		}
 
+		const oldTechIds = visit.visit_techs.map(vt => vt.tech_id);
+
 		await db.$transaction(async (tx) => {
-			// Remove existing assignments
 			await tx.job_visit_technician.deleteMany({
 				where: { visit_id: visitId },
 			});
 
-			// Create new assignments
 			await tx.job_visit_technician.createMany({
 				data: techIds.map((tech_id) => ({
 					visit_id: visitId,
 					tech_id,
 				})),
+			});
+
+			await logAction({
+				description: `Assigned technicians to visit`,
+				techId: context?.techId,
+				dispatcherId: context?.dispatcherId,
+			});
+
+			await auditLog({
+				entityType: 'job_visit',
+				entityId: visitId,
+				action: 'updated',
+				changes: {
+					technicians: {
+						old: oldTechIds,
+						new: techIds,
+					},
+				},
+				actorTechId: context?.techId,
+				actorDispatcherId: context?.dispatcherId,
+				ipAddress: context?.ipAddress,
+				userAgent: context?.userAgent,
 			});
 		});
 
@@ -366,7 +419,7 @@ export const assignTechniciansToVisit = async (
 	}
 };
 
-export const deleteJobVisit = async (id: string) => {
+export const deleteJobVisit = async (id: string, context?: UserContext) => {
 	try {
 		const visit = await db.job_visit.findUnique({
 			where: { id },
@@ -377,17 +430,35 @@ export const deleteJobVisit = async (id: string) => {
 		}
 
 		await db.$transaction(async (tx) => {
-			// Delete technician assignments
 			await tx.job_visit_technician.deleteMany({
 				where: { visit_id: id },
 			});
 
-			// Delete the visit
+			await logAction({
+				description: `Deleted job visit`,
+				techId: context?.techId,
+				dispatcherId: context?.dispatcherId,
+			});
+
+			await auditLog({
+				entityType: 'job_visit',
+				entityId: id,
+				action: 'deleted',
+				changes: {
+					scheduled_start_at: { old: visit.scheduled_start_at, new: null },
+					scheduled_end_at: { old: visit.scheduled_end_at, new: null },
+					status: { old: visit.status, new: null },
+				},
+				actorTechId: context?.techId,
+				actorDispatcherId: context?.dispatcherId,
+				ipAddress: context?.ipAddress,
+				userAgent: context?.userAgent,
+			});
+
 			await tx.job_visit.delete({
 				where: { id },
 			});
 
-			// Update job status if needed
 			const remainingVisits = await tx.job_visit.findMany({
 				where: { job_id: visit.job_id },
 			});

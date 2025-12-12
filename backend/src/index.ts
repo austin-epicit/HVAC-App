@@ -2,15 +2,11 @@ import "dotenv/config";
 import cors from "cors";
 import express from "express";
 import type { Request, Response, NextFunction } from "express";
-
-// Response types and utilities
 import {
 	ErrorCodes,
 	createSuccessResponse,
 	createErrorResponse,
 } from "./types/responses.js";
-
-// Controllers
 import {
 	getAllJobs,
 	getJobById,
@@ -65,6 +61,15 @@ import {
 	updateTechnician,
 	deleteTechnician,
 } from "./controllers/techniciansController.js";
+import { logAction } from "./services/logger.js";
+import { auditLog, calculateChanges } from "./services/auditLogger.js";
+
+export interface UserContext {
+	techId?: string;
+	dispatcherId?: string;
+	ipAddress?: string;
+	userAgent?: string;
+}
 
 // ============================================
 // MIDDLEWARE
@@ -101,17 +106,25 @@ const notFoundHandler = (req: Request, res: Response) => {
 };
 
 // ============================================
-// HELPER: Extract user info from request
-// TODO: Replace with actual auth middleware
+// HELPER
 // ============================================
 
-const extractUserInfo = (req: Request): { userId?: string; userType?: 'tech' | 'dispatcher' } => {
+const getUserContext = (req: Request): UserContext => {
 	const userId = req.headers['x-user-id'] as string;
 	const userType = req.headers['x-user-type'] as 'tech' | 'dispatcher';
+	/*
+	const ipAddress = 
+		(req.headers['x-forwarded-for'] as string)?.split(',')[0] ||
+		req.socket.remoteAddress ||
+		undefined;
+	*/
+	const userAgent = req.headers['user-agent'] || undefined;
 	
-	return { 
-		userId: userId || undefined, 
-		userType: userType || undefined 
+	return {
+		techId: userType === 'tech' ? userId : undefined,
+		dispatcherId: userType === 'dispatcher' ? userId : undefined,
+		ipAddress: undefined,
+		userAgent,
 	};
 };
 
@@ -176,7 +189,8 @@ app.get("/jobs/:id", async (req, res, next) => {
 
 app.post("/jobs", async (req, res, next) => {
 	try {
-		const result = await insertJob(req.body);
+		const context = getUserContext(req);
+		const result = await insertJob(req.body, context);
 		
 		if (result.err) {
 			return res.status(400).json(
@@ -192,7 +206,8 @@ app.post("/jobs", async (req, res, next) => {
 
 app.patch("/jobs/:id", async (req, res, next) => {
 	try {
-		const result = await updateJob(req);
+		const context = getUserContext(req);
+		const result = await updateJob(req, context);
 		
 		if (result.err) {
 			return res.status(400).json(
@@ -209,7 +224,8 @@ app.patch("/jobs/:id", async (req, res, next) => {
 app.delete("/jobs/:id", async (req, res, next) => {
 	try {
 		const { id } = req.params;
-		const result = await deleteJob(id);
+		const context = getUserContext(req);
+		const result = await deleteJob(id, context);
 
 		if (result.err) {
 			return res.status(400).json(
@@ -294,7 +310,8 @@ app.get("/job-visits/date-range/:startDate/:endDate", async (req, res, next) => 
 
 app.post("/job-visits", async (req, res, next) => {
 	try {
-		const result = await insertJobVisit(req);
+		const context = getUserContext(req);
+		const result = await insertJobVisit(req, context);
 		
 		if (result.err) {
 			return res.status(400).json(
@@ -310,7 +327,8 @@ app.post("/job-visits", async (req, res, next) => {
 
 app.put("/job-visits/:id", async (req, res, next) => {
 	try {
-		const result = await updateJobVisit(req);
+		const context = getUserContext(req);
+		const result = await updateJobVisit(req, context);
 		
 		if (result.err) {
 			return res.status(400).json(
@@ -328,6 +346,7 @@ app.put("/job-visits/:id/technicians", async (req, res, next) => {
 	try {
 		const { id } = req.params;
 		const { tech_ids } = req.body;
+		const context = getUserContext(req);
 
 		if (!Array.isArray(tech_ids)) {
 			return res.status(400).json(
@@ -335,7 +354,7 @@ app.put("/job-visits/:id/technicians", async (req, res, next) => {
 			);
 		}
 
-		const result = await assignTechniciansToVisit(id, tech_ids);
+		const result = await assignTechniciansToVisit(id, tech_ids, context);
 		
 		if (result.err) {
 			return res.status(400).json(
@@ -352,7 +371,8 @@ app.put("/job-visits/:id/technicians", async (req, res, next) => {
 app.delete("/job-visits/:id", async (req, res, next) => {
 	try {
 		const { id } = req.params;
-		const result = await deleteJobVisit(id);
+		const context = getUserContext(req);
+		const result = await deleteJobVisit(id, context);
 		
 		if (result.err) {
 			return res.status(400).json(
@@ -393,9 +413,8 @@ app.get("/jobs/:jobId/visits/:visitId/notes", async (req, res, next) => {
 app.post("/jobs/:jobId/notes", async (req, res, next) => {
 	try {
 		const { jobId } = req.params;
-		const { userId, userType } = extractUserInfo(req);
-		
-		const result = await insertJobNote(jobId, req.body, userId, userType);
+		const context = getUserContext(req);
+		const result = await insertJobNote(jobId, req.body, context);
 		
 		if (result.err) {
 			return res.status(400).json(
@@ -412,9 +431,8 @@ app.post("/jobs/:jobId/notes", async (req, res, next) => {
 app.put("/jobs/:jobId/notes/:noteId", async (req, res, next) => {
 	try {
 		const { jobId, noteId } = req.params;
-		const { userId, userType } = extractUserInfo(req);
-		
-		const result = await updateJobNote(jobId, noteId, req.body, userId, userType);
+		const context = getUserContext(req);
+		const result = await updateJobNote(jobId, noteId, req.body, context);
 		
 		if (result.err) {
 			return res.status(400).json(
@@ -431,9 +449,8 @@ app.put("/jobs/:jobId/notes/:noteId", async (req, res, next) => {
 app.delete("/jobs/:jobId/notes/:noteId", async (req, res, next) => {
 	try {
 		const { jobId, noteId } = req.params;
-		const { userId, userType } = extractUserInfo(req);
-		
-		const result = await deleteJobNote(jobId, noteId, userId, userType);
+		const context = getUserContext(req);
+		const result = await deleteJobNote(jobId, noteId, context);
 		
 		if (result.err) {
 			return res.status(400).json(
@@ -479,7 +496,8 @@ app.get("/clients/:id", async (req, res, next) => {
 
 app.post("/clients", async (req, res, next) => {
 	try {
-		const result = await insertClient(req.body);
+		const context = getUserContext(req);
+		const result = await insertClient(req.body, context);
 		
 		if (result.err) {
 			const isDuplicate = result.err.toLowerCase().includes('already exists');
@@ -500,7 +518,8 @@ app.post("/clients", async (req, res, next) => {
 app.put("/clients/:id", async (req, res, next) => {
 	try {
 		const { id } = req.params;
-		const result = await updateClient(id, req.body);
+		const context = getUserContext(req);
+		const result = await updateClient(id, req.body, context);
 		
 		if (result.err) {
 			const isDuplicate = result.err.toLowerCase().includes('already exists');
@@ -521,7 +540,8 @@ app.put("/clients/:id", async (req, res, next) => {
 app.delete("/clients/:id", async (req, res, next) => {
 	try {
 		const { id } = req.params;
-		const result = await deleteClient(id);
+		const context = getUserContext(req);
+		const result = await deleteClient(id, context);
 		
 		if (result.err) {
 			return res.status(400).json(
@@ -569,7 +589,8 @@ app.get("/clients/:clientId/contacts/:contactId", async (req, res, next) => {
 app.post("/clients/:clientId/contacts", async (req, res, next) => {
 	try {
 		const { clientId } = req.params;
-		const result = await insertContact(clientId, req.body);
+		const context = getUserContext(req);
+		const result = await insertContact(clientId, req.body, context);
 		
 		if (result.err) {
 			return res.status(400).json(
@@ -586,7 +607,8 @@ app.post("/clients/:clientId/contacts", async (req, res, next) => {
 app.put("/clients/:clientId/contacts/:contactId", async (req, res, next) => {
 	try {
 		const { clientId, contactId } = req.params;
-		const result = await updateContact(clientId, contactId, req.body);
+		const context = getUserContext(req);
+		const result = await updateContact(clientId, contactId, req.body, context);
 		
 		if (result.err) {
 			return res.status(400).json(
@@ -603,7 +625,8 @@ app.put("/clients/:clientId/contacts/:contactId", async (req, res, next) => {
 app.delete("/clients/:clientId/contacts/:contactId", async (req, res, next) => {
 	try {
 		const { clientId, contactId } = req.params;
-		const result = await deleteContact(clientId, contactId);
+		const context = getUserContext(req);
+		const result = await deleteContact(clientId, contactId, context);
 		
 		if (result.err) {
 			return res.status(400).json(
@@ -651,9 +674,8 @@ app.get("/clients/:clientId/notes/:noteId", async (req, res, next) => {
 app.post("/clients/:clientId/notes", async (req, res, next) => {
 	try {
 		const { clientId } = req.params;
-		const { userId, userType } = extractUserInfo(req);
-		
-		const result = await insertNote(clientId, req.body, userId, userType);
+		const context = getUserContext(req);	
+		const result = await insertNote(clientId, req.body, context);
 		
 		if (result.err) {
 			return res.status(400).json(
@@ -670,9 +692,8 @@ app.post("/clients/:clientId/notes", async (req, res, next) => {
 app.put("/clients/:clientId/notes/:noteId", async (req, res, next) => {
 	try {
 		const { clientId, noteId } = req.params;
-		const { userId, userType } = extractUserInfo(req);
-		
-		const result = await updateNote(clientId, noteId, req.body, userId, userType);
+		const context = getUserContext(req);
+		const result = await updateNote(clientId, noteId, req.body, context);
 		
 		if (result.err) {
 			return res.status(400).json(
@@ -689,9 +710,8 @@ app.put("/clients/:clientId/notes/:noteId", async (req, res, next) => {
 app.delete("/clients/:clientId/notes/:noteId", async (req, res, next) => {
 	try {
 		const { clientId, noteId } = req.params;
-		const { userId, userType } = extractUserInfo(req);
-		
-		const result = await deleteNote(clientId, noteId, userId, userType);
+		const context = getUserContext(req);
+		const result = await deleteNote(clientId, noteId, context);
 		
 		if (result.err) {
 			return res.status(400).json(
@@ -751,7 +771,8 @@ app.get("/technicians/:id", async (req, res, next) => {
 
 app.post("/technicians", async (req, res, next) => {
 	try {
-		const result = await insertTechnician(req.body);
+		const context = getUserContext(req);
+		const result = await insertTechnician(req.body, context);
 		
 		if (result.err) {
 			const isDuplicate = result.err.toLowerCase().includes('already exists');
@@ -772,7 +793,8 @@ app.post("/technicians", async (req, res, next) => {
 app.put("/technicians/:id", async (req, res, next) => {
 	try {
 		const { id } = req.params;
-		const result = await updateTechnician(id, req.body);
+		const context = getUserContext(req);
+		const result = await updateTechnician(id, req.body, context);
 		
 		if (result.err) {
 			const isDuplicate = result.err.toLowerCase().includes('already exists');
@@ -793,7 +815,8 @@ app.put("/technicians/:id", async (req, res, next) => {
 app.delete("/technicians/:id", async (req, res, next) => {
 	try {
 		const { id } = req.params;
-		const result = await deleteTechnician(id);
+		const context = getUserContext(req);
+		const result = await deleteTechnician(id, context);
 		
 		if (result.err) {
 			return res.status(400).json(
