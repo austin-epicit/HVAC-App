@@ -24,7 +24,6 @@ export const JobPriorityValues = ["Low", "Normal", "Medium", "High"] as const;
 
 export type JobPriority = (typeof JobPriorityValues)[number];
 
-// Job Visit Technician (junction table)
 export interface JobVisitTechnician {
 	visit_id: string;
 	tech_id: string;
@@ -38,7 +37,6 @@ export interface JobVisitTechnician {
 	};
 }
 
-// Job Note
 export interface JobNote {
 	id: string;
 	job_id: string;
@@ -78,7 +76,6 @@ export interface JobNote {
 	} | null;
 }
 
-// Job Visit
 export interface JobVisit {
 	id: string;
 	job_id: string;
@@ -94,7 +91,6 @@ export interface JobVisit {
 	notes?: JobNote[];
 }
 
-// Job
 export interface Job {
 	id: string;
 	name: string;
@@ -110,7 +106,6 @@ export interface Job {
 	notes: JobNote[];
 }
 
-// Create Job Input
 export interface CreateJobInput {
 	name: string;
 	client_id: string;
@@ -121,7 +116,6 @@ export interface CreateJobInput {
 	status?: JobStatus;
 }
 
-// Create Job Visit Input
 export interface CreateJobVisitInput {
 	job_id: string;
 	schedule_type: ScheduleType;
@@ -133,7 +127,6 @@ export interface CreateJobVisitInput {
 	tech_ids?: string[];
 }
 
-// Update Job Visit Input
 export interface UpdateJobVisitInput {
 	schedule_type?: ScheduleType;
 	scheduled_start_at?: Date | string;
@@ -145,19 +138,16 @@ export interface UpdateJobVisitInput {
 	status?: VisitStatus;
 }
 
-// Create Job Note Input
 export interface CreateJobNoteInput {
 	content: string;
 	visit_id?: string | null;
 }
 
-// Update Job Note Input
 export interface UpdateJobNoteInput {
 	content?: string;
 	visit_id?: string | null;
 }
 
-// Response Types
 export interface JobResponse {
 	err: string;
 	data: Job[];
@@ -167,8 +157,6 @@ export interface JobVisitResponse {
 	err: string;
 	data: JobVisit[];
 }
-
-// Validation Schemas
 
 export const CreateJobSchema = z.object({
 	name: z.string().min(1, "Job name is required"),
