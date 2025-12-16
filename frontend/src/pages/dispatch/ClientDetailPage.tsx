@@ -140,7 +140,6 @@ export default function ClientDetailsPage() {
 									>
 										<div className="flex items-start justify-between mb-2">
 											<div className="flex items-center gap-2">
-
 												<p className="text-white text-sm font-medium group-hover:text-blue-400 transition-colors">
 													{job.name}
 												</p>
@@ -150,7 +149,7 @@ export default function ClientDetailsPage() {
 											</span>
 										</div>
 										<p className="text-xs text-zinc-400">
-											{new Date(job.start_date).toLocaleDateString('en-US', {
+											{new Date(job.created_at).toLocaleDateString('en-US', {
 												month: 'short',
 												day: 'numeric',
 												year: 'numeric'

@@ -1,4 +1,5 @@
 import { Phone, Mail, Briefcase, Clock } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import type { Technician } from "../../types/technicians";
 
 interface TechnicianCardProps {
@@ -61,9 +62,16 @@ function formatLastLogin(raw: unknown) {
 }
 
 export default function TechnicianCard({ technician, onClick }: TechnicianCardProps) {
+  const navigate = useNavigate();
+
   const displayName = capitalizeWords(technician.name);
   const lastLoginText = formatLastLogin(technician.last_login);
   const statusColorClass = getStatusColor(technician.status);
+
+  const handleAssignClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigate(`/dispatch/technicians/${technician.id}/assign`);
+  };
 
   return (
     <div
@@ -74,7 +82,6 @@ export default function TechnicianCard({ technician, onClick }: TechnicianCardPr
       "
     >
       <div className="flex items-start gap-3">
-        {/* Avatar Placeholder */}
         <div className="relative">
           <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold text-lg">
             {technician.name.charAt(0).toUpperCase()}
@@ -112,6 +119,7 @@ export default function TechnicianCard({ technician, onClick }: TechnicianCardPr
           <Briefcase size={16} className="text-zinc-400 flex-shrink-0" />
           <span className="truncate">{technician.title}</span>
         </div>
+        
         <div className="flex items-start gap-2 text-sm text-zinc-400 min-h-[1.2rem]">
           <div className="w-4 flex-shrink-0" /> 
           <p className="line-clamp-2 text-xs leading-relaxed">
@@ -136,13 +144,10 @@ export default function TechnicianCard({ technician, onClick }: TechnicianCardPr
           View Details
         </button>
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            // Handle assign job action
-          }}
+          onClick={handleAssignClick}
           className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors"
         >
-          ?Assign Job
+          Assign Visits
         </button>
       </div>
     </div>

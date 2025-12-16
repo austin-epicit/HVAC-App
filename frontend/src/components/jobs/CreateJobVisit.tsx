@@ -1,9 +1,9 @@
 import LoadSvg from "../../assets/icons/loading.svg?react";
 import Button from "../ui/Button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { ZodError } from "zod";
 import FullPopup from "../ui/FullPopup";
-import { CreateJobVisitSchema, type CreateJobVisitInput, type ScheduleType } from "../../types/jobs";
+import { CreateJobVisitSchema, type CreateJobVisitInput, type ScheduleType, type JobVisit } from "../../types/jobs";
 import { useAllTechniciansQuery } from "../../hooks/useTechnicians";
 import DatePicker from "../ui/DatePicker";
 import TimePicker from "../ui/TimePicker";
@@ -13,14 +13,18 @@ interface CreateJobVisitProps {
 	isModalOpen: boolean;
 	setIsModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
 	jobId: string;
-	createVisit: (input: CreateJobVisitInput) => Promise<void>;
+	createVisit: (input: CreateJobVisitInput) => Promise<JobVisit>;
+	preselectedTechId?: string;
+	onSuccess?: (visit: JobVisit) => void;
 }
 
 const CreateJobVisit = ({ 
 	isModalOpen, 
 	setIsModalOpen, 
 	jobId,
-	createVisit 
+	createVisit,
+	preselectedTechId,
+	onSuccess
 }: CreateJobVisitProps) => {
 	const [isLoading, setIsLoading] = useState(false);
 	const [errors, setErrors] = useState<ZodError | null>(null);
@@ -32,7 +36,7 @@ const CreateJobVisit = ({
 		time.setHours(time.getHours() + 1);
 		return time;
 	});
-	const [duration, setDuration] = useState<number>(60); // for window only
+	const [duration, setDuration] = useState<number>(60);
 	const [windowStart, setWindowStart] = useState<Date | null>(new Date());
 	const [windowEnd, setWindowEnd] = useState<Date | null>(null);
 	const [selectedTechIds, setSelectedTechIds] = useState<string[]>([]);
@@ -40,6 +44,29 @@ const CreateJobVisit = ({
 	const {
 		data: technicians,
 	} = useAllTechniciansQuery();
+
+	useEffect(() => {
+		if (isModalOpen && preselectedTechId) {
+			setSelectedTechIds([preselectedTechId]);
+		}
+	}, [isModalOpen, preselectedTechId]);
+
+	// Reset form when modal closes
+	useEffect(() => {
+		if (!isModalOpen) {
+			setStartDate(new Date());
+			setStartTime(new Date());
+			const resetEndTime = new Date();
+			resetEndTime.setHours(resetEndTime.getHours() + 1);
+			setEndTime(resetEndTime);
+			setDuration(60);
+			setWindowStart(new Date());
+			setWindowEnd(null);
+			setScheduleType("exact");
+			setSelectedTechIds([]);
+			setErrors(null);
+		}
+	}, [isModalOpen]);
 
 	const handleTechSelection = (techId: string) => {
 		setSelectedTechIds(prev => 
@@ -58,15 +85,12 @@ const CreateJobVisit = ({
 			let combinedEndDate = new Date(startDate);
 
 			if (scheduleType === "all_day") {
-				// All day: 6 AM to 6 PM
 				combinedStartDate.setHours(6, 0, 0, 0);
 				combinedEndDate.setHours(18, 0, 0, 0);
 			} else if (scheduleType === "exact" && startTime && endTime) {
-				// Exact time: use start and end times
 				combinedStartDate.setHours(startTime.getHours(), startTime.getMinutes(), 0, 0);
 				combinedEndDate.setHours(endTime.getHours(), endTime.getMinutes(), 0, 0);
 			} else if (scheduleType === "window" && windowStart && windowEnd) {
-				// Window: use window start for scheduled start, estimated duration for end
 				combinedStartDate.setHours(windowStart.getHours(), windowStart.getMinutes(), 0, 0);
 				combinedEndDate = new Date(combinedStartDate.getTime() + duration * 60000);
 			}
@@ -104,22 +128,13 @@ const CreateJobVisit = ({
 			setIsLoading(true);
 
 			try {
-				await createVisit(newVisit);
+				const createdVisit = await createVisit(newVisit);
 
-				// Reset form
-				setStartDate(new Date());
-				setStartTime(new Date());
-				const resetEndTime = new Date();
-				resetEndTime.setHours(resetEndTime.getHours() + 1);
-				setEndTime(resetEndTime);
-				setDuration(60);
-				setWindowStart(new Date());
-				setWindowEnd(null);
-				setScheduleType("exact");
-				setSelectedTechIds([]);
-				setErrors(null);
-
-				setIsModalOpen(false);
+				if (onSuccess) {
+					onSuccess(createdVisit);
+				} else {
+					setIsModalOpen(false);
+				}
 			} catch (error) {
 				console.error("Failed to create visit:", error);
 			} finally {
@@ -146,7 +161,15 @@ const CreateJobVisit = ({
 		<>
 			<h2 className="text-2xl font-bold mb-4">Create Visit</h2>
 			
-            <p className="mb-1 mt-4 hover:color-accent">Visit Date</p>
+			{preselectedTechId && (
+				<div className="mb-4 p-3 bg-blue-900/20 border border-blue-500/30 rounded-md">
+					<p className="text-sm text-blue-300">
+						Creating visit with pre-selected technician
+					</p>
+				</div>
+			)}
+
+			<p className="mb-1 mt-4 hover:color-accent">Visit Date</p>
 			<DatePicker 
 				value={startDate} 
 				onChange={setStartDate} 
@@ -206,51 +229,50 @@ const CreateJobVisit = ({
 
 			{scheduleType === "exact" && (
 				<div className="mt-4 grid grid-cols-2 gap-4">
-                    <div>
-                        <p className="mb-1">Start Time</p>
-					<TimePicker  
-						value={startTime} 
-						onChange={setStartTime} 
-					/>
-                    </div>
-                    <div>
-                        <p className="mb-1">End Time</p>
-                        <TimePicker 
-                            value={endTime} 
-                            onChange={setEndTime} 
-                        />
-                    </div>
+					<div>
+						<p className="mb-1">Start Time</p>
+						<TimePicker  
+							value={startTime} 
+							onChange={setStartTime} 
+						/>
+					</div>
+					<div>
+						<p className="mb-1">End Time</p>
+						<TimePicker 
+							value={endTime} 
+							onChange={setEndTime} 
+						/>
+					</div>
 				</div>
 			)}
 
 			{scheduleType === "window" && (
 				<div className="mt-4 space-y-4">
 					<div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <p className="mb-1">Window Start</p>
-                            <TimePicker 
-                                value={windowStart} 
-                                onChange={setWindowStart} 
-                            />
-                        </div>
-                        <div>
-                            <p className="mb-1">Window End</p>
-                            <TimePicker 
-                                value={windowEnd} 
-                                onChange={setWindowEnd} 
-                            />
-                        </div>
-					</div >
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <p className="mb-1">Estimated Duration</p>
-                            <DurationPicker 
-                                value={duration}
-                                onChange={setDuration}
-                            />
-                        </div>
-
-                    </div>
+						<div>
+							<p className="mb-1">Window Start</p>
+							<TimePicker 
+								value={windowStart} 
+								onChange={setWindowStart} 
+							/>
+						</div>
+						<div>
+							<p className="mb-1">Window End</p>
+							<TimePicker 
+								value={windowEnd} 
+								onChange={setWindowEnd} 
+							/>
+						</div>
+					</div>
+					<div className="grid grid-cols-2 gap-4">
+						<div>
+							<p className="mb-1">Estimated Duration</p>
+							<DurationPicker 
+								value={duration}
+								onChange={setDuration}
+							/>
+						</div>
+					</div>
 				</div>
 			)}
 

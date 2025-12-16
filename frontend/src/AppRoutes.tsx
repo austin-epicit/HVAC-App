@@ -12,6 +12,7 @@ import MapPage from "./pages/dispatch/MapPage";
 import ReportingPage from "./pages/dispatch/ReportingPage";
 import SettingsPage from "./pages/dispatch/SettingsPage";
 import QuotesPage from "./pages/dispatch/QuotesPage";
+import AssignTechnicianPage from "./pages/dispatch/AssignTechnicianPage";
 
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuthStore } from "./auth/authStore";
@@ -44,6 +45,7 @@ export default function AppRoutes() {
 				<Route path="jobs/:jobId" element={<JobDetailPage />} />
 				<Route path="technicians" element={<TechniciansPage />} />
 				<Route path="technicians/:technicianId" element={<TechnicianDetailsPage />} />
+				<Route path="technicians/:technicianId/assign" element={<AssignTechnicianPage />} />
 				<Route path="map" element={<MapPage />} />
 				<Route path="reporting" element={<ReportingPage />} />
 				<Route path="settings" element={<SettingsPage />} />

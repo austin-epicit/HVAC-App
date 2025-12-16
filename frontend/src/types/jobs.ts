@@ -79,6 +79,17 @@ export interface JobNote {
 export interface JobVisit {
 	id: string;
 	job_id: string;
+	job?: {
+		id: string;
+		name: string;
+		client_id: string;
+		client: Client;
+		address: string;
+		coords: Coordinates;
+		description: string;
+		priority: string;
+		status: JobStatus;
+	};
 	schedule_type: ScheduleType;
 	scheduled_start_at: Date | string;
 	scheduled_end_at: Date | string;
