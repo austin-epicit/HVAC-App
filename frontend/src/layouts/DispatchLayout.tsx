@@ -11,7 +11,7 @@ import {
 	Settings,
 	Search,
 	Package,
-	Map
+	Map,
 } from "lucide-react";
 import SideNavItem from "../components/nav/SideNavItem";
 

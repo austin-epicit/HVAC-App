@@ -18,6 +18,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuthStore } from "./auth/authStore";
 import type { JSX } from "react";
 import InventoryPage from "./pages/dispatch/InventoryPage";
+import FullMapPage from "./pages/dispatch/FullMapPage";
 
 function RequireAuth({ children }: { children: JSX.Element }) {
 	const { user } = useAuthStore();
@@ -44,14 +45,29 @@ export default function AppRoutes() {
 				<Route path="jobs" element={<JobsPage />} />
 				<Route path="jobs/:jobId" element={<JobDetailPage />} />
 				<Route path="technicians" element={<TechniciansPage />} />
-				<Route path="technicians/:technicianId" element={<TechnicianDetailsPage />} />
-				<Route path="technicians/:technicianId/assign" element={<AssignTechnicianPage />} />
+				<Route
+					path="technicians/:technicianId"
+					element={<TechnicianDetailsPage />}
+				/>
+				<Route
+					path="technicians/:technicianId/assign"
+					element={<AssignTechnicianPage />}
+				/>
 				<Route path="map" element={<MapPage />} />
 				<Route path="reporting" element={<ReportingPage />} />
 				<Route path="settings" element={<SettingsPage />} />
 				<Route path="inventory" element={<InventoryPage />} />
 				<Route path="quotes" element={<QuotesPage />} />
 			</Route>
+
+			<Route
+				path="/map"
+				element={
+					<RequireAuth>
+						<FullMapPage />
+					</RequireAuth>
+				}
+			></Route>
 
 			<Route path="*" element={<Navigate to="/login" replace />} />
 		</Routes>

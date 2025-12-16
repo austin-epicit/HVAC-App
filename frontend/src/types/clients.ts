@@ -8,6 +8,7 @@ export interface Client {
 	id: string;
 	name: string;
 	address: string;
+	coords: Coordinates;
 	is_active: boolean;
 	created_at: Date;
 	last_activity: Date;
