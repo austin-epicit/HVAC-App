@@ -11,7 +11,8 @@ import {
 	Settings,
 	Search,
 	Package,
-	Map
+	Map,
+	Import,
 } from "lucide-react";
 import SideNavItem from "../components/nav/SideNavItem";
 
@@ -69,6 +70,11 @@ export default function DispatchLayout() {
 						to="/dispatch/map"
 						icon={<Map size={ICON_SIZE} />}
 						label="Map"
+					/>
+					<SideNavItem
+						to="/dispatch/requests"
+						icon={<Import size={ICON_SIZE} />}
+						label="Requests"
 					/>
 					<SideNavItem
 						to="/dispatch/quotes"

@@ -13,11 +13,12 @@ import ReportingPage from "./pages/dispatch/ReportingPage";
 import SettingsPage from "./pages/dispatch/SettingsPage";
 import QuotesPage from "./pages/dispatch/QuotesPage";
 import AssignTechnicianPage from "./pages/dispatch/AssignTechnicianPage";
+import RequestsPage from "./pages/dispatch/RequestsPage";
+import InventoryPage from "./pages/dispatch/InventoryPage";
 
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuthStore } from "./auth/authStore";
 import type { JSX } from "react";
-import InventoryPage from "./pages/dispatch/InventoryPage";
 
 function RequireAuth({ children }: { children: JSX.Element }) {
 	const { user } = useAuthStore();
@@ -44,13 +45,20 @@ export default function AppRoutes() {
 				<Route path="jobs" element={<JobsPage />} />
 				<Route path="jobs/:jobId" element={<JobDetailPage />} />
 				<Route path="technicians" element={<TechniciansPage />} />
-				<Route path="technicians/:technicianId" element={<TechnicianDetailsPage />} />
-				<Route path="technicians/:technicianId/assign" element={<AssignTechnicianPage />} />
+				<Route
+					path="technicians/:technicianId"
+					element={<TechnicianDetailsPage />}
+				/>
+				<Route
+					path="technicians/:technicianId/assign"
+					element={<AssignTechnicianPage />}
+				/>
 				<Route path="map" element={<MapPage />} />
 				<Route path="reporting" element={<ReportingPage />} />
 				<Route path="settings" element={<SettingsPage />} />
 				<Route path="inventory" element={<InventoryPage />} />
 				<Route path="quotes" element={<QuotesPage />} />
+				<Route path="requests" element={<RequestsPage />} />
 			</Route>
 
 			<Route path="*" element={<Navigate to="/login" replace />} />
