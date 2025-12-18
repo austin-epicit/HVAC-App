@@ -1,8 +1,8 @@
 import z from "zod";
+import type { JobPriority, JobStatus, ScheduleType, VisitStatus } from "./jobs";
 
-export type TechnicianStatus = "Offline" | "Available" | "Busy" | "Break";
-export type ScheduleType = "all_day" | "exact" | "window";
-export type VisitStatus = "Scheduled" | "InProgress" | "Completed" | "Cancelled";
+export const TechnicianStatusValues = ["Offline", "Available", "Busy", "Break"] as const;
+export type TechnicianStatus = (typeof TechnicianStatusValues)[number];
 
 export interface VisitTechnician {
 	visit_id: string;
@@ -22,9 +22,9 @@ export interface VisitTechnician {
 			id: string;
 			name: string;
 			description: string;
-			status: string;
+			status: JobStatus;
 			address: string;
-			priority: string;
+			priority: JobPriority;
 			created_at: Date;
 			client_id: string;
 			client: {
@@ -89,34 +89,41 @@ export const CreateTechnicianSchema = z.object({
 	password: z.string().min(8, "Password must be at least 8 characters"),
 	title: z.string().min(1, "Title is required"),
 	description: z.string().default(""),
-	status: z.enum(["Offline", "Available", "Busy", "Break"]).default("Offline"),
-	hire_date: z.coerce.date().optional().default(() => new Date()),
-	coords: z.object({
-		lat: z.number(),
-		lon: z.number(),
-	}).default({ lat: 0, lon: 0 }),
+	status: z.enum(TechnicianStatusValues).default("Offline"),
+	hire_date: z.coerce
+		.date()
+		.optional()
+		.default(() => new Date()),
+	coords: z
+		.object({
+			lat: z.number(),
+			lon: z.number(),
+		})
+		.default({ lat: 0, lon: 0 }),
 });
 
-export const UpdateTechnicianSchema = z.object({
-	name: z.string().min(1, "Technician name is required").optional(),
-	email: z.string().email("Invalid email address").optional(),
-	phone: z.string().min(1, "Phone number is required").optional(),
-	password: z.string().min(8, "Password must be at least 8 characters").optional(),
-	title: z.string().min(1, "Title is required").optional(),
-	description: z.string().optional(),
-	status: z.enum(["Offline", "Available", "Busy", "Break"]).optional(),
-	hire_date: z.coerce.date().optional(),
-	last_login: z.coerce.date().optional(),
-}).refine(
-	(data) => 
-		data.name !== undefined || 
-		data.email !== undefined || 
-		data.phone !== undefined || 
-		data.password !== undefined || 
-		data.title !== undefined || 
-		data.description !== undefined || 
-		data.status !== undefined || 
-		data.hire_date !== undefined ||
-		data.last_login !== undefined,
-	{ message: "At least one field must be provided for update" }
-);
+export const UpdateTechnicianSchema = z
+	.object({
+		name: z.string().min(1, "Technician name is required").optional(),
+		email: z.string().email("Invalid email address").optional(),
+		phone: z.string().min(1, "Phone number is required").optional(),
+		password: z.string().min(8, "Password must be at least 8 characters").optional(),
+		title: z.string().min(1, "Title is required").optional(),
+		description: z.string().optional(),
+		status: z.enum(TechnicianStatusValues).optional(),
+		hire_date: z.coerce.date().optional(),
+		last_login: z.coerce.date().optional(),
+	})
+	.refine(
+		(data) =>
+			data.name !== undefined ||
+			data.email !== undefined ||
+			data.phone !== undefined ||
+			data.password !== undefined ||
+			data.title !== undefined ||
+			data.description !== undefined ||
+			data.status !== undefined ||
+			data.hire_date !== undefined ||
+			data.last_login !== undefined,
+		{ message: "At least one field must be provided for update" }
+	);

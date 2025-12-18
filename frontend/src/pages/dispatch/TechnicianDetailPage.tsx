@@ -9,7 +9,7 @@ export default function TechnicianDetailsPage() {
 	const { technicianId } = useParams<{ technicianId: string }>();
 	const navigate = useNavigate();
 	const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-	
+
 	const { data: technician, isLoading, error } = useTechnicianByIdQuery(technicianId);
 
 	if (isLoading) {
@@ -36,9 +36,7 @@ export default function TechnicianDetailsPage() {
 
 	const visitTechs = technician.visit_techs ?? [];
 
-	const currentVisit = visitTechs.find(
-		(vt) => vt.visit.status === "InProgress"
-	);
+	const currentVisit = visitTechs.find((vt) => vt.visit.status === "InProgress");
 
 	const recentVisits = visitTechs.slice(0, 5);
 
@@ -58,18 +56,9 @@ export default function TechnicianDetailsPage() {
 
 	return (
 		<div className="p-6">
-			<div className="grid grid-cols-3 items-center gap-4 mb-6">
-				<button
-					onClick={() => navigate("/dispatch/technicians")}
-					className="text-zinc-400 hover:text-white transition-colors justify-self-start"
-				>
-					← Back to Technicians
-				</button>
-				
-				<h1 className="text-3xl font-bold text-white text-center">
-					{technician.name}
-				</h1>
-				
+			<div className="grid grid-cols-2 items-center gap-4 mb-6">
+				<h1 className="text-3xl font-bold text-white">{technician.name}</h1>
+
 				<span
 					className={`px-3 py-1 rounded-full text-sm font-medium justify-self-end border ${getStatusColor(technician.status)}`}
 				>
@@ -79,7 +68,7 @@ export default function TechnicianDetailsPage() {
 
 			<div className="space-y-6">
 				{/* Basic Information Card - Full width on top */}
-				<Card 
+				<Card
 					title="Basic Information"
 					headerAction={
 						<button
@@ -95,29 +84,48 @@ export default function TechnicianDetailsPage() {
 						{/* Contact Information */}
 						<div className="flex-1 min-w-[250px] space-y-4">
 							<div>
-								<label className="text-sm text-zinc-400 font-medium">Email</label>
-								<p className="text-white mt-1 break-all">{technician.email}</p>
+								<label className="text-sm text-zinc-400 font-medium">
+									Email
+								</label>
+								<p className="text-white mt-1 break-all">
+									{technician.email}
+								</p>
 							</div>
 							<div>
-								<label className="text-sm text-zinc-400 font-medium">Phone</label>
-								<p className="text-white mt-1">{technician.phone}</p>
+								<label className="text-sm text-zinc-400 font-medium">
+									Phone
+								</label>
+								<p className="text-white mt-1">
+									{technician.phone}
+								</p>
 							</div>
 						</div>
 
 						{/* Employment Information */}
 						<div className="flex-1 min-w-[250px] space-y-4">
 							<div>
-								<label className="text-sm text-zinc-400 font-medium">Title</label>
-								<p className="text-white mt-1">{technician.title}</p>
+								<label className="text-sm text-zinc-400 font-medium">
+									Title
+								</label>
+								<p className="text-white mt-1">
+									{technician.title}
+								</p>
 							</div>
 							<div>
-								<label className="text-sm text-zinc-400 font-medium">Hire Date</label>
+								<label className="text-sm text-zinc-400 font-medium">
+									Hire Date
+								</label>
 								<p className="text-white mt-1">
-									{new Date(technician.hire_date).toLocaleDateString('en-US', {
-										year: 'numeric',
-										month: 'short',
-										day: 'numeric'
-									})}
+									{new Date(
+										technician.hire_date
+									).toLocaleDateString(
+										"en-US",
+										{
+											year: "numeric",
+											month: "short",
+											day: "numeric",
+										}
+									)}
 								</p>
 							</div>
 						</div>
@@ -125,15 +133,22 @@ export default function TechnicianDetailsPage() {
 						{/* Activity Information */}
 						<div className="flex-1 min-w-[250px] space-y-4">
 							<div>
-								<label className="text-sm text-zinc-400 font-medium">Last Login</label>
+								<label className="text-sm text-zinc-400 font-medium">
+									Last Login
+								</label>
 								<p className="text-white mt-1">
-									{new Date(technician.last_login).toLocaleDateString('en-US', {
-										month: "short",
-										day: "numeric",
-										hour: "numeric",
-										minute: "2-digit",
-										year: "numeric",
-									})}
+									{new Date(
+										technician.last_login
+									).toLocaleDateString(
+										"en-US",
+										{
+											month: "short",
+											day: "numeric",
+											hour: "numeric",
+											minute: "2-digit",
+											year: "numeric",
+										}
+									)}
 								</p>
 							</div>
 						</div>
@@ -141,8 +156,12 @@ export default function TechnicianDetailsPage() {
 						{/* Description - Full width */}
 						{technician.description && (
 							<div className="w-full">
-								<label className="text-sm text-zinc-400 font-medium">Description</label>
-								<p className="text-white mt-1 leading-relaxed">{technician.description}</p>
+								<label className="text-sm text-zinc-400 font-medium">
+									Description
+								</label>
+								<p className="text-white mt-1 leading-relaxed">
+									{technician.description}
+								</p>
 							</div>
 						)}
 					</div>
@@ -150,12 +169,15 @@ export default function TechnicianDetailsPage() {
 
 				{/* Current Job Card - Full Width if Active */}
 				{technician.status === "Busy" && (
-					<Card 
+					<Card
 						title="Current Job"
 						className="border-2 border-yellow-500/30 bg-yellow-500/5"
 						headerAction={
 							<span className="flex items-center gap-2 text-yellow-400 text-sm font-medium">
-								<Clock size={14} className="animate-pulse" />
+								<Clock
+									size={14}
+									className="animate-pulse"
+								/>
 								In Progress
 							</span>
 						}
@@ -165,11 +187,21 @@ export default function TechnicianDetailsPage() {
 							<div className="p-4 bg-zinc-800/50 rounded-lg border border-zinc-700">
 								<div className="flex items-start justify-between mb-3">
 									<div>
-										<h3 className="text-white font-semibold mb-1">Job Name Here</h3>
-										<p className="text-sm text-zinc-400">Client Name • Address</p>
+										<h3 className="text-white font-semibold mb-1">
+											Job Name
+											Here
+										</h3>
+										<p className="text-sm text-zinc-400">
+											Client Name
+											• Address
+										</p>
 									</div>
 									<button
-										onClick={() => navigate(`/dispatch/jobs/JOB_ID`)}
+										onClick={() =>
+											navigate(
+												`/dispatch/jobs/JOB_ID`
+											)
+										}
 										className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
 									>
 										View Details →
@@ -177,17 +209,26 @@ export default function TechnicianDetailsPage() {
 								</div>
 								<div className="grid grid-cols-2 gap-4 text-sm">
 									<div>
-										<span className="text-zinc-400">Started:</span>
-										<span className="text-white ml-2">2:30 PM</span>
+										<span className="text-zinc-400">
+											Started:
+										</span>
+										<span className="text-white ml-2">
+											2:30 PM
+										</span>
 									</div>
 									<div>
-										<span className="text-zinc-400">Duration:</span>
-										<span className="text-white ml-2">45 min</span>
+										<span className="text-zinc-400">
+											Duration:
+										</span>
+										<span className="text-white ml-2">
+											45 min
+										</span>
 									</div>
 								</div>
 							</div>
 							<p className="text-xs text-zinc-500 text-center">
-								Note: Current job data integration pending
+								Note: Current job data integration
+								pending
 							</p>
 						</div>
 					</Card>
@@ -195,28 +236,38 @@ export default function TechnicianDetailsPage() {
 
 				{/* Two Column Layout for Location and Jobs */}
 				<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-					<Card 
-						title="Current Location"
-						className="h-fit"
-					>
+					<Card title="Current Location" className="h-fit">
 						<div className="space-y-4">
 							{/* Map Placeholder */}
 							<div className="w-full h-64 bg-zinc-800 rounded-lg border border-zinc-700 flex items-center justify-center overflow-hidden">
 								<div className="text-center">
-									<MapPin size={48} className="text-zinc-600 mx-auto mb-2" />
-									<p className="text-zinc-400 text-sm">Map view</p>
-									<p className="text-zinc-500 text-xs mt-1">Location tracking integration pending</p>
+									<MapPin
+										size={48}
+										className="text-zinc-600 mx-auto mb-2"
+									/>
+									<p className="text-zinc-400 text-sm">
+										Map view
+									</p>
+									<p className="text-zinc-500 text-xs mt-1">
+										Location tracking
+										integration pending
+									</p>
 								</div>
 							</div>
-							
+
 							<div className="space-y-2">
 								<div className="flex items-center justify-between text-sm">
-									<span className="text-zinc-400">Last Updated:</span>
+									<span className="text-zinc-400">
+										Last Updated:
+									</span>
 									<span className="text-white">
-										{new Date().toLocaleTimeString('en-US', {
-											hour: 'numeric',
-											minute: '2-digit'
-										})}
+										{new Date().toLocaleTimeString(
+											"en-US",
+											{
+												hour: "numeric",
+												minute: "2-digit",
+											}
+										)}
 									</span>
 								</div>
 							</div>
@@ -230,21 +281,36 @@ export default function TechnicianDetailsPage() {
 									<div
 										key={vt.visit.id}
 										onClick={() =>
-											navigate(`/dispatch/jobs/${vt.visit.job.id}`)
+											navigate(
+												`/dispatch/jobs/${vt.visit.job.id}`
+											)
 										}
 										className="p-3 bg-zinc-800 rounded-lg border border-zinc-700 hover:border-zinc-600 cursor-pointer"
 									>
 										<p className="text-white text-sm font-medium">
-											{vt.visit.job.name}
+											{
+												vt
+													.visit
+													.job
+													.name
+											}
 										</p>
 										<p className="text-xs text-zinc-400">
-											{vt.visit.job.address}
+											{
+												vt
+													.visit
+													.job
+													.address
+											}
 										</p>
 									</div>
 								))
 							) : (
 								<div className="text-center py-8">
-									<Briefcase size={32} className="text-zinc-600 mx-auto mb-2" />
+									<Briefcase
+										size={32}
+										className="text-zinc-600 mx-auto mb-2"
+									/>
 									<p className="text-zinc-400 text-sm">
 										No jobs assigned
 									</p>
@@ -260,37 +326,54 @@ export default function TechnicianDetailsPage() {
 							<p className="text-2xl font-bold text-white mb-1">
 								{visitTechs.length}
 							</p>
-							<p className="text-sm text-zinc-400">Total Jobs</p>
+							<p className="text-sm text-zinc-400">
+								Total Jobs
+							</p>
 						</div>
 						<div className="text-center p-4 bg-zinc-800/50 rounded-lg">
 							<p className="text-2xl font-bold text-green-400 mb-1">
 								{
 									visitTechs.filter(
-										(vt) => vt.visit.status === "Completed"
+										(vt) =>
+											vt.visit
+												.status ===
+											"Completed"
 									).length
 								}
 							</p>
-							<p className="text-sm text-zinc-400">Completed</p>
+							<p className="text-sm text-zinc-400">
+								Completed
+							</p>
 						</div>
 						<div className="text-center p-4 bg-zinc-800/50 rounded-lg">
 							<p className="text-2xl font-bold text-yellow-400 mb-1">
 								{
 									visitTechs.filter(
-										(vt) => vt.visit.status === "InProgress"
+										(vt) =>
+											vt.visit
+												.status ===
+											"InProgress"
 									).length
 								}
 							</p>
-							<p className="text-sm text-zinc-400">In Progress</p>
+							<p className="text-sm text-zinc-400">
+								In Progress
+							</p>
 						</div>
 						<div className="text-center p-4 bg-zinc-800/50 rounded-lg">
 							<p className="text-2xl font-bold text-blue-400 mb-1">
 								{
 									visitTechs.filter(
-										(vt) => vt.visit.status === "Scheduled"
+										(vt) =>
+											vt.visit
+												.status ===
+											"Scheduled"
 									).length
 								}
 							</p>
-							<p className="text-sm text-zinc-400">Scheduled</p>
+							<p className="text-sm text-zinc-400">
+								Scheduled
+							</p>
 						</div>
 					</div>
 				</Card>

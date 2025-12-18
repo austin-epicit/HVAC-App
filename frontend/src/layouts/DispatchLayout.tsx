@@ -1,5 +1,6 @@
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useAuthStore } from "../auth/authStore";
+import { useRef, useEffect } from "react";
 import {
 	House,
 	Quote,
@@ -13,12 +14,44 @@ import {
 	Package,
 	Map,
 	Import,
+	ArrowLeft,
 } from "lucide-react";
 import SideNavItem from "../components/nav/SideNavItem";
 
 export default function DispatchLayout() {
 	const { logout, user } = useAuthStore();
 	const navigate = useNavigate();
+	const location = useLocation();
+	const navigationCount = useRef(0);
+
+	// Track internal navigation
+	useEffect(() => {
+		navigationCount.current++;
+	}, [location.pathname]);
+
+	const handleBack = () => {
+		// If user has navigated within the app, use browser back
+		if (navigationCount.current > 1) {
+			navigate(-1);
+		} else {
+			// Otherwise, go to a sensible default based on current page
+			const path = location.pathname;
+
+			if (path.includes("/technicians/")) {
+				navigate("/dispatch/technicians");
+			} else if (path.includes("/clients/")) {
+				navigate("/dispatch/clients");
+			} else if (path.includes("/jobs/")) {
+				navigate("/dispatch/jobs");
+			} else if (path.includes("/quotes/")) {
+				navigate("/dispatch/quotes");
+			} else if (path.includes("/inventory/")) {
+				navigate("/dispatch/inventory");
+			} else {
+				navigate("/dispatch");
+			}
+		}
+	};
 
 	// TODO logout
 	const handleLogout = () => {
@@ -100,7 +133,24 @@ export default function DispatchLayout() {
 			</aside>
 
 			<div className="flex flex-col flex-1 overflow-hidden">
-				<header className="flex justify-end items-center px-6 py-3 bg-zinc-950">
+				<header className="flex justify-between items-center px-6 py-3 bg-zinc-950 border-b border-zinc-900">
+					{/* Left side - Back button */}
+					<div className="flex items-center gap-3">
+						<button
+							onClick={handleBack}
+							className="flex items-center gap-2 text-zinc-400 hover:text-white transition-all px-3 py-2 rounded-lg hover:bg-zinc-800 group"
+						>
+							<ArrowLeft
+								size={18}
+								className="group-hover:-translate-x-1 transition-transform duration-200"
+							/>
+							<span className="text-sm font-medium">
+								Back
+							</span>
+						</button>
+					</div>
+
+					{/* Right side - Search & Logout */}
 					<div className="flex items-center gap-3">
 						<div className="relative w-80">
 							<Search

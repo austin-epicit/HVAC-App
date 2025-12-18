@@ -8,6 +8,7 @@ export interface Client {
 	id: string;
 	name: string;
 	address: string;
+	coords: Coordinates;
 	is_active: boolean;
 	created_at: Date;
 	last_activity: Date;
@@ -119,9 +120,3 @@ export const CreateClientNoteSchema = z.object({
 export const UpdateClientNoteSchema = z.object({
 	content: z.string().min(1, "Note content is required"),
 });
-
-// @deprecated Use ApiResponse<Client[]> from types/api instead
-export interface ClientResponse {
-	err: string;
-	data: Client[];
-}

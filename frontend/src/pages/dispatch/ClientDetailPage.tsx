@@ -11,7 +11,7 @@ export default function ClientDetailsPage() {
 	const { clientId } = useParams<{ clientId: string }>();
 	const navigate = useNavigate();
 	const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-	
+
 	const { data: client, isLoading, error } = useClientByIdQuery(clientId!);
 
 	if (isLoading) {
@@ -38,18 +38,9 @@ export default function ClientDetailsPage() {
 
 	return (
 		<div className="p-6">
-			<div className="grid grid-cols-3 items-center gap-4 mb-6">
-				<button
-					onClick={() => navigate("/dispatch/clients")}
-					className="text-zinc-400 hover:text-white transition-colors justify-self-start"
-				>
-					← Back to Clients
-				</button>
-				
-				<h1 className="text-3xl font-bold text-white text-center">
-					{client.name}
-				</h1>
-				
+			<div className="grid grid-cols-2 items-center gap-4 mb-6">
+				<h1 className="text-3xl font-bold text-white">{client.name}</h1>
+
 				<span
 					className={`px-3 py-1 rounded-full text-sm font-medium justify-self-end ${
 						client.is_active
@@ -64,7 +55,7 @@ export default function ClientDetailsPage() {
 			{/* Content */}
 			<div className="space-y-6">
 				{/* Basic Information Card - Full width on top */}
-				<Card 
+				<Card
 					title="Basic Information"
 					headerAction={
 						<button
@@ -78,25 +69,37 @@ export default function ClientDetailsPage() {
 				>
 					<div className="flex flex-wrap items-start gap-x-12 gap-y-4">
 						<div>
-							<label className="text-sm text-zinc-400 font-medium block mb-1">Address</label>
-							<p className="text-white">{client.address}</p>
+							<label className="text-sm text-zinc-400 font-medium block mb-1">
+								Address
+							</label>
+							<p className="text-white">
+								{client.address}
+							</p>
 						</div>
 
 						<div>
-							<label className="text-sm text-zinc-400 font-medium block mb-1">Created</label>
+							<label className="text-sm text-zinc-400 font-medium block mb-1">
+								Created
+							</label>
 							<p className="text-white">
-								{new Date(client.created_at).toLocaleDateString('en-US', {
-									year: 'numeric',
-									month: 'short',
-									day: 'numeric'
+								{new Date(
+									client.created_at
+								).toLocaleDateString("en-US", {
+									year: "numeric",
+									month: "short",
+									day: "numeric",
 								})}
 							</p>
 						</div>
 
 						<div>
-							<label className="text-sm text-zinc-400 font-medium block mb-1">Last Activity</label>
+							<label className="text-sm text-zinc-400 font-medium block mb-1">
+								Last Activity
+							</label>
 							<p className="text-white">
-								{new Date(client.last_activity).toLocaleDateString('en-US', {
+								{new Date(
+									client.last_activity
+								).toLocaleDateString("en-US", {
 									month: "short",
 									day: "numeric",
 									hour: "numeric",
@@ -116,12 +119,17 @@ export default function ClientDetailsPage() {
 				{/* Two Column Layout for Notes and Jobs */}
 				<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 					<NoteManager clientId={client.id} />
-					<Card 
+					<Card
 						title="Recent Jobs"
 						headerAction={
-							client.jobs && client.jobs.length > 5 && (
-								<button 
-									onClick={() => navigate(`/dispatch/jobs?client=${client.id}`)}
+							client.jobs &&
+							client.jobs.length > 5 && (
+								<button
+									onClick={() =>
+										navigate(
+											`/dispatch/jobs?client=${client.id}`
+										)
+									}
 									className="text-sm text-blue-400 hover:text-blue-300"
 								>
 									View All
@@ -132,35 +140,55 @@ export default function ClientDetailsPage() {
 					>
 						<div className="space-y-3">
 							{client.jobs && client.jobs.length > 0 ? (
-								client.jobs.slice(0, 5).map((job) => (
-									<div
-										onClick={() => navigate(`/dispatch/jobs/${job.id}`)}
-										key={job.id}
-										className="p-3 bg-zinc-800 rounded-lg border border-zinc-700 hover:border-zinc-600 transition-colors cursor-pointer group"
-									>
-										<div className="flex items-start justify-between mb-2">
-											<div className="flex items-center gap-2">
-												<p className="text-white text-sm font-medium group-hover:text-blue-400 transition-colors">
-													{job.name}
-												</p>
+								client.jobs
+									.slice(0, 5)
+									.map((job) => (
+										<div
+											onClick={() =>
+												navigate(
+													`/dispatch/jobs/${job.id}`
+												)
+											}
+											key={job.id}
+											className="p-3 bg-zinc-800 rounded-lg border border-zinc-700 hover:border-zinc-600 transition-colors cursor-pointer group"
+										>
+											<div className="flex items-start justify-between mb-2">
+												<div className="flex items-center gap-2">
+													<p className="text-white text-sm font-medium group-hover:text-blue-400 transition-colors">
+														{
+															job.name
+														}
+													</p>
+												</div>
+												<span className="text-xs text-zinc-500 px-2 py-1 bg-zinc-700 rounded">
+													{
+														job.status
+													}
+												</span>
 											</div>
-											<span className="text-xs text-zinc-500 px-2 py-1 bg-zinc-700 rounded">
-												{job.status}
-											</span>
+											<p className="text-xs text-zinc-400">
+												{new Date(
+													job.created_at
+												).toLocaleDateString(
+													"en-US",
+													{
+														month: "short",
+														day: "numeric",
+														year: "numeric",
+													}
+												)}
+											</p>
 										</div>
-										<p className="text-xs text-zinc-400">
-											{new Date(job.created_at).toLocaleDateString('en-US', {
-												month: 'short',
-												day: 'numeric',
-												year: 'numeric'
-											})}
-										</p>
-									</div>
-								))
+									))
 							) : (
 								<div className="text-center py-8">
-									<Briefcase size={32} className="text-zinc-600 mx-auto mb-2" />
-									<p className="text-zinc-400 text-sm">No jobs available</p>
+									<Briefcase
+										size={32}
+										className="text-zinc-600 mx-auto mb-2"
+									/>
+									<p className="text-zinc-400 text-sm">
+										No jobs available
+									</p>
 								</div>
 							)}
 						</div>

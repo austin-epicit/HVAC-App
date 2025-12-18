@@ -9,19 +9,15 @@ export const JobStatusValues = [
 	"Completed",
 	"Cancelled",
 ] as const;
-
 export type JobStatus = (typeof JobStatusValues)[number];
 
 export const VisitStatusValues = ["Scheduled", "InProgress", "Completed", "Cancelled"] as const;
-
 export type VisitStatus = (typeof VisitStatusValues)[number];
 
 export const ScheduleTypeValues = ["all_day", "exact", "window"] as const;
-
 export type ScheduleType = (typeof ScheduleTypeValues)[number];
 
 export const JobPriorityValues = ["Low", "Normal", "Medium", "High"] as const;
-
 export type JobPriority = (typeof JobPriorityValues)[number];
 
 export interface JobVisitTechnician {
@@ -87,7 +83,7 @@ export interface JobVisit {
 		address: string;
 		coords: Coordinates;
 		description: string;
-		priority: string;
+		priority: JobPriority;
 		status: JobStatus;
 	};
 	schedule_type: ScheduleType;
@@ -110,7 +106,7 @@ export interface Job {
 	address: string;
 	coords: Coordinates;
 	description: string;
-	priority: string;
+	priority: JobPriority;
 	status: JobStatus;
 	created_at: Date | string;
 	visits: JobVisit[];
@@ -123,7 +119,7 @@ export interface CreateJobInput {
 	address: string;
 	coords: Coordinates;
 	description: string;
-	priority?: string;
+	priority?: JobPriority;
 	status?: JobStatus;
 }
 
@@ -174,23 +170,19 @@ export const CreateJobSchema = z.object({
 	client_id: z.string().min(1, "Please select a client"),
 	address: z.string().default(""),
 	description: z.string().default(""),
-	priority: z.string().default("normal"),
-	status: z
-		.enum(["Unscheduled", "Scheduled", "InProgress", "Completed", "Cancelled"])
-		.default("Unscheduled"),
+	priority: z.enum(JobPriorityValues).default("Normal"),
+	status: z.enum(JobStatusValues).default("Unscheduled"),
 });
 
 export const CreateJobVisitSchema = z
 	.object({
 		job_id: z.string().uuid("Invalid job ID"),
-		schedule_type: z.enum(["all_day", "exact", "window"]).default("exact"),
+		schedule_type: z.enum(ScheduleTypeValues).default("exact"),
 		scheduled_start_at: z.coerce.date({ message: "Start time is required" }),
 		scheduled_end_at: z.coerce.date({ message: "End time is required" }),
 		arrival_window_start: z.coerce.date().optional().nullable(),
 		arrival_window_end: z.coerce.date().optional().nullable(),
-		status: z
-			.enum(["Scheduled", "InProgress", "Completed", "Cancelled"])
-			.default("Scheduled"),
+		status: z.enum(JobStatusValues).default("Scheduled"),
 		tech_ids: z.array(z.string().uuid()).optional(),
 	})
 	.refine(
@@ -229,14 +221,14 @@ export const CreateJobVisitSchema = z
 
 export const UpdateJobVisitSchema = z
 	.object({
-		schedule_type: z.enum(["all_day", "exact", "window"]).optional(),
+		schedule_type: z.enum(ScheduleTypeValues).optional(),
 		scheduled_start_at: z.coerce.date().optional(),
 		scheduled_end_at: z.coerce.date().optional(),
 		arrival_window_start: z.coerce.date().optional().nullable(),
 		arrival_window_end: z.coerce.date().optional().nullable(),
 		actual_start_at: z.coerce.date().optional().nullable(),
 		actual_end_at: z.coerce.date().optional().nullable(),
-		status: z.enum(["Scheduled", "InProgress", "Completed", "Cancelled"]).optional(),
+		status: z.enum(VisitStatusValues).optional(),
 	})
 	.refine(
 		(data) => {

@@ -15,6 +15,7 @@ import QuotesPage from "./pages/dispatch/QuotesPage";
 import AssignTechnicianPage from "./pages/dispatch/AssignTechnicianPage";
 import RequestsPage from "./pages/dispatch/RequestsPage";
 import InventoryPage from "./pages/dispatch/InventoryPage";
+import FullMapPage from "./pages/dispatch/FullMapPage";
 
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuthStore } from "./auth/authStore";
@@ -60,6 +61,15 @@ export default function AppRoutes() {
 				<Route path="quotes" element={<QuotesPage />} />
 				<Route path="requests" element={<RequestsPage />} />
 			</Route>
+
+			<Route
+				path="/map"
+				element={
+					<RequireAuth>
+						<FullMapPage />
+					</RequireAuth>
+				}
+			></Route>
 
 			<Route path="*" element={<Navigate to="/login" replace />} />
 		</Routes>
