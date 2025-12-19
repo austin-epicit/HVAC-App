@@ -866,7 +866,6 @@ export default function AssignTechnicianPage() {
 				)}
 			</div>
 
-			{/* CreateJobVisit Modal */}
 			{creatingVisitForJob && (
 				<CreateJobVisit
 					isModalOpen={isCreatingVisit}

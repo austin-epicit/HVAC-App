@@ -99,13 +99,13 @@ export default function DashboardPage() {
 
 	const getCurrentVisit = (tech: Technician & { activeVisits: any[] }) => {
 		if (tech.activeVisits.length === 0) return null;
-		return tech.activeVisits[0]; // First active visit
+		return tech.activeVisits[0];
 	};
 
 	return (
 		<div className="min-h-screen text-white p-6">
 			<div className="grid gap-6 lg:grid-cols-3">
-				{/* Calendar - Full Width on Top */}
+				{/* Calendar */}
 				<Card className="lg:col-span-3">
 					{jobsError && (
 						<p className="text-red-400">
@@ -322,7 +322,7 @@ export default function DashboardPage() {
 					)}
 
 					{!techsError && totalOnline > 0 && (
-						<div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 max-h-[500px] overflow-y-auto pr-2">
+						<div className="flex flex-wrap gap-3 max-h-[500px] overflow-y-auto pr-2">
 							{techniciansWithActiveVisits.map((tech) => {
 								const currentVisit =
 									getCurrentVisit(tech);
@@ -333,19 +333,23 @@ export default function DashboardPage() {
 								return (
 									<div
 										key={tech.id}
-										className="group bg-zinc-800/50 border border-zinc-700 rounded-lg hover:border-zinc-600 hover:bg-zinc-800 transition-all cursor-pointer overflow-hidden"
+										className="group relative bg-zinc-800/50 border border-zinc-700 rounded-xl hover:border-blue-500/50 hover:bg-zinc-800 transition-all cursor-pointer overflow-hidden flex-shrink-0"
+										style={{
+											width: "180px",
+											height: "260px",
+										}}
 										onClick={() =>
 											navigate(
 												`/dispatch/technicians/${tech.id}`
 											)
 										}
 									>
-										{/* Card Content */}
-										<div className="p-3">
-											{/* Avatar & Status */}
-											<div className="flex items-center justify-between mb-3">
+										{/* Card Content*/}
+										<div className="p-3 h-full flex flex-col">
+											{/* Header: Avatar & Status*/}
+											<div className="flex items-start justify-between mb-2">
 												<div className="relative">
-													<div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold text-lg">
+													<div className="w-11 h-11 rounded-lg bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-base shadow-md">
 														{tech.name
 															.charAt(
 																0
@@ -353,16 +357,16 @@ export default function DashboardPage() {
 															.toUpperCase()}
 													</div>
 													<div
-														className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 ${getStatusColor(tech.status)} rounded-full border-2 border-zinc-800`}
+														className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 ${getStatusColor(tech.status)} rounded-full border-2 border-zinc-800 shadow-sm`}
 													/>
 												</div>
 
 												<span
-													className={`px-2 py-0.5 rounded text-xs font-medium ${
+													className={`px-1.5 py-0.5 rounded text-[10px] font-semibold tracking-wide ${
 														tech.status ===
 														"Available"
-															? "bg-green-500/20 text-green-400"
-															: "bg-yellow-500/20 text-yellow-400"
+															? "bg-green-500/20 text-green-400 border border-green-500/30"
+															: "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30"
 													}`}
 												>
 													{
@@ -371,38 +375,38 @@ export default function DashboardPage() {
 												</span>
 											</div>
 
-											{/* Name & Title */}
-											<div className="mb-3">
-												<h4 className="font-semibold text-white group-hover:text-blue-400 transition-colors truncate text-sm mb-0.5">
+											{/* Name & Title*/}
+											<div className="mb-2">
+												<h4 className="font-semibold text-white group-hover:text-blue-400 transition-colors truncate text-[13px] leading-tight mb-0.5">
 													{
 														tech.name
 													}
 												</h4>
-												<p className="text-xs text-zinc-500 truncate">
+												<p className="text-[10px] text-zinc-500 truncate leading-tight">
 													{
 														tech.title
 													}
 												</p>
 											</div>
 
-											{/* Current Status */}
-											<div className="mb-3 min-h-[52px]">
+											{/* Status Box*/}
+											<div className="mb-2 h-14 flex items-center">
 												{isOnJob &&
 													currentVisit && (
-														<div className="p-2 bg-yellow-500/10 border border-yellow-500/20 rounded">
-															<div className="flex items-center gap-1.5 mb-1">
+														<div className="w-full p-2 bg-yellow-500/10 border border-yellow-500/30 rounded-lg shadow-sm">
+															<div className="flex items-center gap-1 mb-0.5">
 																<Activity
 																	size={
-																		12
+																		11
 																	}
 																	className="text-yellow-400 flex-shrink-0"
 																/>
-																<p className="text-xs font-medium text-yellow-400">
+																<p className="text-[10px] font-bold text-yellow-400 uppercase tracking-wide">
 																	On
 																	Job
 																</p>
 															</div>
-															<p className="text-xs text-zinc-300 truncate">
+															<p className="text-[11px] text-zinc-200 truncate font-medium">
 																{currentVisit
 																	.job
 																	?.name ||
@@ -416,19 +420,20 @@ export default function DashboardPage() {
 														.scheduledVisits
 														.length >
 														0 && (
-														<div className="p-2 bg-blue-500/10 border border-blue-500/20 rounded">
-															<div className="flex items-center gap-1.5 mb-1">
+														<div className="w-full p-2 bg-blue-500/10 border border-blue-500/30 rounded-lg shadow-sm">
+															<div className="flex items-center gap-1 mb-0.5">
 																<Calendar
 																	size={
-																		12
+																		11
 																	}
 																	className="text-blue-400 flex-shrink-0"
 																/>
-																<p className="text-xs font-medium text-blue-400">
+																<p className="text-[10px] font-bold text-blue-400 uppercase tracking-wide">
 																	Next
+																	Up
 																</p>
 															</div>
-															<p className="text-xs text-zinc-300 truncate">
+															<p className="text-[11px] text-zinc-200 font-medium">
 																{new Date(
 																	tech
 																		.scheduledVisits[0]
@@ -450,15 +455,15 @@ export default function DashboardPage() {
 														.scheduledVisits
 														.length ===
 														0 && (
-														<div className="p-2 bg-zinc-700/30 border border-zinc-700 rounded">
-															<div className="flex items-center gap-1.5">
+														<div className="w-full p-2 bg-green-500/10 border border-green-500/30 rounded-lg shadow-sm">
+															<div className="flex items-center gap-1">
 																<CheckCircle2
 																	size={
-																		12
+																		11
 																	}
 																	className="text-green-400 flex-shrink-0"
 																/>
-																<p className="text-xs text-zinc-400">
+																<p className="text-[10px] font-bold text-green-400 uppercase tracking-wide">
 																	Available
 																</p>
 															</div>
@@ -466,22 +471,29 @@ export default function DashboardPage() {
 													)}
 											</div>
 
-											{/* Visits Count */}
-											<div className="flex items-center justify-between text-xs text-zinc-400 mb-3 pb-3 border-b border-zinc-700">
-												<span className="flex items-center gap-1">
-													<Calendar
-														size={
-															12
-														}
-													/>
-													{
-														tech.totalVisitsToday
-													}{" "}
-													today
-												</span>
+											{/* Divider & Visit Count*/}
+											<div className="mb-2 pb-2 border-b border-zinc-700/50">
+												<div className="flex items-center justify-between text-[10px]">
+													<span className="flex items-center gap-1 text-zinc-400">
+														<Calendar
+															size={
+																10
+															}
+															className="text-zinc-500"
+														/>
+														<span className="font-medium">
+															{
+																tech.totalVisitsToday
+															}
+														</span>
+														<span className="text-zinc-500">
+															today
+														</span>
+													</span>
+												</div>
 											</div>
 
-											{/* Assign Visit Button */}
+											{/* Assign Button*/}
 											<button
 												onClick={(
 													e
@@ -491,19 +503,22 @@ export default function DashboardPage() {
 														`/dispatch/technicians/${tech.id}/assign`
 													);
 												}}
-												className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-all hover:shadow-lg hover:shadow-blue-600/20"
+												className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-600 text-white text-[11px] font-bold rounded-lg transition-all hover:shadow-lg hover:shadow-blue-500/30 active:scale-95"
 											>
 												<MapPin
 													size={
-														14
+														12
 													}
+													className="flex-shrink-0"
 												/>
-												<span>
-													Assign
-													Visit
+												<span className="tracking-wide">
+													ASSIGN
 												</span>
 											</button>
 										</div>
+
+										{/* Hover Glow Effect */}
+										<div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none bg-gradient-to-br from-blue-500/5 via-transparent to-purple-500/5" />
 									</div>
 								);
 							})}
