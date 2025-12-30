@@ -37,6 +37,7 @@ export const updateTechnicianSchema = z
 		title: z.string().min(1, "Title is required").optional(),
 		description: z.string().optional(),
 		status: technicianStatusEnum.optional(),
+		coords: z.object({ lat: z.number(), lon: z.number() }).optional(),
 		hire_date: z
 			.preprocess(
 				(val) =>
@@ -65,7 +66,11 @@ export const updateTechnicianSchema = z
 			data.title !== undefined ||
 			data.description !== undefined ||
 			data.status !== undefined ||
+			data.coords !== undefined ||
 			data.hire_date !== undefined ||
 			data.last_login !== undefined,
 		{ message: "At least one field must be provided for update" }
 	);
+
+export type CreateTechnicianInput = z.infer<typeof createTechnicianSchema>;
+export type UpdateTechnicianInput = z.infer<typeof updateTechnicianSchema>;

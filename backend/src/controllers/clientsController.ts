@@ -4,8 +4,7 @@ import {
 	createClientSchema,
 	updateClientSchema,
 } from "../lib/validate/clients.js";
-import { logAction } from "../services/logger.js";
-import { auditLog, calculateChanges } from "../services/auditLogger.js";
+import { logActivity, buildChanges } from "../services/logger.js";
 
 export interface UserContext {
 	techId?: string;
@@ -45,30 +44,30 @@ export const insertClient = async (data: unknown, context?: UserContext) => {
 					name: parsed.name,
 					address: parsed.address,
 					coords: parsed.coords,
-					is_active: parsed.is_active,
-					last_activity: parsed.last_activity,
+					is_active: parsed.is_active ?? true,
+					last_activity: parsed.last_activity ?? new Date(),
 				},
 			});
 
-			await logAction({
-				description: `Created client: ${client.name}`,
-				techId: context?.techId,
-				dispatcherId: context?.dispatcherId,
-			});
-
-			await auditLog({
-				entityType: 'client',
-				entityId: client.id,
-				action: 'created',
+			// Unified activity log (replaces logAction + auditLog)
+			await logActivity({
+				event_type: "client.created",
+				action: "created",
+				entity_type: "client",
+				entity_id: client.id,
+				actor_type: context?.techId
+					? "technician"
+					: context?.dispatcherId
+					? "dispatcher"
+					: "system",
+				actor_id: context?.techId || context?.dispatcherId,
 				changes: {
 					name: { old: null, new: client.name },
 					address: { old: null, new: client.address },
 					is_active: { old: null, new: client.is_active },
 				},
-				actorTechId: context?.techId,
-				actorDispatcherId: context?.dispatcherId,
-				ipAddress: context?.ipAddress,
-				userAgent: context?.userAgent,
+				ip_address: context?.ipAddress,
+				user_agent: context?.userAgent,
 			});
 
 			return tx.client.findUnique({
@@ -95,7 +94,11 @@ export const insertClient = async (data: unknown, context?: UserContext) => {
 	}
 };
 
-export const updateClient = async (id: string, data: unknown, context?: UserContext) => {
+export const updateClient = async (
+	id: string,
+	data: unknown,
+	context?: UserContext
+) => {
 	try {
 		const parsed = updateClientSchema.parse(data);
 
@@ -104,7 +107,12 @@ export const updateClient = async (id: string, data: unknown, context?: UserCont
 			return { err: "Client not found" };
 		}
 
-		const changes = calculateChanges(existing, parsed);
+		const changes = buildChanges(existing, parsed, [
+			"name",
+			"address",
+			"coords",
+			"is_active",
+		] as const);
 
 		const updated = await db.$transaction(async (tx) => {
 			const client = await tx.client.update({
@@ -125,21 +133,20 @@ export const updateClient = async (id: string, data: unknown, context?: UserCont
 			});
 
 			if (Object.keys(changes).length > 0) {
-				await logAction({
-					description: `Updated client: ${client.name}`,
-					techId: context?.techId,
-					dispatcherId: context?.dispatcherId,
-				});
-
-				await auditLog({
-					entityType: 'client',
-					entityId: client.id,
-					action: 'updated',
+				await logActivity({
+					event_type: "client.updated",
+					action: "updated",
+					entity_type: "client",
+					entity_id: id,
+					actor_type: context?.techId
+						? "technician"
+						: context?.dispatcherId
+						? "dispatcher"
+						: "system",
+					actor_id: context?.techId || context?.dispatcherId,
 					changes,
-					actorTechId: context?.techId,
-					actorDispatcherId: context?.dispatcherId,
-					ipAddress: context?.ipAddress,
-					userAgent: context?.userAgent,
+					ip_address: context?.ipAddress,
+					user_agent: context?.userAgent,
 				});
 			}
 
@@ -175,31 +182,27 @@ export const deleteClient = async (id: string, context?: UserContext) => {
 		}
 
 		await db.$transaction(async (tx) => {
-			await tx.client_contact.deleteMany({ where: { client_id: id } });
-			await tx.client_note.deleteMany({ where: { client_id: id } });
-			await tx.job.deleteMany({ where: { client_id: id } });
-
+			// Cascade deletes handled by schema onDelete: Cascade
 			await tx.client.delete({ where: { id } });
 
-			await logAction({
-				description: `Deleted client: ${existing.name}`,
-				techId: context?.techId,
-				dispatcherId: context?.dispatcherId,
-			});
-
-			await auditLog({
-				entityType: 'client',
-				entityId: id,
-				action: 'deleted',
+			await logActivity({
+				event_type: "client.deleted",
+				action: "deleted",
+				entity_type: "client",
+				entity_id: id,
+				actor_type: context?.techId
+					? "technician"
+					: context?.dispatcherId
+					? "dispatcher"
+					: "system",
+				actor_id: context?.techId || context?.dispatcherId,
 				changes: {
 					name: { old: existing.name, new: null },
 					address: { old: existing.address, new: null },
 					is_active: { old: existing.is_active, new: null },
 				},
-				actorTechId: context?.techId,
-				actorDispatcherId: context?.dispatcherId,
-				ipAddress: context?.ipAddress,
-				userAgent: context?.userAgent,
+				ip_address: context?.ipAddress,
+				user_agent: context?.userAgent,
 			});
 		});
 

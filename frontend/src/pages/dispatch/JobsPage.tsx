@@ -95,13 +95,15 @@ export default function JobsPage() {
 						: "No visits scheduled",
 					visits: `${j.visits.length} visit${j.visits.length !== 1 ? "s" : ""}`,
 					status: addSpacesToCamelCase(j.status),
+					_rawStatus: j.status, // Keep raw status for sorting
 				};
 			})
 			.sort(
 				(a, b) =>
-					JobStatusValues.indexOf(a.status) -
-					JobStatusValues.indexOf(b.status)
-			);
+					JobStatusValues.indexOf(a._rawStatus) -
+					JobStatusValues.indexOf(b._rawStatus)
+			)
+			.map(({ _rawStatus, ...rest }) => rest); // Remove _rawStatus from display
 	}, [jobs, searchInput, searchFilter, clientFilter]);
 
 	const handleSearchSubmit = (e: React.FormEvent) => {

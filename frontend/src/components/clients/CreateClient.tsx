@@ -31,7 +31,7 @@ const CreateClient = ({ isModalOpen, setIsModalOpen, createClient }: CreateClien
 		if (nameRef.current && geoData && activeRef.current && !isLoading) {
 			const labelValue = nameRef.current.value.trim();
 			const addressValue = geoData.address.trim();
-			const activeValue = activeRef.current.value.trim() == "Active";
+			const activeValue = activeRef.current.checked;
 
 			const newClient: CreateClientInput = {
 				name: labelValue,

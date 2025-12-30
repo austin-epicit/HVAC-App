@@ -13,25 +13,27 @@ export const createJobVisitSchema = z
 			z.date({ message: "Scheduled end time is required" })
 		),
 		arrival_window_start: z
-			.preprocess(
-				(arg) => {
-					if (!arg) return null;
-					return typeof arg === "string" ? new Date(arg) : arg;
-				},
-				z.date().nullable()
-			)
+			.preprocess((arg) => {
+				if (!arg) return null;
+				return typeof arg === "string" ? new Date(arg) : arg;
+			}, z.date().nullable())
 			.optional(),
 		arrival_window_end: z
-			.preprocess(
-				(arg) => {
-					if (!arg) return null;
-					return typeof arg === "string" ? new Date(arg) : arg;
-				},
-				z.date().nullable()
-			)
+			.preprocess((arg) => {
+				if (!arg) return null;
+				return typeof arg === "string" ? new Date(arg) : arg;
+			}, z.date().nullable())
 			.optional(),
 		status: z
-			.enum(["Scheduled", "InProgress", "Completed", "Cancelled"])
+			.enum([
+				"Scheduled",
+				"Driving",
+				"OnSite",
+				"InProgress",
+				"Delayed",
+				"Completed",
+				"Cancelled",
+			])
 			.default("Scheduled"),
 		tech_ids: z.array(z.string().uuid("Invalid technician ID")).optional(),
 	})
@@ -87,61 +89,51 @@ export const updateJobVisitSchema = z
 	.object({
 		schedule_type: z.enum(["all_day", "exact", "window"]).optional(),
 		scheduled_start_at: z
-			.preprocess(
-				(arg) => {
-					if (!arg) return undefined;
-					return typeof arg === "string" ? new Date(arg) : arg;
-				},
-				z.date().optional()
-			)
+			.preprocess((arg) => {
+				if (!arg) return undefined;
+				return typeof arg === "string" ? new Date(arg) : arg;
+			}, z.date().optional())
 			.optional(),
 		scheduled_end_at: z
-			.preprocess(
-				(arg) => {
-					if (!arg) return undefined;
-					return typeof arg === "string" ? new Date(arg) : arg;
-				},
-				z.date().optional()
-			)
+			.preprocess((arg) => {
+				if (!arg) return undefined;
+				return typeof arg === "string" ? new Date(arg) : arg;
+			}, z.date().optional())
 			.optional(),
 		arrival_window_start: z
-			.preprocess(
-				(arg) => {
-					if (!arg) return null;
-					return typeof arg === "string" ? new Date(arg) : arg;
-				},
-				z.date().nullable()
-			)
+			.preprocess((arg) => {
+				if (!arg) return null;
+				return typeof arg === "string" ? new Date(arg) : arg;
+			}, z.date().nullable())
 			.optional(),
 		arrival_window_end: z
-			.preprocess(
-				(arg) => {
-					if (!arg) return null;
-					return typeof arg === "string" ? new Date(arg) : arg;
-				},
-				z.date().nullable()
-			)
+			.preprocess((arg) => {
+				if (!arg) return null;
+				return typeof arg === "string" ? new Date(arg) : arg;
+			}, z.date().nullable())
 			.optional(),
 		actual_start_at: z
-			.preprocess(
-				(arg) => {
-					if (!arg) return null;
-					return typeof arg === "string" ? new Date(arg) : arg;
-				},
-				z.date().nullable()
-			)
+			.preprocess((arg) => {
+				if (!arg) return null;
+				return typeof arg === "string" ? new Date(arg) : arg;
+			}, z.date().nullable())
 			.optional(),
 		actual_end_at: z
-			.preprocess(
-				(arg) => {
-					if (!arg) return null;
-					return typeof arg === "string" ? new Date(arg) : arg;
-				},
-				z.date().nullable()
-			)
+			.preprocess((arg) => {
+				if (!arg) return null;
+				return typeof arg === "string" ? new Date(arg) : arg;
+			}, z.date().nullable())
 			.optional(),
 		status: z
-			.enum(["Scheduled", "InProgress", "Completed", "Cancelled"])
+			.enum([
+				"Scheduled",
+				"Driving",
+				"OnSite",
+				"InProgress",
+				"Delayed",
+				"Completed",
+				"Cancelled",
+			])
 			.optional(),
 	})
 	.refine(

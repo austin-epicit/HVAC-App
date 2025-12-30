@@ -1,8 +1,10 @@
 import { ZodError } from "zod";
 import { db } from "../db.js";
-import { createNoteSchema, updateNoteSchema } from "../lib/validate/clientNotes.js";
-import { logAction } from "../services/logger.js";
-import { auditLog, calculateChanges } from "../services/auditLogger.js";
+import {
+	createNoteSchema,
+	updateNoteSchema,
+} from "../lib/validate/clientNotes.js";
+import { logActivity, buildChanges } from "../services/logger.js";
 
 export interface UserContext {
 	techId?: string;
@@ -20,39 +22,39 @@ export const getClientNotes = async (clientId: string) => {
 					id: true,
 					name: true,
 					email: true,
-				}
+				},
 			},
 			creator_dispatcher: {
 				select: {
 					id: true,
 					name: true,
 					email: true,
-				}
+				},
 			},
 			last_editor_tech: {
 				select: {
 					id: true,
 					name: true,
 					email: true,
-				}
+				},
 			},
 			last_editor_dispatcher: {
 				select: {
 					id: true,
 					name: true,
 					email: true,
-				}
-			}
+				},
+			},
 		},
-		orderBy: { created_at: 'desc' }
+		orderBy: { created_at: "desc" },
 	});
 };
 
 export const getNoteById = async (clientId: string, noteId: string) => {
 	return await db.client_note.findFirst({
-		where: { 
+		where: {
 			id: noteId,
-			client_id: clientId 
+			client_id: clientId,
 		},
 		include: {
 			creator_tech: {
@@ -60,34 +62,38 @@ export const getNoteById = async (clientId: string, noteId: string) => {
 					id: true,
 					name: true,
 					email: true,
-				}
+				},
 			},
 			creator_dispatcher: {
 				select: {
 					id: true,
 					name: true,
 					email: true,
-				}
+				},
 			},
 			last_editor_tech: {
 				select: {
 					id: true,
 					name: true,
 					email: true,
-				}
+				},
 			},
 			last_editor_dispatcher: {
 				select: {
 					id: true,
 					name: true,
 					email: true,
-				}
-			}
-		}
+				},
+			},
+		},
 	});
 };
 
-export const insertNote = async (clientId: string, data: unknown, context?: UserContext) => {
+export const insertNote = async (
+	clientId: string,
+	data: unknown,
+	context?: UserContext
+) => {
 	try {
 		const parsed = createNoteSchema.parse(data);
 
@@ -103,32 +109,31 @@ export const insertNote = async (clientId: string, data: unknown, context?: User
 					content: parsed.content,
 					creator_tech_id: context?.techId || null,
 					creator_dispatcher_id: context?.dispatcherId || null,
-				}
+				},
 			});
 
-			await logAction({
-				description: `Created note on client: ${client.name}`,
-				techId: context?.techId,
-				dispatcherId: context?.dispatcherId,
-			});
-
-			await auditLog({
-				entityType: 'client_note',
-				entityId: note.id,
-				action: 'created',
+			await logActivity({
+				event_type: "client_note.created",
+				action: "created",
+				entity_type: "client_note",
+				entity_id: note.id,
+				actor_type: context?.techId
+					? "technician"
+					: context?.dispatcherId
+					? "dispatcher"
+					: "system",
+				actor_id: context?.techId || context?.dispatcherId,
 				changes: {
 					content: { old: null, new: parsed.content },
 					client_id: { old: null, new: clientId },
 				},
-				actorTechId: context?.techId,
-				actorDispatcherId: context?.dispatcherId,
-				ipAddress: context?.ipAddress,
-				userAgent: context?.userAgent,
+				ip_address: context?.ipAddress,
+				user_agent: context?.userAgent,
 			});
 
 			await tx.client.update({
 				where: { id: clientId },
-				data: { last_activity: new Date() }
+				data: { last_activity: new Date() },
 			});
 
 			return tx.client_note.findUnique({
@@ -140,15 +145,15 @@ export const insertNote = async (clientId: string, data: unknown, context?: User
 							id: true,
 							name: true,
 							email: true,
-						}
+						},
 					},
 					creator_dispatcher: {
 						select: {
 							id: true,
 							name: true,
 							email: true,
-						}
-					}
+						},
+					},
 				},
 			});
 		});
@@ -167,26 +172,29 @@ export const insertNote = async (clientId: string, data: unknown, context?: User
 };
 
 export const updateNote = async (
-	clientId: string, 
-	noteId: string, 
-	data: unknown, 
+	clientId: string,
+	noteId: string,
+	data: unknown,
 	context?: UserContext
 ) => {
 	try {
 		const parsed = updateNoteSchema.parse(data);
 
 		const existing = await db.client_note.findFirst({
-			where: { 
+			where: {
 				id: noteId,
-				client_id: clientId 
-			}
+				client_id: clientId,
+			},
+			include: {
+				client: true,
+			},
 		});
 
 		if (!existing) {
 			return { err: "Note not found" };
 		}
 
-		const changes = calculateChanges(existing, parsed);
+		const changes = buildChanges(existing, parsed, ["content"] as const);
 
 		const updated = await db.$transaction(async (tx) => {
 			const updateData: any = {
@@ -212,54 +220,53 @@ export const updateNote = async (
 							id: true,
 							name: true,
 							email: true,
-						}
+						},
 					},
 					creator_dispatcher: {
 						select: {
 							id: true,
 							name: true,
 							email: true,
-						}
+						},
 					},
 					last_editor_tech: {
 						select: {
 							id: true,
 							name: true,
 							email: true,
-						}
+						},
 					},
 					last_editor_dispatcher: {
 						select: {
 							id: true,
 							name: true,
 							email: true,
-						}
-					}
+						},
+					},
 				},
 			});
 
 			if (Object.keys(changes).length > 0) {
-				await logAction({
-					description: `Updated note on client`,
-					techId: context?.techId,
-					dispatcherId: context?.dispatcherId,
-				});
-
-				await auditLog({
-					entityType: 'client_note',
-					entityId: noteId,
-					action: 'updated',
+				await logActivity({
+					event_type: "client_note.updated",
+					action: "updated",
+					entity_type: "client_note",
+					entity_id: noteId,
+					actor_type: context?.techId
+						? "technician"
+						: context?.dispatcherId
+						? "dispatcher"
+						: "system",
+					actor_id: context?.techId || context?.dispatcherId,
 					changes,
-					actorTechId: context?.techId,
-					actorDispatcherId: context?.dispatcherId,
-					ipAddress: context?.ipAddress,
-					userAgent: context?.userAgent,
+					ip_address: context?.ipAddress,
+					user_agent: context?.userAgent,
 				});
 			}
 
 			await tx.client.update({
 				where: { id: clientId },
-				data: { last_activity: new Date() }
+				data: { last_activity: new Date() },
 			});
 
 			return note;
@@ -278,13 +285,20 @@ export const updateNote = async (
 	}
 };
 
-export const deleteNote = async (clientId: string, noteId: string, context?: UserContext) => {
+export const deleteNote = async (
+	clientId: string,
+	noteId: string,
+	context?: UserContext
+) => {
 	try {
 		const existing = await db.client_note.findFirst({
-			where: { 
+			where: {
 				id: noteId,
-				client_id: clientId 
-			}
+				client_id: clientId,
+			},
+			include: {
+				client: true,
+			},
 		});
 
 		if (!existing) {
@@ -292,28 +306,27 @@ export const deleteNote = async (clientId: string, noteId: string, context?: Use
 		}
 
 		await db.$transaction(async (tx) => {
-			await logAction({
-				description: `Deleted note on client`,
-				techId: context?.techId,
-				dispatcherId: context?.dispatcherId,
-			});
-
-			await auditLog({
-				entityType: 'client_note',
-				entityId: noteId,
-				action: 'deleted',
+			await logActivity({
+				event_type: "client_note.deleted",
+				action: "deleted",
+				entity_type: "client_note",
+				entity_id: noteId,
+				actor_type: context?.techId
+					? "technician"
+					: context?.dispatcherId
+					? "dispatcher"
+					: "system",
+				actor_id: context?.techId || context?.dispatcherId,
 				changes: {
 					content: { old: existing.content, new: null },
 					client_id: { old: existing.client_id, new: null },
 				},
-				actorTechId: context?.techId,
-				actorDispatcherId: context?.dispatcherId,
-				ipAddress: context?.ipAddress,
-				userAgent: context?.userAgent,
+				ip_address: context?.ipAddress,
+				user_agent: context?.userAgent,
 			});
 
 			await tx.client_note.delete({
-				where: { id: noteId }
+				where: { id: noteId },
 			});
 		});
 

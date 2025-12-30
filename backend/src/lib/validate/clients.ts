@@ -26,10 +26,12 @@ export const updateClientSchema = z
 	.object({
 		name: z.string().min(1, "Client name is required").optional(),
 		address: z.string().min(1, "Address is required").optional(),
-		coords: z.object({
-			lat: z.number(),
-			lon: z.number(),
-		}).optional(),
+		coords: z
+			.object({
+				lat: z.number(),
+				lon: z.number(),
+			})
+			.optional(),
 		is_active: z.boolean().optional(),
 		last_activity: z
 			.preprocess(
@@ -49,3 +51,6 @@ export const updateClientSchema = z
 			data.last_activity !== undefined,
 		{ message: "At least one field must be provided for update" }
 	);
+
+export type CreateClientInput = z.infer<typeof createClientSchema>;
+export type UpdateClientInput = z.infer<typeof updateClientSchema>;

@@ -1,8 +1,10 @@
 import { ZodError } from "zod";
 import { db } from "../db.js";
-import { createJobNoteSchema, updateJobNoteSchema } from "../lib/validate/jobNotes.js";
-import { logAction } from "../services/logger.js";
-import { auditLog, calculateChanges } from "../services/auditLogger.js";
+import {
+	createJobNoteSchema,
+	updateJobNoteSchema,
+} from "../lib/validate/jobs.js";
+import { logActivity, buildChanges } from "../services/logger.js";
 
 export interface UserContext {
 	techId?: string;
@@ -20,28 +22,28 @@ export const getJobNotes = async (jobId: string) => {
 					id: true,
 					name: true,
 					email: true,
-				}
+				},
 			},
 			creator_dispatcher: {
 				select: {
 					id: true,
 					name: true,
 					email: true,
-				}
+				},
 			},
 			last_editor_tech: {
 				select: {
 					id: true,
 					name: true,
 					email: true,
-				}
+				},
 			},
 			last_editor_dispatcher: {
 				select: {
 					id: true,
 					name: true,
 					email: true,
-				}
+				},
 			},
 			visit: {
 				select: {
@@ -49,16 +51,16 @@ export const getJobNotes = async (jobId: string) => {
 					scheduled_start_at: true,
 					scheduled_end_at: true,
 					status: true,
-				}
-			}
+				},
+			},
 		},
-		orderBy: { created_at: 'desc' }
+		orderBy: { created_at: "desc" },
 	});
 };
 
 export const getJobNotesByVisitId = async (jobId: string, visitId: string) => {
 	return await db.job_note.findMany({
-		where: { 
+		where: {
 			job_id: jobId,
 			visit_id: visitId,
 		},
@@ -68,28 +70,28 @@ export const getJobNotesByVisitId = async (jobId: string, visitId: string) => {
 					id: true,
 					name: true,
 					email: true,
-				}
+				},
 			},
 			creator_dispatcher: {
 				select: {
 					id: true,
 					name: true,
 					email: true,
-				}
+				},
 			},
 			last_editor_tech: {
 				select: {
 					id: true,
 					name: true,
 					email: true,
-				}
+				},
 			},
 			last_editor_dispatcher: {
 				select: {
 					id: true,
 					name: true,
 					email: true,
-				}
+				},
 			},
 			visit: {
 				select: {
@@ -97,18 +99,18 @@ export const getJobNotesByVisitId = async (jobId: string, visitId: string) => {
 					scheduled_start_at: true,
 					scheduled_end_at: true,
 					status: true,
-				}
-			}
+				},
+			},
 		},
-		orderBy: { created_at: 'desc' }
+		orderBy: { created_at: "desc" },
 	});
 };
 
 export const getNoteById = async (jobId: string, noteId: string) => {
 	return await db.job_note.findFirst({
-		where: { 
+		where: {
 			id: noteId,
-			job_id: jobId 
+			job_id: jobId,
 		},
 		include: {
 			creator_tech: {
@@ -116,28 +118,28 @@ export const getNoteById = async (jobId: string, noteId: string) => {
 					id: true,
 					name: true,
 					email: true,
-				}
+				},
 			},
 			creator_dispatcher: {
 				select: {
 					id: true,
 					name: true,
 					email: true,
-				}
+				},
 			},
 			last_editor_tech: {
 				select: {
 					id: true,
 					name: true,
 					email: true,
-				}
+				},
 			},
 			last_editor_dispatcher: {
 				select: {
 					id: true,
 					name: true,
 					email: true,
-				}
+				},
 			},
 			visit: {
 				select: {
@@ -145,15 +147,15 @@ export const getNoteById = async (jobId: string, noteId: string) => {
 					scheduled_start_at: true,
 					scheduled_end_at: true,
 					status: true,
-				}
-			}
-		}
+				},
+			},
+		},
 	});
 };
 
 export const insertJobNote = async (
-	jobId: string, 
-	data: unknown, 
+	jobId: string,
+	data: unknown,
 	context?: UserContext
 ) => {
 	try {
@@ -195,14 +197,14 @@ export const insertJobNote = async (
 							id: true,
 							name: true,
 							email: true,
-						}
+						},
 					},
 					creator_dispatcher: {
 						select: {
 							id: true,
 							name: true,
 							email: true,
-						}
+						},
 					},
 					visit: {
 						select: {
@@ -210,30 +212,30 @@ export const insertJobNote = async (
 							scheduled_start_at: true,
 							scheduled_end_at: true,
 							status: true,
-						}
-					}
-				}
+						},
+					},
+				},
 			});
 
-			await logAction({
-				description: `Created note on job`,
-				techId: context?.techId,
-				dispatcherId: context?.dispatcherId,
-			});
-
-			await auditLog({
-				entityType: 'job_note',
-				entityId: note.id,
-				action: 'created',
+			// Unified activity log
+			await logActivity({
+				event_type: "job_note.created",
+				action: "created",
+				entity_type: "job_note",
+				entity_id: note.id,
+				actor_type: context?.techId
+					? "technician"
+					: context?.dispatcherId
+					? "dispatcher"
+					: "system",
+				actor_id: context?.techId || context?.dispatcherId,
 				changes: {
 					content: { old: null, new: parsed.content },
 					job_id: { old: null, new: jobId },
 					visit_id: { old: null, new: parsed.visit_id || null },
 				},
-				actorTechId: context?.techId,
-				actorDispatcherId: context?.dispatcherId,
-				ipAddress: context?.ipAddress,
-				userAgent: context?.userAgent,
+				ip_address: context?.ipAddress,
+				user_agent: context?.userAgent,
 			});
 
 			return note;
@@ -252,20 +254,21 @@ export const insertJobNote = async (
 		return { err: "Internal server error" };
 	}
 };
+
 export const updateJobNote = async (
-	jobId: string, 
-	noteId: string, 
-	data: unknown, 
+	jobId: string,
+	noteId: string,
+	data: unknown,
 	context?: UserContext
 ) => {
 	try {
 		const parsed = updateJobNoteSchema.parse(data);
 
 		const existing = await db.job_note.findFirst({
-			where: { 
+			where: {
 				id: noteId,
-				job_id: jobId 
-			}
+				job_id: jobId,
+			},
 		});
 
 		if (!existing) {
@@ -286,7 +289,10 @@ export const updateJobNote = async (
 			}
 		}
 
-		const changes = calculateChanges(existing, parsed);
+		const changes = buildChanges(existing, parsed, [
+			"content",
+			"visit_id",
+		] as const);
 
 		const updated = await db.$transaction(async (tx) => {
 			const updateData: any = {
@@ -318,28 +324,28 @@ export const updateJobNote = async (
 							id: true,
 							name: true,
 							email: true,
-						}
+						},
 					},
 					creator_dispatcher: {
 						select: {
 							id: true,
 							name: true,
 							email: true,
-						}
+						},
 					},
 					last_editor_tech: {
 						select: {
 							id: true,
 							name: true,
 							email: true,
-						}
+						},
 					},
 					last_editor_dispatcher: {
 						select: {
 							id: true,
 							name: true,
 							email: true,
-						}
+						},
 					},
 					visit: {
 						select: {
@@ -347,27 +353,27 @@ export const updateJobNote = async (
 							scheduled_start_at: true,
 							scheduled_end_at: true,
 							status: true,
-						}
-					}
-				}
+						},
+					},
+				},
 			});
 
 			if (Object.keys(changes).length > 0) {
-				await logAction({
-					description: `Updated note on job`,
-					techId: context?.techId,
-					dispatcherId: context?.dispatcherId,
-				});
-
-				await auditLog({
-					entityType: 'job_note',
-					entityId: noteId,
-					action: 'updated',
+				// Unified activity log
+				await logActivity({
+					event_type: "job_note.updated",
+					action: "updated",
+					entity_type: "job_note",
+					entity_id: noteId,
+					actor_type: context?.techId
+						? "technician"
+						: context?.dispatcherId
+						? "dispatcher"
+						: "system",
+					actor_id: context?.techId || context?.dispatcherId,
 					changes,
-					actorTechId: context?.techId,
-					actorDispatcherId: context?.dispatcherId,
-					ipAddress: context?.ipAddress,
-					userAgent: context?.userAgent,
+					ip_address: context?.ipAddress,
+					user_agent: context?.userAgent,
 				});
 			}
 
@@ -389,16 +395,16 @@ export const updateJobNote = async (
 };
 
 export const deleteJobNote = async (
-	jobId: string, 
-	noteId: string, 
+	jobId: string,
+	noteId: string,
 	context?: UserContext
 ) => {
 	try {
 		const existing = await db.job_note.findFirst({
-			where: { 
+			where: {
 				id: noteId,
-				job_id: jobId 
-			}
+				job_id: jobId,
+			},
 		});
 
 		if (!existing) {
@@ -406,29 +412,29 @@ export const deleteJobNote = async (
 		}
 
 		await db.$transaction(async (tx) => {
-			await logAction({
-				description: `Deleted note on job`,
-				techId: context?.techId,
-				dispatcherId: context?.dispatcherId,
-			});
-
-			await auditLog({
-				entityType: 'job_note',
-				entityId: noteId,
-				action: 'deleted',
+			// Unified activity log
+			await logActivity({
+				event_type: "job_note.deleted",
+				action: "deleted",
+				entity_type: "job_note",
+				entity_id: noteId,
+				actor_type: context?.techId
+					? "technician"
+					: context?.dispatcherId
+					? "dispatcher"
+					: "system",
+				actor_id: context?.techId || context?.dispatcherId,
 				changes: {
 					content: { old: existing.content, new: null },
 					job_id: { old: existing.job_id, new: null },
 					visit_id: { old: existing.visit_id, new: null },
 				},
-				actorTechId: context?.techId,
-				actorDispatcherId: context?.dispatcherId,
-				ipAddress: context?.ipAddress,
-				userAgent: context?.userAgent,
+				ip_address: context?.ipAddress,
+				user_agent: context?.userAgent,
 			});
 
 			await tx.job_note.delete({
-				where: { id: noteId }
+				where: { id: noteId },
 			});
 		});
 

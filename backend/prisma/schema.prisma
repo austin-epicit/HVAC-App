@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 // Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 datasource db {
@@ -28,83 +25,42 @@ enum schedule_type {
 
 enum visit_status {
   Scheduled
+  Driving
+  OnSite
   InProgress
+  Delayed
   Completed
   Cancelled
 }
 
-model job {
-  id          String      @id @unique @default(uuid())
-  name        String
-  description String
-  priority    String
-  address     String
-  coords      Json
-  created_at  DateTime    @default(now())
-  status      job_status
-  client_id   String
-  client      client      @relation(fields: [client_id], references: [id])
-  visits      job_visit[]
-  notes       job_note[]
-
-  @@index([client_id])
+enum request_status {
+  New
+  Reviewing
+  NeedsQuote
+  Quoted
+  QuoteApproved
+  QuoteRejected
+  ConvertedToJob
+  Cancelled
 }
 
-model job_visit {
-  id                   String                 @id @default(uuid())
-  job_id               String
-  job                  job                    @relation(fields: [job_id], references: [id])
-  schedule_type        schedule_type          @default(exact)
-  scheduled_start_at   DateTime
-  scheduled_end_at     DateTime
-  arrival_window_start DateTime?
-  arrival_window_end   DateTime?
-  actual_start_at      DateTime?
-  actual_end_at        DateTime?
-  status               visit_status           @default(Scheduled)
-  visit_techs          job_visit_technician[]
-  notes                job_note[]             @relation("VisitNotes")
-
-  @@index([job_id])
-  @@index([scheduled_start_at])
-  @@index([scheduled_end_at])
+enum quote_status {
+  Draft
+  Sent
+  Viewed
+  Approved
+  Rejected
+  Revised
+  Expired
+  Cancelled
 }
 
-model job_note {
-  id                        String   @id @default(uuid())
-  job_id                    String
-  content                   String   @db.Text
-  creator_tech_id           String?
-  creator_dispatcher_id     String?
-  created_at                DateTime @default(now())
-  last_editor_tech_id       String?
-  last_editor_dispatcher_id String?
-  updated_at                DateTime @updatedAt
-
-  // Do we want notes per visit?
-  visit_id String?
-  visit    job_visit? @relation("VisitNotes", fields: [visit_id], references: [id])
-
-  job                    job         @relation(fields: [job_id], references: [id], onDelete: Cascade)
-  creator_tech           technician? @relation("JobNoteCreator", fields: [creator_tech_id], references: [id])
-  creator_dispatcher     dispatcher? @relation("JobNoteCreator", fields: [creator_dispatcher_id], references: [id])
-  last_editor_tech       technician? @relation("JobNoteEditor", fields: [last_editor_tech_id], references: [id])
-  last_editor_dispatcher dispatcher? @relation("JobNoteEditor", fields: [last_editor_dispatcher_id], references: [id])
-
-  @@index([job_id])
-  @@index([creator_tech_id])
-  @@index([creator_dispatcher_id])
-  @@index([last_editor_tech_id])
-  @@index([last_editor_dispatcher_id])
-}
-
-// TODO: add field for images
-model inventory_item {
-  id          String @id @unique @default(uuid())
-  name        String
-  description String
-  location    String
-  quantity    Int
+enum priority {
+  Low
+  Medium
+  High
+  Urgent
+  Emergency
 }
 
 enum technician_status {
@@ -114,140 +70,478 @@ enum technician_status {
   Break
 }
 
-model technician {
-  id          String                 @id @unique @default(uuid())
+model contact {
+  id          String   @id @unique @default(uuid())
   name        String
-  email       String                 @unique
-  phone       String
-  password    String
-  title       String
-  description String
-  status      technician_status
-  hire_date   DateTime
-  coords      Json
-  last_login  DateTime               @default(now())
-  visit_techs job_visit_technician[]
+  email       String?
+  phone       String?
+  company     String?
+  title       String?
+  type        String?  // "customer", "vendor", "property_manager", "tenant"
+  misc_info   String?  @db.Text
+  is_active   Boolean  @default(true)
+  
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  
+  client_contacts   client_contact[]
 
-  logs                     log[]
-  audit_logs               audit_log[]
-  created_client_notes     client_note[] @relation("ClientNoteCreator")
-  last_edited_client_notes client_note[] @relation("ClientNoteEditor")
-  created_job_notes        job_note[]    @relation("JobNoteCreator")
-  last_edited_job_notes    job_note[]    @relation("JobNoteEditor")
+  @@index([email])
+  @@index([phone])
+  @@index([is_active])
+  @@unique([email, phone])
+}
+
+
+model client_contact {
+  client_id   String
+  contact_id  String
+  client      client  @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  contact     contact @relation(fields: [contact_id], references: [id], onDelete: Cascade)
+  
+  relationship String  @default("contact")
+  is_primary   Boolean @default(false)
+  is_billing   Boolean @default(false)
+  
+  @@id([client_id, contact_id])
+  @@index([contact_id])
+}
+
+// ============================================================================
+// Client
+// ============================================================================
+
+model client {
+  id            String   @id @unique @default(uuid())
+  name          String
+  address       String
+  coords        Json
+  is_active     Boolean  @default(true)
+  created_at    DateTime @default(now())
+  last_activity DateTime @default(now())
+  updated_at    DateTime @updatedAt
+  
+  contacts      client_contact[]
+  requests      request[]
+  quotes        quote[]
+  jobs          job[]
+  notes         client_note[]
+
+  @@index([is_active])
+  @@index([created_at])
+}
+
+model client_note {
+  id          String   @id @unique @default(uuid())
+  client_id   String
+  client      client   @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  
+  content     String   @db.Text
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  
+  creator_tech_id           String?
+  creator_dispatcher_id     String?
+  last_editor_tech_id       String?
+  last_editor_dispatcher_id String?
+  
+  creator_tech           technician? @relation("ClientNoteCreator", fields: [creator_tech_id], references: [id])
+  creator_dispatcher     dispatcher? @relation("ClientNoteCreator", fields: [creator_dispatcher_id], references: [id])
+  last_editor_tech       technician? @relation("ClientNoteEditor", fields: [last_editor_tech_id], references: [id])
+  last_editor_dispatcher dispatcher? @relation("ClientNoteEditor", fields: [last_editor_dispatcher_id], references: [id])
+
+  @@index([client_id])
+  @@index([created_at])
+}
+
+// ============================================================================
+// REQUEST → QUOTE → JOB 
+// ============================================================================
+
+model request {
+  id          String         @id @default(uuid())
+  client_id   String
+  client      client         @relation(fields: [client_id], references: [id])
+  
+  title       String
+  description String         @db.Text
+  priority    priority       @default(Medium)
+  address     String?
+  coords      Json?
+  status      request_status @default(New)
+  created_at  DateTime       @default(now())
+  updated_at  DateTime       @updatedAt
+  
+  assigned_dispatcher_id String?
+  assigned_dispatcher    dispatcher? @relation(fields: [assigned_dispatcher_id], references: [id])
+  
+  requires_quote    Boolean  @default(false)
+  estimated_value   Decimal? @db.Decimal(10, 2)
+  source            String?  // "phone", "email", "web"
+  source_reference  String?
+  
+  cancelled_at        DateTime?
+  cancellation_reason String?
+
+  quotes   quote[]
+  job      job?
+  notes    request_note[]
+
+  @@index([client_id])
+  @@index([status])
+  @@index([priority])
+  @@index([created_at])
+  @@index([updated_at])
+  @@index([assigned_dispatcher_id])
+  @@index([status, priority])  // Composite for "urgent pending requests"
+}
+
+model request_note {
+  id          String   @id @default(uuid())
+  request_id  String
+  request     request  @relation(fields: [request_id], references: [id], onDelete: Cascade)
+  
+  content     String   @db.Text
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  
+  creator_tech_id           String?
+  creator_dispatcher_id     String?
+  last_editor_tech_id       String?
+  last_editor_dispatcher_id String?
+  
+  creator_tech           technician? @relation("RequestNoteCreator", fields: [creator_tech_id], references: [id])
+  creator_dispatcher     dispatcher? @relation("RequestNoteCreator", fields: [creator_dispatcher_id], references: [id])
+  last_editor_tech       technician? @relation("RequestNoteEditor", fields: [last_editor_tech_id], references: [id])
+  last_editor_dispatcher dispatcher? @relation("RequestNoteEditor", fields: [last_editor_dispatcher_id], references: [id])
+
+  @@index([request_id])
+}
+
+model quote {
+  id           String       @id @default(uuid())
+  quote_number String       @unique
+  client_id    String
+  client       client       @relation(fields: [client_id], references: [id])
+  request_id   String?
+  request      request?     @relation(fields: [request_id], references: [id])
+  
+  title        String
+  description  String       @db.Text
+  status       quote_status @default(Draft)
+
+  address      String
+  coords       Json?
+  priority     priority @default(Medium)
+  
+  is_active    Boolean @default(true)
+  version      Int     @default(1)
+  previous_quote_id String? @unique
+  previous_quote    quote?  @relation("QuoteRevisions", fields: [previous_quote_id], references: [id])
+  revised_quote     quote?  @relation("QuoteRevisions")
+  
+  subtotal        Decimal @db.Decimal(10, 2)
+  tax_rate        Decimal @default(0) @db.Decimal(5, 4)
+  tax_amount      Decimal @default(0) @db.Decimal(10, 2)
+  discount_amount Decimal @default(0) @db.Decimal(10, 2)
+  total           Decimal @db.Decimal(10, 2)
+  
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+  sent_at      DateTime?
+  viewed_at    DateTime?
+  approved_at  DateTime?
+  rejected_at  DateTime?
+  
+  valid_until  DateTime?
+  expires_at   DateTime?
+  
+  rejection_reason String?
+  
+  created_by_dispatcher_id String?
+  created_by_dispatcher    dispatcher? @relation("QuoteCreator", fields: [created_by_dispatcher_id], references: [id])
+  
+  line_items quote_line_item[]
+  notes      quote_note[]
+  job        job?
+
+  @@index([client_id])
+  @@index([request_id])
+  @@index([status])
+  @@index([is_active])
+  @@index([quote_number])
+  @@index([created_at])
+  @@index([client_id, is_active])  // Find active quotes for client
+}
+
+model quote_line_item {
+  id          String  @id @default(uuid())
+  quote_id    String
+  quote       quote   @relation(fields: [quote_id], references: [id], onDelete: Cascade)
+  
+  name        String
+  description String? @db.Text
+  quantity    Decimal @db.Decimal(10, 2)
+  unit_price  Decimal @db.Decimal(10, 2)
+  total       Decimal @db.Decimal(10, 2)
+  
+  item_type   String? // "labor", "material", "equipment"
+  sort_order  Int     @default(0)
+
+  @@index([quote_id])
+  @@index([sort_order])
+}
+
+model quote_note {
+  id          String   @id @default(uuid())
+  quote_id    String
+  quote       quote    @relation(fields: [quote_id], references: [id], onDelete: Cascade)
+  
+  content     String   @db.Text
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  
+  creator_tech_id           String?
+  creator_dispatcher_id     String?
+  last_editor_tech_id       String?
+  last_editor_dispatcher_id String?
+  
+  creator_tech           technician? @relation("QuoteNoteCreator", fields: [creator_tech_id], references: [id])
+  creator_dispatcher     dispatcher? @relation("QuoteNoteCreator", fields: [creator_dispatcher_id], references: [id])
+  last_editor_tech       technician? @relation("QuoteNoteEditor", fields: [last_editor_tech_id], references: [id])
+  last_editor_dispatcher dispatcher? @relation("QuoteNoteEditor", fields: [last_editor_dispatcher_id], references: [id])
+
+  @@index([quote_id])
+}
+
+model job {
+  id          String     @id @unique @default(uuid())
+  job_number  String     @unique
+  name        String
+  description String     @db.Text
+  priority    priority   @default(Medium)
+  address     String
+  coords      Json
+  
+  status      job_status @default(Unscheduled)
+  
+  created_at  DateTime   @default(now())
+  updated_at  DateTime   @updatedAt
+  completed_at  DateTime?
+  cancelled_at  DateTime?
+  cancellation_reason String?
+  
+  client_id   String
+  client      client     @relation(fields: [client_id], references: [id])
+  
+  request_id  String?    @unique  // One job per request
+  request     request?   @relation(fields: [request_id], references: [id])
+  
+  quote_id    String?    @unique  // One job per quote
+  quote       quote?     @relation(fields: [quote_id], references: [id])
+  
+  estimated_total Decimal? @db.Decimal(10, 2)
+  actual_total    Decimal? @db.Decimal(10, 2)
+  
+  visits     job_visit[]
+  notes      job_note[]
+  line_items job_line_item[]
+
+  @@index([client_id])
+  @@index([status])
+  @@index([priority])
+  @@index([created_at])
+  @@index([updated_at])
+  @@index([request_id])
+  @@index([quote_id])
+  @@index([client_id, status])  // Active jobs for client
+}
+
+model job_line_item {
+  id          String  @id @default(uuid())
+  job_id      String
+  job         job     @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  
+  name        String
+  description String? @db.Text
+  quantity    Decimal @db.Decimal(10, 2)
+  unit_price  Decimal @db.Decimal(10, 2)
+  total       Decimal @db.Decimal(10, 2)
+  
+  source      String  // "quote", "manual", "field_addition"
+  item_type   String? // "labor", "material", "equipment"
+  
+  created_at  DateTime @default(now())
+
+  @@index([job_id])
+}
+
+model job_visit {
+  id                   String       @id @default(uuid())
+  job_id               String
+  job                  job          @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  
+  schedule_type        schedule_type @default(exact)
+  scheduled_start_at   DateTime
+  scheduled_end_at     DateTime
+  arrival_window_start DateTime?
+  arrival_window_end   DateTime?
+  actual_start_at      DateTime?
+  actual_end_at        DateTime?
+  
+  status               visit_status  @default(Scheduled)
+  
+  visit_techs          job_visit_technician[]
+  notes                job_note[]             @relation("VisitNotes")
+
+  @@index([job_id])
+  @@index([status])
+  @@index([scheduled_start_at])
+  @@index([scheduled_end_at])
 }
 
 model job_visit_technician {
   visit_id String
   tech_id  String
-  visit    job_visit  @relation(fields: [visit_id], references: [id])
+  visit    job_visit  @relation(fields: [visit_id], references: [id], onDelete: Cascade)
   tech     technician @relation(fields: [tech_id], references: [id])
 
   @@id([visit_id, tech_id])
   @@index([tech_id])
+  @@index([visit_id])
 }
 
-model client {
-  id            String           @id @unique @default(uuid())
-  name          String
-  address       String
-  coords        Json
-  is_active     Boolean
-  created_at    DateTime         @default(now())
-  last_activity DateTime
-  jobs          job[]
-  contacts      client_contact[]
-  notes         client_note[]
-}
-
-model client_contact {
-  id          String   @id @unique @default(uuid())
-  client_id   String
-  name        String
-  email       String
-  phone       String
-  relation    String
-  description String
+model job_note {
+  id          String   @id @default(uuid())
+  job_id      String
+  job         job      @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  
+  content     String   @db.Text
   created_at  DateTime @default(now())
-  client      client   @relation(fields: [client_id], references: [id])
-
-  @@index([client_id])
-}
-
-model client_note {
-  id                        String      @id @unique @default(uuid())
-  client_id                 String
-  content                   String
+  updated_at  DateTime @updatedAt
+  
   creator_tech_id           String?
   creator_dispatcher_id     String?
-  created_at                DateTime    @default(now())
   last_editor_tech_id       String?
   last_editor_dispatcher_id String?
-  updated_at                DateTime    @updatedAt
-  client                    client      @relation(fields: [client_id], references: [id])
-  creator_tech              technician? @relation("ClientNoteCreator", fields: [creator_tech_id], references: [id])
-  creator_dispatcher        dispatcher? @relation("ClientNoteCreator", fields: [creator_dispatcher_id], references: [id])
-  last_editor_tech          technician? @relation("ClientNoteEditor", fields: [last_editor_tech_id], references: [id])
-  last_editor_dispatcher    dispatcher? @relation("ClientNoteEditor", fields: [last_editor_dispatcher_id], references: [id])
+  
+  visit_id String?
+  visit    job_visit? @relation("VisitNotes", fields: [visit_id], references: [id], onDelete: Cascade)
+  
+  creator_tech           technician? @relation("JobNoteCreator", fields: [creator_tech_id], references: [id])
+  creator_dispatcher     dispatcher? @relation("JobNoteCreator", fields: [creator_dispatcher_id], references: [id])
+  last_editor_tech       technician? @relation("JobNoteEditor", fields: [last_editor_tech_id], references: [id])
+  last_editor_dispatcher dispatcher? @relation("JobNoteEditor", fields: [last_editor_dispatcher_id], references: [id])
 
-  @@index([client_id])
-  @@index([creator_tech_id])
-  @@index([creator_dispatcher_id])
-  @@index([last_editor_tech_id])
-  @@index([last_editor_dispatcher_id])
+  @@index([job_id])
+  @@index([visit_id])
+}
+
+// ============================================================================
+// INVENTORY 
+// ============================================================================
+
+model inventory_item {
+  id          String  @id @unique @default(uuid())
+  name        String
+  description String  @db.Text
+  location    String
+  quantity    Int     @default(0)
+  
+  unit_price  Decimal? @db.Decimal(10, 2)
+  cost        Decimal? @db.Decimal(10, 2)
+  sku         String?  @unique
+  is_active   Boolean  @default(true)
+
+  @@index([sku])
+  @@index([is_active])
+}
+
+// ============================================================================
+// USERS
+// ============================================================================
+
+model technician {
+  id          String            @id @unique @default(uuid())
+  name        String
+  email       String            @unique
+  phone       String
+  password    String
+  title       String
+  description String
+  status      technician_status @default(Offline)
+  hire_date   DateTime
+  coords      Json              @default("{}")
+  last_login  DateTime          @default(now())
+  
+  visit_techs job_visit_technician[]
+  
+  created_client_notes      client_note[]  @relation("ClientNoteCreator")
+  last_edited_client_notes  client_note[]  @relation("ClientNoteEditor")
+  created_job_notes         job_note[]     @relation("JobNoteCreator")
+  last_edited_job_notes     job_note[]     @relation("JobNoteEditor")
+  created_request_notes     request_note[] @relation("RequestNoteCreator")
+  last_edited_request_notes request_note[] @relation("RequestNoteEditor")
+  created_quote_notes       quote_note[]   @relation("QuoteNoteCreator")
+  last_edited_quote_notes   quote_note[]   @relation("QuoteNoteEditor")
+
+  @@index([email])
+  @@index([status])
 }
 
 model dispatcher {
-  id                       String        @id @unique @default(uuid())
-  name                     String
-  email                    String
-  phone                    String?
-  password                 String
-  title                    String
-  description              String
-  last_login               DateTime      @default(now())
-  logs                     log[]
-  audit_logs               audit_log[]
-  created_client_notes     client_note[] @relation("ClientNoteCreator")
-  last_edited_client_notes client_note[] @relation("ClientNoteEditor")
-  created_job_notes        job_note[]    @relation("JobNoteCreator")
-  last_edited_job_notes    job_note[]    @relation("JobNoteEditor")
+  id          String   @id @unique @default(uuid())
+  name        String
+  email       String   @unique
+  phone       String?
+  password    String
+  title       String
+  description String
+  last_login  DateTime @default(now())
+  
+  assigned_requests request[]
+  created_quotes    quote[] @relation("QuoteCreator")
+  
+  created_client_notes      client_note[]  @relation("ClientNoteCreator")
+  last_edited_client_notes  client_note[]  @relation("ClientNoteEditor")
+  created_job_notes         job_note[]     @relation("JobNoteCreator")
+  last_edited_job_notes     job_note[]     @relation("JobNoteEditor")
+  created_request_notes     request_note[] @relation("RequestNoteCreator")
+  last_edited_request_notes request_note[] @relation("RequestNoteEditor")
+  created_quote_notes       quote_note[]   @relation("QuoteNoteCreator")
+  last_edited_quote_notes   quote_note[]   @relation("QuoteNoteEditor")
+
+  @@index([email])
 }
 
-//(record system actions)
+// ============================================================================
+// LOGGING 
+// ============================================================================
+
 model log {
-  id            String      @id @unique @default(uuid())
-  dispatcher_id String?
-  tech_id       String?
-  description   String
-  created_at    DateTime    @default(now())
-  dispatcher    dispatcher? @relation(fields: [dispatcher_id], references: [id])
-  tech          technician? @relation(fields: [tech_id], references: [id])
-
-  @@index([dispatcher_id])
-  @@index([tech_id])
-}
-
-//Added to dispatch/technician (record user actions, templates placed in job/clientNotes controllers )
-model audit_log {
-  id                  String   @id @default(uuid())
-  entity_type         String // "client_note", "job_note", "job", "client", etc.
-  entity_id           String // UUID of the changed record
-  action              String // "created", "updated", "deleted"
-  actor_tech_id       String?
-  actor_dispatcher_id String?
-  changes             Json // { field_name: { old: "...", new: "..." } }
-  timestamp           DateTime @default(now())
-
-  // Optional context
-  ip_address String? // For security
-  user_agent String? // For security
-  reason     String? // Optional: "Customer requested update"
-
-  actor_tech       technician? @relation(fields: [actor_tech_id], references: [id])
-  actor_dispatcher dispatcher? @relation(fields: [actor_dispatcher_id], references: [id])
-
-  @@index([entity_type, entity_id]) // Get all changes to a specific record
-  @@index([timestamp])
-  @@index([actor_tech_id])
-  @@index([actor_dispatcher_id])
+  id          String   @id @default(uuid())
+  
+  event_type  String   // "client_note.created", "job.status_changed", "quote.sent"
+  action      String   // "created", "updated", "deleted", "viewed", "sent"
+  entity_type String   // "client_note", "job", "request", "quote", "client"
+  entity_id   String   // UUID of the entity
+  
+  actor_type  String   // "technician", "dispatcher", "system"
+  actor_id    String? 
+  actor_name  String?  
+  
+  changes     Json?    // { field_name: { old: "...", new: "..." } }
+  
+  timestamp   DateTime @default(now())
+  ip_address  String?
+  user_agent  String?
+  
+  reason      String? 
+  
+  @@index([entity_type, entity_id])  
+  @@index([event_type])              
+  @@index([action])                   
+  @@index([timestamp])               
+  @@index([actor_type, actor_id])     
+  @@index([actor_type])               
 }

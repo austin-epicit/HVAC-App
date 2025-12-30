@@ -1,0 +1,269 @@
+import {
+	useMutation,
+	useQuery,
+	useQueryClient,
+	type UseMutationResult,
+	type UseQueryResult,
+} from "@tanstack/react-query";
+import type {
+	Request,
+	CreateRequestInput,
+	UpdateRequestInput,
+	RequestNote,
+	CreateRequestNoteInput,
+	UpdateRequestNoteInput,
+} from "../types/requests";
+import * as requestApi from "../api/requests";
+
+// ============================================================================
+// REQUEST QUERIES
+// ============================================================================
+
+export const useAllRequestsQuery = (): UseQueryResult<Request[], Error> => {
+	return useQuery({
+		queryKey: ["requests"],
+		queryFn: requestApi.getAllRequests,
+	});
+};
+
+export const useRequestByIdQuery = (
+	id: string | null | undefined,
+	options?: { enabled?: boolean }
+): UseQueryResult<Request, Error> => {
+	return useQuery({
+		queryKey: ["requests", id],
+		queryFn: () => requestApi.getRequestById(id!),
+		enabled: options?.enabled !== undefined ? options.enabled : !!id,
+	});
+};
+
+export const useRequestsByClientIdQuery = (
+	clientId: string | null | undefined,
+	options?: { enabled?: boolean }
+): UseQueryResult<Request[], Error> => {
+	return useQuery({
+		queryKey: ["clients", clientId, "requests"],
+		queryFn: () => requestApi.getRequestsByClientId(clientId!),
+		enabled: options?.enabled !== undefined ? options.enabled : !!clientId,
+	});
+};
+
+// ============================================================================
+// REQUEST MUTATIONS
+// ============================================================================
+
+export const useCreateRequestMutation = (): UseMutationResult<
+	Request,
+	Error,
+	CreateRequestInput
+> => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: requestApi.createRequest,
+		onSuccess: (newRequest: Request) => {
+			// Invalidate all requests list
+			queryClient.invalidateQueries({ queryKey: ["requests"] });
+
+			// Invalidate client-specific requests
+			queryClient.invalidateQueries({
+				queryKey: ["clients", newRequest.client_id, "requests"],
+			});
+
+			// Set individual request cache
+			queryClient.setQueryData(["requests", newRequest.id], newRequest);
+		},
+		onError: (error) => {
+			console.error("Failed to create request:", error);
+		},
+	});
+};
+
+export const useUpdateRequestMutation = (): UseMutationResult<
+	Request,
+	Error,
+	{ id: string; data: UpdateRequestInput }
+> => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({ id, data }: { id: string; data: UpdateRequestInput }) =>
+			requestApi.updateRequest(id, data),
+		onSuccess: (updatedRequest: Request) => {
+			queryClient.invalidateQueries({ queryKey: ["requests"] });
+
+			queryClient.invalidateQueries({
+				queryKey: ["clients", updatedRequest.client_id, "requests"],
+			});
+
+			queryClient.setQueryData(["requests", updatedRequest.id], updatedRequest);
+		},
+		onError: (error: Error) => {
+			console.error("Failed to update request:", error);
+		},
+	});
+};
+
+export const useDeleteRequestMutation = (): UseMutationResult<
+	{ id: string },
+	Error,
+	{ id: string; clientId?: string }
+> => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({ id }: { id: string; clientId?: string }) =>
+			requestApi.deleteRequest(id),
+		onSuccess: (data, variables) => {
+			const { id: deletedId, clientId } = variables;
+
+			queryClient.invalidateQueries({ queryKey: ["requests"] });
+
+			if (clientId) {
+				queryClient.invalidateQueries({
+					queryKey: ["clients", clientId, "requests"],
+				});
+			}
+
+			queryClient.removeQueries({ queryKey: ["requests", deletedId] });
+		},
+		onError: (error: Error) => {
+			console.error("Failed to delete request:", error);
+		},
+	});
+};
+
+// ============================================================================
+// REQUEST NOTE QUERIES
+// ============================================================================
+
+export const useRequestNotesQuery = (
+	requestId: string | null | undefined,
+	options?: { enabled?: boolean }
+): UseQueryResult<RequestNote[], Error> => {
+	return useQuery({
+		queryKey: ["requests", requestId, "notes"],
+		queryFn: () => requestApi.getRequestNotes(requestId!),
+		enabled: options?.enabled !== undefined ? options.enabled : !!requestId,
+	});
+};
+
+export const useRequestNoteByIdQuery = (
+	requestId: string | null | undefined,
+	noteId: string | null | undefined,
+	options?: { enabled?: boolean }
+): UseQueryResult<RequestNote, Error> => {
+	return useQuery({
+		queryKey: ["requests", requestId, "notes", noteId],
+		queryFn: () => requestApi.getRequestNoteById(requestId!, noteId!),
+		enabled: options?.enabled !== undefined ? options.enabled : !!(requestId && noteId),
+	});
+};
+
+// ============================================================================
+// REQUEST NOTE MUTATIONS
+// ============================================================================
+
+export const useCreateRequestNoteMutation = (): UseMutationResult<
+	RequestNote,
+	Error,
+	{ requestId: string; data: CreateRequestNoteInput }
+> => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({
+			requestId,
+			data,
+		}: {
+			requestId: string;
+			data: CreateRequestNoteInput;
+		}) => requestApi.createRequestNote(requestId, data),
+		onSuccess: async (_, variables) => {
+			await queryClient.invalidateQueries({
+				queryKey: ["requests", variables.requestId],
+			});
+
+			await queryClient.invalidateQueries({
+				queryKey: ["requests", variables.requestId, "notes"],
+			});
+		},
+		onError: (error: Error) => {
+			console.error("Failed to create request note:", error);
+		},
+	});
+};
+
+export const useUpdateRequestNoteMutation = (): UseMutationResult<
+	RequestNote,
+	Error,
+	{ requestId: string; noteId: string; data: UpdateRequestNoteInput }
+> => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({
+			requestId,
+			noteId,
+			data,
+		}: {
+			requestId: string;
+			noteId: string;
+			data: UpdateRequestNoteInput;
+		}) => requestApi.updateRequestNote(requestId, noteId, data),
+		onSuccess: async (updatedNote, variables) => {
+			await queryClient.invalidateQueries({
+				queryKey: ["requests", variables.requestId],
+			});
+
+			await queryClient.invalidateQueries({
+				queryKey: ["requests", variables.requestId, "notes"],
+			});
+
+			queryClient.setQueryData(
+				["requests", variables.requestId, "notes", variables.noteId],
+				updatedNote
+			);
+		},
+		onError: (error: Error) => {
+			console.error("Failed to update request note:", error);
+		},
+	});
+};
+
+export const useDeleteRequestNoteMutation = (): UseMutationResult<
+	{ message: string },
+	Error,
+	{ requestId: string; noteId: string }
+> => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({ requestId, noteId }: { requestId: string; noteId: string }) =>
+			requestApi.deleteRequestNote(requestId, noteId),
+		onSuccess: async (_, variables) => {
+			// Invalidate request (includes notes in detail view)
+			await queryClient.invalidateQueries({
+				queryKey: ["requests", variables.requestId],
+			});
+
+			// Invalidate notes list
+			await queryClient.invalidateQueries({
+				queryKey: ["requests", variables.requestId, "notes"],
+			});
+
+			// Remove individual note cache
+			queryClient.removeQueries({
+				queryKey: [
+					"requests",
+					variables.requestId,
+					"notes",
+					variables.noteId,
+				],
+			});
+		},
+		onError: (error: Error) => {
+			console.error("Failed to delete request note:", error);
+		},
+	});
+};

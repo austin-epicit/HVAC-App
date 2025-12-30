@@ -8,19 +8,50 @@ import {
 	createErrorResponse,
 } from "./types/responses.js";
 import {
+	getAllRequests,
+	getRequestById,
+	getRequestsByClientId,
+	insertRequest,
+	updateRequest,
+	deleteRequest,
+	getRequestNotes,
+	getRequestNoteById,
+	insertRequestNote,
+	updateRequestNote,
+	deleteRequestNote,
+} from "./controllers/requestsController.js";
+import {
+	getAllQuotes,
+	getQuoteById,
+	getQuotesByClientId,
+	insertQuote,
+	updateQuote,
+	deleteQuote,
+	getQuoteItems,
+	getQuoteItemById,
+	insertQuoteItem,
+	updateQuoteItem,
+	deleteQuoteItem,
+	getQuoteNotes,
+	getQuoteNoteById,
+	insertQuoteNote,
+	updateQuoteNote,
+	deleteQuoteNote,
+} from "./controllers/quotesController.js";
+import {
 	getAllJobs,
 	getJobById,
 	insertJob,
 	updateJob,
 	deleteJob,
-	getJobsByClientId
+	getJobsByClientId,
 } from "./controllers/jobsController.js";
-import { 
+import {
 	getJobNotes,
 	getJobNotesByVisitId,
-	insertJobNote, 
-	updateJobNote, 
-	deleteJobNote 
+	insertJobNote,
+	updateJobNote,
+	deleteJobNote,
 } from "./controllers/jobNotesController.js";
 import {
 	getAllJobVisits,
@@ -43,9 +74,13 @@ import {
 import {
 	getClientContacts,
 	getContactById,
+	getAllContacts,
 	insertContact,
 	updateContact,
 	deleteContact,
+	linkContactToClient,
+	updateClientContact,
+	unlinkContactFromClient,
 } from "./controllers/contactsController.js";
 import {
 	getClientNotes,
@@ -61,8 +96,6 @@ import {
 	updateTechnician,
 	deleteTechnician,
 } from "./controllers/techniciansController.js";
-import { logAction } from "./services/logger.js";
-import { auditLog, calculateChanges } from "./services/auditLogger.js";
 
 export interface UserContext {
 	techId?: string;
@@ -75,17 +108,21 @@ export interface UserContext {
 // MIDDLEWARE
 // ============================================
 
-const errorHandler = (err: any, req: Request, res: Response, next: NextFunction) => {
+const errorHandler = (
+	err: any,
+	req: Request,
+	res: Response,
+	next: NextFunction
+) => {
 	console.error(`[ERROR] ${req.method} ${req.path}:`, err);
-	
-	// Default to 500 if no status code is set
+
 	const statusCode = err.statusCode || 500;
-	
+
 	res.status(statusCode).json(
 		createErrorResponse(
 			err.code || ErrorCodes.SERVER_ERROR,
-			err.message || 'An unexpected error occurred',
-			process.env.NODE_ENV === 'development' ? err.stack : undefined
+			err.message || "An unexpected error occurred",
+			process.env.NODE_ENV === "development" ? err.stack : undefined
 		)
 	);
 };
@@ -110,19 +147,19 @@ const notFoundHandler = (req: Request, res: Response) => {
 // ============================================
 
 const getUserContext = (req: Request): UserContext => {
-	const userId = req.headers['x-user-id'] as string;
-	const userType = req.headers['x-user-type'] as 'tech' | 'dispatcher';
+	const userId = req.headers["x-user-id"] as string;
+	const userType = req.headers["x-user-type"] as "tech" | "dispatcher";
 	/*
 	const ipAddress = 
 		(req.headers['x-forwarded-for'] as string)?.split(',')[0] ||
 		req.socket.remoteAddress ||
 		undefined;
 	*/
-	const userAgent = req.headers['user-agent'] || undefined;
-	
+	const userAgent = req.headers["user-agent"] || undefined;
+
 	return {
-		techId: userType === 'tech' ? userId : undefined,
-		dispatcherId: userType === 'dispatcher' ? userId : undefined,
+		techId: userType === "tech" ? userId : undefined,
+		dispatcherId: userType === "dispatcher" ? userId : undefined,
 		ipAddress: undefined,
 		userAgent,
 	};
@@ -143,19 +180,527 @@ if (!frontend) {
 	frontend = "http://localhost:5173";
 }
 
-// CORS configuration
-app.use(cors({
-	origin: process.env.NODE_ENV === 'production' 
-		? frontend 
-		: '*', // Allow all origins in development
-	credentials: true,
-}));
+app.use(
+	cors({
+		origin: process.env.NODE_ENV === "production" ? frontend : "*", // Allow all origins in development
+		credentials: true,
+	})
+);
 
 let port: string | undefined = process.env["SERVER_PORT"];
 if (!port) {
 	console.warn("No port configured. Defaulting...");
 	port = "3000";
 }
+
+// ============================================
+// REQUEST ROUTES
+// ============================================
+
+app.get("/requests", async (req, res, next) => {
+	try {
+		const requests = await getAllRequests();
+		res.json(createSuccessResponse(requests, { count: requests.length }));
+	} catch (err) {
+		next(err);
+	}
+});
+
+app.get("/requests/:id", async (req, res, next) => {
+	try {
+		const { id } = req.params;
+		const request = await getRequestById(id);
+
+		if (!request) {
+			return res
+				.status(404)
+				.json(
+					createErrorResponse(
+						ErrorCodes.NOT_FOUND,
+						"Request not found"
+					)
+				);
+		}
+
+		res.json(createSuccessResponse(request));
+	} catch (err) {
+		next(err);
+	}
+});
+
+app.get("/clients/:clientId/requests", async (req, res, next) => {
+	try {
+		const { clientId } = req.params;
+		const requests = await getRequestsByClientId(clientId);
+		res.json(createSuccessResponse(requests, { count: requests.length }));
+	} catch (err) {
+		next(err);
+	}
+});
+
+app.post("/requests", async (req, res, next) => {
+	try {
+		const context = getUserContext(req);
+		const result = await insertRequest(req, context);
+
+		if (result.err) {
+			return res
+				.status(400)
+				.json(
+					createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+				);
+		}
+
+		res.status(201).json(createSuccessResponse(result.item));
+	} catch (err) {
+		next(err);
+	}
+});
+
+app.put("/requests/:id", async (req, res, next) => {
+	try {
+		const context = getUserContext(req);
+		const result = await updateRequest(req, context);
+
+		if (result.err) {
+			const statusCode = result.err.includes("not found") ? 404 : 400;
+			return res
+				.status(statusCode)
+				.json(
+					createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+				);
+		}
+
+		res.json(createSuccessResponse(result.item));
+	} catch (err) {
+		next(err);
+	}
+});
+
+app.delete("/requests/:id", async (req, res, next) => {
+	try {
+		const { id } = req.params;
+		const context = getUserContext(req);
+		const result = await deleteRequest(id, context);
+
+		if (result.err) {
+			const statusCode = result.err.includes("not found") ? 404 : 400;
+			return res
+				.status(statusCode)
+				.json(createErrorResponse(ErrorCodes.DELETE_ERROR, result.err));
+		}
+
+		res.status(200).json(createSuccessResponse(result.item));
+	} catch (err) {
+		next(err);
+	}
+});
+
+// ============================================
+// REQUEST NOTE ROUTES
+// ============================================
+
+app.get("/requests/:requestId/notes", async (req, res, next) => {
+	try {
+		const { requestId } = req.params;
+		const notes = await getRequestNotes(requestId);
+		res.json(createSuccessResponse(notes, { count: notes.length }));
+	} catch (err) {
+		next(err);
+	}
+});
+
+app.get("/requests/:requestId/notes/:noteId", async (req, res, next) => {
+	try {
+		const { requestId, noteId } = req.params;
+		const note = await getRequestNoteById(requestId, noteId);
+
+		if (!note) {
+			return res
+				.status(404)
+				.json(
+					createErrorResponse(ErrorCodes.NOT_FOUND, "Note not found")
+				);
+		}
+
+		res.json(createSuccessResponse(note));
+	} catch (err) {
+		next(err);
+	}
+});
+
+app.post("/requests/:requestId/notes", async (req, res, next) => {
+	try {
+		const { requestId } = req.params;
+		const context = getUserContext(req);
+		const result = await insertRequestNote(requestId, req.body, context);
+
+		if (result.err) {
+			const statusCode = result.err.includes("not found") ? 404 : 400;
+			return res
+				.status(statusCode)
+				.json(
+					createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+				);
+		}
+
+		res.status(201).json(createSuccessResponse(result.item));
+	} catch (err) {
+		next(err);
+	}
+});
+
+app.put("/requests/:requestId/notes/:noteId", async (req, res, next) => {
+	try {
+		const { requestId, noteId } = req.params;
+		const context = getUserContext(req);
+		const result = await updateRequestNote(
+			requestId,
+			noteId,
+			req.body,
+			context
+		);
+
+		if (result.err) {
+			const statusCode = result.err.includes("not found") ? 404 : 400;
+			return res
+				.status(statusCode)
+				.json(
+					createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+				);
+		}
+
+		res.json(createSuccessResponse(result.item));
+	} catch (err) {
+		next(err);
+	}
+});
+
+app.delete("/requests/:requestId/notes/:noteId", async (req, res, next) => {
+	try {
+		const { requestId, noteId } = req.params;
+		const context = getUserContext(req);
+		const result = await deleteRequestNote(requestId, noteId, context);
+
+		if (result.err) {
+			const statusCode = result.err.includes("not found") ? 404 : 400;
+			return res
+				.status(statusCode)
+				.json(createErrorResponse(ErrorCodes.DELETE_ERROR, result.err));
+		}
+
+		res.status(200).json(
+			createSuccessResponse({ message: result.message })
+		);
+	} catch (err) {
+		next(err);
+	}
+});
+
+// ============================================
+// QUOTE ROUTES
+// ============================================
+
+app.get("/quotes", async (req, res, next) => {
+	try {
+		const quotes = await getAllQuotes();
+		res.json(createSuccessResponse(quotes, { count: quotes.length }));
+	} catch (err) {
+		next(err);
+	}
+});
+
+app.get("/quotes/:id", async (req, res, next) => {
+	try {
+		const { id } = req.params;
+		const quote = await getQuoteById(id);
+
+		if (!quote) {
+			return res
+				.status(404)
+				.json(
+					createErrorResponse(ErrorCodes.NOT_FOUND, "Quote not found")
+				);
+		}
+
+		res.json(createSuccessResponse(quote));
+	} catch (err) {
+		next(err);
+	}
+});
+
+app.get("/clients/:clientId/quotes", async (req, res, next) => {
+	try {
+		const { clientId } = req.params;
+		const quotes = await getQuotesByClientId(clientId);
+		res.json(createSuccessResponse(quotes, { count: quotes.length }));
+	} catch (err) {
+		next(err);
+	}
+});
+
+app.post("/quotes", async (req, res, next) => {
+	try {
+		const context = getUserContext(req);
+		const result = await insertQuote(req, context);
+
+		if (result.err) {
+			return res
+				.status(400)
+				.json(
+					createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+				);
+		}
+
+		res.status(201).json(createSuccessResponse(result.item));
+	} catch (err) {
+		next(err);
+	}
+});
+
+app.put("/quotes/:id", async (req, res, next) => {
+	try {
+		const context = getUserContext(req);
+		const result = await updateQuote(req, context);
+
+		if (result.err) {
+			const statusCode = result.err.includes("not found") ? 404 : 400;
+			return res
+				.status(statusCode)
+				.json(
+					createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+				);
+		}
+
+		res.json(createSuccessResponse(result.item));
+	} catch (err) {
+		next(err);
+	}
+});
+
+app.delete("/quotes/:id", async (req, res, next) => {
+	try {
+		const { id } = req.params;
+		const context = getUserContext(req);
+		const result = await deleteQuote(id, context);
+
+		if (result.err) {
+			const statusCode = result.err.includes("not found") ? 404 : 400;
+			return res
+				.status(statusCode)
+				.json(createErrorResponse(ErrorCodes.DELETE_ERROR, result.err));
+		}
+
+		res.status(200).json(createSuccessResponse(result.item));
+	} catch (err) {
+		next(err);
+	}
+});
+
+// ============================================
+// QUOTE LINE ITEM ROUTES
+// ============================================
+
+app.get("/quotes/:quoteId/line-items", async (req, res, next) => {
+	try {
+		const { quoteId } = req.params;
+		const items = await getQuoteItems(quoteId);
+		res.json(createSuccessResponse(items, { count: items.length }));
+	} catch (err) {
+		next(err);
+	}
+});
+
+app.get("/quotes/:quoteId/line-items/:itemId", async (req, res, next) => {
+	try {
+		const { quoteId, itemId } = req.params;
+		const item = await getQuoteItemById(quoteId, itemId);
+
+		if (!item) {
+			return res
+				.status(404)
+				.json(
+					createErrorResponse(
+						ErrorCodes.NOT_FOUND,
+						"Line item not found"
+					)
+				);
+		}
+
+		res.json(createSuccessResponse(item));
+	} catch (err) {
+		next(err);
+	}
+});
+
+app.post("/quotes/:quoteId/line-items", async (req, res, next) => {
+	try {
+		const { quoteId } = req.params;
+		const context = getUserContext(req);
+		const result = await insertQuoteItem(quoteId, req.body, context);
+
+		if (result.err) {
+			const statusCode = result.err.includes("not found") ? 404 : 400;
+			return res
+				.status(statusCode)
+				.json(
+					createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+				);
+		}
+
+		res.status(201).json(createSuccessResponse(result.item));
+	} catch (err) {
+		next(err);
+	}
+});
+
+app.put("/quotes/:quoteId/line-items/:itemId", async (req, res, next) => {
+	try {
+		const { quoteId, itemId } = req.params;
+		const context = getUserContext(req);
+		const result = await updateQuoteItem(
+			quoteId,
+			itemId,
+			req.body,
+			context
+		);
+
+		if (result.err) {
+			const statusCode = result.err.includes("not found") ? 404 : 400;
+			return res
+				.status(statusCode)
+				.json(
+					createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+				);
+		}
+
+		res.json(createSuccessResponse(result.item));
+	} catch (err) {
+		next(err);
+	}
+});
+
+app.delete("/quotes/:quoteId/line-items/:itemId", async (req, res, next) => {
+	try {
+		const { quoteId, itemId } = req.params;
+		const context = getUserContext(req);
+		const result = await deleteQuoteItem(quoteId, itemId, context);
+
+		if (result.err) {
+			const statusCode = result.err.includes("not found") ? 404 : 400;
+			return res
+				.status(statusCode)
+				.json(createErrorResponse(ErrorCodes.DELETE_ERROR, result.err));
+		}
+
+		res.status(200).json(
+			createSuccessResponse({ message: result.message })
+		);
+	} catch (err) {
+		next(err);
+	}
+});
+
+// ============================================
+// QUOTE NOTE ROUTES
+// ============================================
+
+app.get("/quotes/:quoteId/notes", async (req, res, next) => {
+	try {
+		const { quoteId } = req.params;
+		const notes = await getQuoteNotes(quoteId);
+		res.json(createSuccessResponse(notes, { count: notes.length }));
+	} catch (err) {
+		next(err);
+	}
+});
+
+app.get("/quotes/:quoteId/notes/:noteId", async (req, res, next) => {
+	try {
+		const { quoteId, noteId } = req.params;
+		const note = await getQuoteNoteById(quoteId, noteId);
+
+		if (!note) {
+			return res
+				.status(404)
+				.json(
+					createErrorResponse(ErrorCodes.NOT_FOUND, "Note not found")
+				);
+		}
+
+		res.json(createSuccessResponse(note));
+	} catch (err) {
+		next(err);
+	}
+});
+
+app.post("/quotes/:quoteId/notes", async (req, res, next) => {
+	try {
+		const { quoteId } = req.params;
+		const context = getUserContext(req);
+		const result = await insertQuoteNote(quoteId, req.body, context);
+
+		if (result.err) {
+			const statusCode = result.err.includes("not found") ? 404 : 400;
+			return res
+				.status(statusCode)
+				.json(
+					createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+				);
+		}
+
+		res.status(201).json(createSuccessResponse(result.item));
+	} catch (err) {
+		next(err);
+	}
+});
+
+app.put("/quotes/:quoteId/notes/:noteId", async (req, res, next) => {
+	try {
+		const { quoteId, noteId } = req.params;
+		const context = getUserContext(req);
+		const result = await updateQuoteNote(
+			quoteId,
+			noteId,
+			req.body,
+			context
+		);
+
+		if (result.err) {
+			const statusCode = result.err.includes("not found") ? 404 : 400;
+			return res
+				.status(statusCode)
+				.json(
+					createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+				);
+		}
+
+		res.json(createSuccessResponse(result.item));
+	} catch (err) {
+		next(err);
+	}
+});
+
+app.delete("/quotes/:quoteId/notes/:noteId", async (req, res, next) => {
+	try {
+		const { quoteId, noteId } = req.params;
+		const context = getUserContext(req);
+		const result = await deleteQuoteNote(quoteId, noteId, context);
+
+		if (result.err) {
+			const statusCode = result.err.includes("not found") ? 404 : 400;
+			return res
+				.status(statusCode)
+				.json(createErrorResponse(ErrorCodes.DELETE_ERROR, result.err));
+		}
+
+		res.status(200).json(
+			createSuccessResponse({ message: result.message })
+		);
+	} catch (err) {
+		next(err);
+	}
+});
 
 // ============================================
 // JOBS
@@ -176,9 +721,11 @@ app.get("/jobs/:id", async (req, res, next) => {
 		const job = await getJobById(id);
 
 		if (!job) {
-			return res.status(404).json(
-				createErrorResponse(ErrorCodes.NOT_FOUND, 'Job not found')
-			);
+			return res
+				.status(404)
+				.json(
+					createErrorResponse(ErrorCodes.NOT_FOUND, "Job not found")
+				);
 		}
 
 		res.json(createSuccessResponse(job));
@@ -190,12 +737,14 @@ app.get("/jobs/:id", async (req, res, next) => {
 app.post("/jobs", async (req, res, next) => {
 	try {
 		const context = getUserContext(req);
-		const result = await insertJob(req.body, context);
-		
+		const result = await insertJob(req, context);
+
 		if (result.err) {
-			return res.status(400).json(
-				createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
-			);
+			return res
+				.status(400)
+				.json(
+					createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+				);
 		}
 
 		res.status(201).json(createSuccessResponse(result.item));
@@ -208,13 +757,15 @@ app.patch("/jobs/:id", async (req, res, next) => {
 	try {
 		const context = getUserContext(req);
 		const result = await updateJob(req, context);
-		
+
 		if (result.err) {
-			return res.status(400).json(
-				createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
-			);
+			return res
+				.status(400)
+				.json(
+					createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+				);
 		}
-		
+
 		res.json(createSuccessResponse(result.item));
 	} catch (err) {
 		next(err);
@@ -228,12 +779,14 @@ app.delete("/jobs/:id", async (req, res, next) => {
 		const result = await deleteJob(id, context);
 
 		if (result.err) {
-			return res.status(400).json(
-				createErrorResponse(ErrorCodes.DELETE_ERROR, result.err)
-			);
+			return res
+				.status(400)
+				.json(createErrorResponse(ErrorCodes.DELETE_ERROR, result.err));
 		}
 
-		res.status(200).json(createSuccessResponse({ message: 'Job deleted successfully', id }));
+		res.status(200).json(
+			createSuccessResponse({ message: "Job deleted successfully", id })
+		);
 	} catch (err) {
 		next(err);
 	}
@@ -258,9 +811,14 @@ app.get("/job-visits/:id", async (req, res, next) => {
 		const visit = await getJobVisitById(id);
 
 		if (!visit) {
-			return res.status(404).json(
-				createErrorResponse(ErrorCodes.NOT_FOUND, 'Job visit not found')
-			);
+			return res
+				.status(404)
+				.json(
+					createErrorResponse(
+						ErrorCodes.NOT_FOUND,
+						"Job visit not found"
+					)
+				);
 		}
 
 		res.json(createSuccessResponse(visit));
@@ -289,36 +847,46 @@ app.get("/technicians/:techId/visits", async (req, res, next) => {
 	}
 });
 
-app.get("/job-visits/date-range/:startDate/:endDate", async (req, res, next) => {
-	try {
-		const { startDate, endDate } = req.params;
-		const start = new Date(startDate);
-		const end = new Date(endDate);
+app.get(
+	"/job-visits/date-range/:startDate/:endDate",
+	async (req, res, next) => {
+		try {
+			const { startDate, endDate } = req.params;
+			const start = new Date(startDate);
+			const end = new Date(endDate);
 
-		if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-			return res.status(400).json(
-				createErrorResponse(ErrorCodes.INVALID_INPUT, 'Invalid date format. Use YYYY-MM-DD')
-			);
+			if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+				return res
+					.status(400)
+					.json(
+						createErrorResponse(
+							ErrorCodes.INVALID_INPUT,
+							"Invalid date format. Use YYYY-MM-DD"
+						)
+					);
+			}
+
+			const visits = await getJobVisitsByDateRange(start, end);
+			res.json(createSuccessResponse(visits, { count: visits.length }));
+		} catch (err) {
+			next(err);
 		}
-
-		const visits = await getJobVisitsByDateRange(start, end);
-		res.json(createSuccessResponse(visits, { count: visits.length }));
-	} catch (err) {
-		next(err);
 	}
-});
+);
 
 app.post("/job-visits", async (req, res, next) => {
 	try {
 		const context = getUserContext(req);
 		const result = await insertJobVisit(req, context);
-		
+
 		if (result.err) {
-			return res.status(400).json(
-				createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
-			);
+			return res
+				.status(400)
+				.json(
+					createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+				);
 		}
-		
+
 		res.status(201).json(createSuccessResponse(result.item));
 	} catch (err) {
 		next(err);
@@ -329,13 +897,15 @@ app.put("/job-visits/:id", async (req, res, next) => {
 	try {
 		const context = getUserContext(req);
 		const result = await updateJobVisit(req, context);
-		
+
 		if (result.err) {
-			return res.status(400).json(
-				createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
-			);
+			return res
+				.status(400)
+				.json(
+					createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+				);
 		}
-		
+
 		res.json(createSuccessResponse(result.item));
 	} catch (err) {
 		next(err);
@@ -349,19 +919,28 @@ app.put("/job-visits/:id/technicians", async (req, res, next) => {
 		const context = getUserContext(req);
 
 		if (!Array.isArray(tech_ids)) {
-			return res.status(400).json(
-				createErrorResponse(ErrorCodes.INVALID_INPUT, 'tech_ids must be an array', null, 'tech_ids')
-			);
+			return res
+				.status(400)
+				.json(
+					createErrorResponse(
+						ErrorCodes.INVALID_INPUT,
+						"tech_ids must be an array",
+						null,
+						"tech_ids"
+					)
+				);
 		}
 
 		const result = await assignTechniciansToVisit(id, tech_ids, context);
-		
+
 		if (result.err) {
-			return res.status(400).json(
-				createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
-			);
+			return res
+				.status(400)
+				.json(
+					createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+				);
 		}
-		
+
 		res.json(createSuccessResponse(result.item));
 	} catch (err) {
 		next(err);
@@ -373,14 +952,19 @@ app.delete("/job-visits/:id", async (req, res, next) => {
 		const { id } = req.params;
 		const context = getUserContext(req);
 		const result = await deleteJobVisit(id, context);
-		
+
 		if (result.err) {
-			return res.status(400).json(
-				createErrorResponse(ErrorCodes.DELETE_ERROR, result.err)
-			);
+			return res
+				.status(400)
+				.json(createErrorResponse(ErrorCodes.DELETE_ERROR, result.err));
 		}
-		
-		res.status(200).json(createSuccessResponse({ message: result.message || 'Job visit deleted successfully', id }));
+
+		res.status(200).json(
+			createSuccessResponse({
+				message: result.message || "Job visit deleted successfully",
+				id,
+			})
+		);
 	} catch (err) {
 		next(err);
 	}
@@ -415,11 +999,13 @@ app.post("/jobs/:jobId/notes", async (req, res, next) => {
 		const { jobId } = req.params;
 		const context = getUserContext(req);
 		const result = await insertJobNote(jobId, req.body, context);
-		
+
 		if (result.err) {
-			return res.status(400).json(
-				createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
-			);
+			return res
+				.status(400)
+				.json(
+					createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+				);
 		}
 
 		res.status(201).json(createSuccessResponse(result.item));
@@ -433,11 +1019,13 @@ app.put("/jobs/:jobId/notes/:noteId", async (req, res, next) => {
 		const { jobId, noteId } = req.params;
 		const context = getUserContext(req);
 		const result = await updateJobNote(jobId, noteId, req.body, context);
-		
+
 		if (result.err) {
-			return res.status(400).json(
-				createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
-			);
+			return res
+				.status(400)
+				.json(
+					createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+				);
 		}
 
 		res.json(createSuccessResponse(result.item));
@@ -451,14 +1039,18 @@ app.delete("/jobs/:jobId/notes/:noteId", async (req, res, next) => {
 		const { jobId, noteId } = req.params;
 		const context = getUserContext(req);
 		const result = await deleteJobNote(jobId, noteId, context);
-		
+
 		if (result.err) {
-			return res.status(400).json(
-				createErrorResponse(ErrorCodes.DELETE_ERROR, result.err)
-			);
+			return res
+				.status(400)
+				.json(createErrorResponse(ErrorCodes.DELETE_ERROR, result.err));
 		}
 
-		res.status(200).json(createSuccessResponse({ message: result.message || 'Note deleted successfully' }));
+		res.status(200).json(
+			createSuccessResponse({
+				message: result.message || "Note deleted successfully",
+			})
+		);
 	} catch (err) {
 		next(err);
 	}
@@ -483,9 +1075,14 @@ app.get("/clients/:id", async (req, res, next) => {
 		const client = await getClientById(id);
 
 		if (!client) {
-			return res.status(404).json(
-				createErrorResponse(ErrorCodes.NOT_FOUND, 'Client not found')
-			);
+			return res
+				.status(404)
+				.json(
+					createErrorResponse(
+						ErrorCodes.NOT_FOUND,
+						"Client not found"
+					)
+				);
 		}
 
 		res.json(createSuccessResponse(client));
@@ -498,15 +1095,21 @@ app.post("/clients", async (req, res, next) => {
 	try {
 		const context = getUserContext(req);
 		const result = await insertClient(req.body, context);
-		
+
 		if (result.err) {
-			const isDuplicate = result.err.toLowerCase().includes('already exists');
-			return res.status(isDuplicate ? 409 : 400).json(
-				createErrorResponse(
-					isDuplicate ? ErrorCodes.CONFLICT : ErrorCodes.VALIDATION_ERROR,
-					result.err
-				)
-			);
+			const isDuplicate = result.err
+				.toLowerCase()
+				.includes("already exists");
+			return res
+				.status(isDuplicate ? 409 : 400)
+				.json(
+					createErrorResponse(
+						isDuplicate
+							? ErrorCodes.CONFLICT
+							: ErrorCodes.VALIDATION_ERROR,
+						result.err
+					)
+				);
 		}
 
 		res.status(201).json(createSuccessResponse(result.item));
@@ -520,15 +1123,21 @@ app.put("/clients/:id", async (req, res, next) => {
 		const { id } = req.params;
 		const context = getUserContext(req);
 		const result = await updateClient(id, req.body, context);
-		
+
 		if (result.err) {
-			const isDuplicate = result.err.toLowerCase().includes('already exists');
-			return res.status(isDuplicate ? 409 : 400).json(
-				createErrorResponse(
-					isDuplicate ? ErrorCodes.CONFLICT : ErrorCodes.VALIDATION_ERROR,
-					result.err
-				)
-			);
+			const isDuplicate = result.err
+				.toLowerCase()
+				.includes("already exists");
+			return res
+				.status(isDuplicate ? 409 : 400)
+				.json(
+					createErrorResponse(
+						isDuplicate
+							? ErrorCodes.CONFLICT
+							: ErrorCodes.VALIDATION_ERROR,
+						result.err
+					)
+				);
 		}
 
 		res.json(createSuccessResponse(result.item));
@@ -542,21 +1151,26 @@ app.delete("/clients/:id", async (req, res, next) => {
 		const { id } = req.params;
 		const context = getUserContext(req);
 		const result = await deleteClient(id, context);
-		
+
 		if (result.err) {
-			return res.status(400).json(
-				createErrorResponse(ErrorCodes.DELETE_ERROR, result.err)
-			);
+			return res
+				.status(400)
+				.json(createErrorResponse(ErrorCodes.DELETE_ERROR, result.err));
 		}
 
-		res.status(200).json(createSuccessResponse({ message: result.message || 'Client deleted successfully', id }));
+		res.status(200).json(
+			createSuccessResponse({
+				message: result.message || "Client deleted successfully",
+				id,
+			})
+		);
 	} catch (err) {
 		next(err);
 	}
 });
 
 // ============================================
-// CLIENT CONTACTS
+// CONTACTS
 // ============================================
 
 app.get("/clients/:clientId/contacts", async (req, res, next) => {
@@ -569,15 +1183,20 @@ app.get("/clients/:clientId/contacts", async (req, res, next) => {
 	}
 });
 
-app.get("/clients/:clientId/contacts/:contactId", async (req, res, next) => {
+app.get("/contacts/:contactId", async (req, res, next) => {
 	try {
-		const { clientId, contactId } = req.params;
-		const contact = await getContactById(clientId, contactId);
+		const { contactId } = req.params;
+		const contact = await getContactById(contactId);
 
 		if (!contact) {
-			return res.status(404).json(
-				createErrorResponse(ErrorCodes.NOT_FOUND, 'Contact not found')
-			);
+			return res
+				.status(404)
+				.json(
+					createErrorResponse(
+						ErrorCodes.NOT_FOUND,
+						"Contact not found"
+					)
+				);
 		}
 
 		res.json(createSuccessResponse(contact));
@@ -586,16 +1205,31 @@ app.get("/clients/:clientId/contacts/:contactId", async (req, res, next) => {
 	}
 });
 
-app.post("/clients/:clientId/contacts", async (req, res, next) => {
+app.get("/contacts", async (req, res, next) => {
 	try {
-		const { clientId } = req.params;
+		const contacts = await getAllContacts();
+		res.json(createSuccessResponse(contacts, { count: contacts.length }));
+	} catch (err) {
+		next(err);
+	}
+});
+
+app.post("/contacts", async (req, res, next) => {
+	try {
 		const context = getUserContext(req);
-		const result = await insertContact(clientId, req.body, context);
-		
+		const result = await insertContact(req.body, context);
+
 		if (result.err) {
-			return res.status(400).json(
-				createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
-			);
+			const statusCode = result.existingContact ? 409 : 400;
+			return res
+				.status(statusCode)
+				.json(
+					createErrorResponse(
+						ErrorCodes.VALIDATION_ERROR,
+						result.err,
+						result.existingContact
+					)
+				);
 		}
 
 		res.status(201).json(createSuccessResponse(result.item));
@@ -604,16 +1238,20 @@ app.post("/clients/:clientId/contacts", async (req, res, next) => {
 	}
 });
 
-app.put("/clients/:clientId/contacts/:contactId", async (req, res, next) => {
+// Update an independent contact
+app.put("/contacts/:contactId", async (req, res, next) => {
 	try {
-		const { clientId, contactId } = req.params;
+		const { contactId } = req.params;
 		const context = getUserContext(req);
-		const result = await updateContact(clientId, contactId, req.body, context);
-		
+		const result = await updateContact(contactId, req.body, context);
+
 		if (result.err) {
-			return res.status(400).json(
-				createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
-			);
+			const statusCode = result.err.includes("not found") ? 404 : 400;
+			return res
+				.status(statusCode)
+				.json(
+					createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+				);
 		}
 
 		res.json(createSuccessResponse(result.item));
@@ -622,23 +1260,132 @@ app.put("/clients/:clientId/contacts/:contactId", async (req, res, next) => {
 	}
 });
 
-app.delete("/clients/:clientId/contacts/:contactId", async (req, res, next) => {
+// Delete an independent contact (only if not linked)
+app.delete("/contacts/:contactId", async (req, res, next) => {
 	try {
-		const { clientId, contactId } = req.params;
+		const { contactId } = req.params;
 		const context = getUserContext(req);
-		const result = await deleteContact(clientId, contactId, context);
-		
+		const result = await deleteContact(contactId, context);
+
 		if (result.err) {
-			return res.status(400).json(
-				createErrorResponse(ErrorCodes.DELETE_ERROR, result.err)
-			);
+			const statusCode = result.err.includes("not found") ? 404 : 400;
+			return res
+				.status(statusCode)
+				.json(createErrorResponse(ErrorCodes.DELETE_ERROR, result.err));
 		}
 
-		res.status(200).json(createSuccessResponse({ message: result.message || 'Contact deleted successfully' }));
+		res.status(200).json(
+			createSuccessResponse({ message: result.message })
+		);
 	} catch (err) {
 		next(err);
 	}
 });
+
+// Link an existing contact to a client
+app.post(
+	"/clients/:clientId/contacts/:contactId/link",
+	async (req, res, next) => {
+		try {
+			const { clientId, contactId } = req.params;
+			const context = getUserContext(req);
+			const result = await linkContactToClient(
+				contactId,
+				clientId,
+				req.body,
+				context
+			);
+
+			if (result.err) {
+				const statusCode = result.err.includes("not found")
+					? 404
+					: result.err.includes("already linked")
+					? 409
+					: 400;
+				return res
+					.status(statusCode)
+					.json(
+						createErrorResponse(
+							ErrorCodes.VALIDATION_ERROR,
+							result.err
+						)
+					);
+			}
+
+			res.status(201).json(createSuccessResponse(result.item));
+		} catch (err) {
+			next(err);
+		}
+	}
+);
+
+// Update a client-contact relationship
+app.put(
+	"/clients/:clientId/contacts/:contactId/relationship",
+	async (req, res, next) => {
+		try {
+			const { clientId, contactId } = req.params;
+			const context = getUserContext(req);
+			const result = await updateClientContact(
+				contactId,
+				clientId,
+				req.body,
+				context
+			);
+
+			if (result.err) {
+				const statusCode = result.err.includes("not linked")
+					? 404
+					: 400;
+				return res
+					.status(statusCode)
+					.json(
+						createErrorResponse(
+							ErrorCodes.VALIDATION_ERROR,
+							result.err
+						)
+					);
+			}
+
+			res.json(createSuccessResponse(result.item));
+		} catch (err) {
+			next(err);
+		}
+	}
+);
+
+// Unlink a contact from a client
+app.delete(
+	"/clients/:clientId/contacts/:contactId/link",
+	async (req, res, next) => {
+		try {
+			const { clientId, contactId } = req.params;
+			const context = getUserContext(req);
+			const result = await unlinkContactFromClient(
+				contactId,
+				clientId,
+				context
+			);
+
+			if (result.err) {
+				const statusCode = result.err.includes("not linked")
+					? 404
+					: 400;
+				return res
+					.status(statusCode)
+					.json(
+						createErrorResponse(ErrorCodes.DELETE_ERROR, result.err)
+					);
+			}
+
+			res.status(200).json(
+				createSuccessResponse({ message: result.message })
+			);
+		} catch (err) {
+			next(err);
+		}
+	}
+);
 
 // ============================================
 // CLIENT NOTES
@@ -660,9 +1407,11 @@ app.get("/clients/:clientId/notes/:noteId", async (req, res, next) => {
 		const note = await getNoteById(clientId, noteId);
 
 		if (!note) {
-			return res.status(404).json(
-				createErrorResponse(ErrorCodes.NOT_FOUND, 'Note not found')
-			);
+			return res
+				.status(404)
+				.json(
+					createErrorResponse(ErrorCodes.NOT_FOUND, "Note not found")
+				);
 		}
 
 		res.json(createSuccessResponse(note));
@@ -674,13 +1423,15 @@ app.get("/clients/:clientId/notes/:noteId", async (req, res, next) => {
 app.post("/clients/:clientId/notes", async (req, res, next) => {
 	try {
 		const { clientId } = req.params;
-		const context = getUserContext(req);	
+		const context = getUserContext(req);
 		const result = await insertNote(clientId, req.body, context);
-		
+
 		if (result.err) {
-			return res.status(400).json(
-				createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
-			);
+			return res
+				.status(400)
+				.json(
+					createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+				);
 		}
 
 		res.status(201).json(createSuccessResponse(result.item));
@@ -694,11 +1445,13 @@ app.put("/clients/:clientId/notes/:noteId", async (req, res, next) => {
 		const { clientId, noteId } = req.params;
 		const context = getUserContext(req);
 		const result = await updateNote(clientId, noteId, req.body, context);
-		
+
 		if (result.err) {
-			return res.status(400).json(
-				createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
-			);
+			return res
+				.status(400)
+				.json(
+					createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+				);
 		}
 
 		res.json(createSuccessResponse(result.item));
@@ -712,14 +1465,18 @@ app.delete("/clients/:clientId/notes/:noteId", async (req, res, next) => {
 		const { clientId, noteId } = req.params;
 		const context = getUserContext(req);
 		const result = await deleteNote(clientId, noteId, context);
-		
+
 		if (result.err) {
-			return res.status(400).json(
-				createErrorResponse(ErrorCodes.DELETE_ERROR, result.err)
-			);
+			return res
+				.status(400)
+				.json(createErrorResponse(ErrorCodes.DELETE_ERROR, result.err));
 		}
 
-		res.status(200).json(createSuccessResponse({ message: result.message || 'Note deleted successfully' }));
+		res.status(200).json(
+			createSuccessResponse({
+				message: result.message || "Note deleted successfully",
+			})
+		);
 	} catch (err) {
 		next(err);
 	}
@@ -746,7 +1503,9 @@ app.get("/clients/:clientId/jobs", async (req, res, next) => {
 app.get("/technicians", async (req, res, next) => {
 	try {
 		const technicians = await getAllTechnicians();
-		res.json(createSuccessResponse(technicians, { count: technicians.length }));
+		res.json(
+			createSuccessResponse(technicians, { count: technicians.length })
+		);
 	} catch (err) {
 		next(err);
 	}
@@ -758,9 +1517,14 @@ app.get("/technicians/:id", async (req, res, next) => {
 		const technician = await getTechnicianById(id);
 
 		if (!technician) {
-			return res.status(404).json(
-				createErrorResponse(ErrorCodes.NOT_FOUND, 'Technician not found')
-			);
+			return res
+				.status(404)
+				.json(
+					createErrorResponse(
+						ErrorCodes.NOT_FOUND,
+						"Technician not found"
+					)
+				);
 		}
 
 		res.json(createSuccessResponse(technician));
@@ -773,15 +1537,21 @@ app.post("/technicians", async (req, res, next) => {
 	try {
 		const context = getUserContext(req);
 		const result = await insertTechnician(req.body, context);
-		
+
 		if (result.err) {
-			const isDuplicate = result.err.toLowerCase().includes('already exists');
-			return res.status(isDuplicate ? 409 : 400).json(
-				createErrorResponse(
-					isDuplicate ? ErrorCodes.CONFLICT : ErrorCodes.VALIDATION_ERROR,
-					result.err
-				)
-			);
+			const isDuplicate = result.err
+				.toLowerCase()
+				.includes("already exists");
+			return res
+				.status(isDuplicate ? 409 : 400)
+				.json(
+					createErrorResponse(
+						isDuplicate
+							? ErrorCodes.CONFLICT
+							: ErrorCodes.VALIDATION_ERROR,
+						result.err
+					)
+				);
 		}
 
 		res.status(201).json(createSuccessResponse(result.item));
@@ -795,15 +1565,21 @@ app.put("/technicians/:id", async (req, res, next) => {
 		const { id } = req.params;
 		const context = getUserContext(req);
 		const result = await updateTechnician(id, req.body, context);
-		
+
 		if (result.err) {
-			const isDuplicate = result.err.toLowerCase().includes('already exists');
-			return res.status(isDuplicate ? 409 : 400).json(
-				createErrorResponse(
-					isDuplicate ? ErrorCodes.CONFLICT : ErrorCodes.VALIDATION_ERROR,
-					result.err
-				)
-			);
+			const isDuplicate = result.err
+				.toLowerCase()
+				.includes("already exists");
+			return res
+				.status(isDuplicate ? 409 : 400)
+				.json(
+					createErrorResponse(
+						isDuplicate
+							? ErrorCodes.CONFLICT
+							: ErrorCodes.VALIDATION_ERROR,
+						result.err
+					)
+				);
 		}
 
 		res.json(createSuccessResponse(result.item));
@@ -817,14 +1593,19 @@ app.delete("/technicians/:id", async (req, res, next) => {
 		const { id } = req.params;
 		const context = getUserContext(req);
 		const result = await deleteTechnician(id, context);
-		
+
 		if (result.err) {
-			return res.status(400).json(
-				createErrorResponse(ErrorCodes.DELETE_ERROR, result.err)
-			);
+			return res
+				.status(400)
+				.json(createErrorResponse(ErrorCodes.DELETE_ERROR, result.err));
 		}
 
-		res.status(200).json(createSuccessResponse({ message: result.message || 'Technician deleted successfully', id }));
+		res.status(200).json(
+			createSuccessResponse({
+				message: result.message || "Technician deleted successfully",
+				id,
+			})
+		);
 	} catch (err) {
 		next(err);
 	}

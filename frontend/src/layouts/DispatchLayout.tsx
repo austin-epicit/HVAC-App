@@ -75,6 +75,16 @@ export default function DispatchLayout() {
 						label="Dashboard"
 					/>
 					<SideNavItem
+						to="/dispatch/requests"
+						icon={<Import size={ICON_SIZE} />}
+						label="Requests"
+					/>
+					<SideNavItem
+						to="/dispatch/quotes"
+						icon={<Quote size={ICON_SIZE} />}
+						label="Quotes"
+					/>
+					<SideNavItem
 						to="/dispatch/jobs"
 						icon={<FileText size={ICON_SIZE} />}
 						label="Jobs"
@@ -103,16 +113,6 @@ export default function DispatchLayout() {
 						to="/dispatch/map"
 						icon={<Map size={ICON_SIZE} />}
 						label="Map"
-					/>
-					<SideNavItem
-						to="/dispatch/requests"
-						icon={<Import size={ICON_SIZE} />}
-						label="Requests"
-					/>
-					<SideNavItem
-						to="/dispatch/quotes"
-						icon={<Quote size={ICON_SIZE} />}
-						label="Quotes"
 					/>
 					<SideNavItem
 						to="/dispatch/reporting"

@@ -4,8 +4,7 @@ import {
 	createTechnicianSchema,
 	updateTechnicianSchema,
 } from "../lib/validate/technicians.js";
-import { logAction } from "../services/logger.js";
-import { auditLog, calculateChanges } from "../services/auditLogger.js";
+import { logActivity, buildChanges } from "../services/logger.js";
 
 export interface UserContext {
 	techId?: string;
@@ -55,7 +54,10 @@ export const getTechnicianById = async (id: string) => {
 	});
 };
 
-export const insertTechnician = async (data: unknown, context?: UserContext) => {
+export const insertTechnician = async (
+	data: unknown,
+	context?: UserContext
+) => {
 	try {
 		const parsed = createTechnicianSchema.parse(data);
 
@@ -87,16 +89,17 @@ export const insertTechnician = async (data: unknown, context?: UserContext) => 
 				},
 			});
 
-			await logAction({
-				description: `Created technician: ${technician.name}`,
-				techId: context?.techId,
-				dispatcherId: context?.dispatcherId,
-			});
-
-			await auditLog({
-				entityType: 'technician',
-				entityId: technician.id,
-				action: 'created',
+			await logActivity({
+				event_type: "technician.created",
+				action: "created",
+				entity_type: "technician",
+				entity_id: technician.id,
+				actor_type: context?.techId
+					? "technician"
+					: context?.dispatcherId
+					? "dispatcher"
+					: "system",
+				actor_id: context?.techId || context?.dispatcherId,
 				changes: {
 					name: { old: null, new: technician.name },
 					email: { old: null, new: technician.email },
@@ -104,10 +107,8 @@ export const insertTechnician = async (data: unknown, context?: UserContext) => 
 					title: { old: null, new: technician.title },
 					status: { old: null, new: technician.status },
 				},
-				actorTechId: context?.techId,
-				actorDispatcherId: context?.dispatcherId,
-				ipAddress: context?.ipAddress,
-				userAgent: context?.userAgent,
+				ip_address: context?.ipAddress,
+				user_agent: context?.userAgent,
 			});
 
 			return technician;
@@ -127,7 +128,11 @@ export const insertTechnician = async (data: unknown, context?: UserContext) => 
 	}
 };
 
-export const updateTechnician = async (id: string, data: unknown, context?: UserContext) => {
+export const updateTechnician = async (
+	id: string,
+	data: unknown,
+	context?: UserContext
+) => {
 	try {
 		const parsed = updateTechnicianSchema.parse(data);
 
@@ -149,7 +154,17 @@ export const updateTechnician = async (id: string, data: unknown, context?: User
 			}
 		}
 
-		const changes = calculateChanges(existing, parsed);
+		const changes = buildChanges(existing, parsed, [
+			"name",
+			"email",
+			"phone",
+			"title",
+			"description",
+			"status",
+			"coords",
+			"hire_date",
+			"last_login",
+		] as const);
 
 		const updated = await db.$transaction(async (tx) => {
 			const technician = await tx.technician.update({
@@ -173,21 +188,20 @@ export const updateTechnician = async (id: string, data: unknown, context?: User
 			});
 
 			if (Object.keys(changes).length > 0) {
-				await logAction({
-					description: `Updated technician: ${technician.name}`,
-					techId: context?.techId,
-					dispatcherId: context?.dispatcherId,
-				});
-
-				await auditLog({
-					entityType: 'technician',
-					entityId: id,
-					action: 'updated',
+				await logActivity({
+					event_type: "technician.updated",
+					action: "updated",
+					entity_type: "technician",
+					entity_id: id,
+					actor_type: context?.techId
+						? "technician"
+						: context?.dispatcherId
+						? "dispatcher"
+						: "system",
+					actor_id: context?.techId || context?.dispatcherId,
 					changes,
-					actorTechId: context?.techId,
-					actorDispatcherId: context?.dispatcherId,
-					ipAddress: context?.ipAddress,
-					userAgent: context?.userAgent,
+					ip_address: context?.ipAddress,
+					user_agent: context?.userAgent,
 				});
 			}
 
@@ -240,29 +254,24 @@ export const deleteTechnician = async (id: string, context?: UserContext) => {
 				where: { tech_id: id },
 			});
 
-			await logAction({
-				description: `Deleted technician: ${existing.name}`,
-				techId: context?.techId,
-				dispatcherId: context?.dispatcherId,
-			});
-
-			await auditLog({
-				entityType: 'technician',
-				entityId: id,
-				action: 'deleted',
+			await logActivity({
+				event_type: "technician.deleted",
+				action: "deleted",
+				entity_type: "technician",
+				entity_id: id,
+				actor_type: context?.techId
+					? "technician"
+					: context?.dispatcherId
+					? "dispatcher"
+					: "system",
+				actor_id: context?.techId || context?.dispatcherId,
 				changes: {
 					name: { old: existing.name, new: null },
 					email: { old: existing.email, new: null },
 					status: { old: existing.status, new: null },
 				},
-				actorTechId: context?.techId,
-				actorDispatcherId: context?.dispatcherId,
-				ipAddress: context?.ipAddress,
-				userAgent: context?.userAgent,
-			});
-
-			await tx.technician.delete({
-				where: { id },
+				ip_address: context?.ipAddress,
+				user_agent: context?.userAgent,
 			});
 		});
 

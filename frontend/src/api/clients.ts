@@ -1,12 +1,18 @@
 import axios from "axios";
 import type { ApiResponse } from "../types/api";
-import type { 
-	Client, 
-	CreateClientInput, 
+import type {
+	Client,
+	CreateClientInput,
 	UpdateClientInput,
-	ClientContact,
-	CreateClientContactInput,
+	Contact,
+	ClientContactLink,
+	CreateContactInput,
+	UpdateContactInput,
+	LinkContactInput,
 	UpdateClientContactInput,
+	ContactNote,
+	CreateContactNoteInput,
+	UpdateContactNoteInput,
 	ClientNote,
 	CreateClientNoteInput,
 	UpdateClientNoteInput,
@@ -20,129 +26,286 @@ const api = axios.create({
 	baseURL: BASE_URL,
 });
 
-// ============================================
+// ============================================================================
 // CLIENT API
-// ============================================
+// ============================================================================
 
 export const getAllClients = async (): Promise<Client[]> => {
-	const response = await api.get<ApiResponse<Client[]>>('/clients');
+	const response = await api.get<ApiResponse<Client[]>>("/clients");
 	return response.data.data || [];
 };
 
 export const getClientById = async (id: string): Promise<Client> => {
 	const response = await api.get<ApiResponse<Client>>(`/clients/${id}`);
-	
+
 	if (!response.data.data) {
-		throw new Error('Client not found');
+		throw new Error("Client not found");
 	}
-	
+
 	return response.data.data;
 };
 
 export const createClient = async (input: CreateClientInput): Promise<Client> => {
-	const response = await api.post<ApiResponse<Client>>('/clients', input);
-	
+	const response = await api.post<ApiResponse<Client>>("/clients", input);
+
 	if (!response.data.success) {
-		throw new Error(response.data.error?.message || 'Failed to create client');
+		throw new Error(response.data.error?.message || "Failed to create client");
 	}
-	
+
 	return response.data.data!;
 };
 
 export const updateClient = async (id: string, data: UpdateClientInput): Promise<Client> => {
 	const response = await api.put<ApiResponse<Client>>(`/clients/${id}`, data);
-	
+
 	if (!response.data.success) {
-		throw new Error(response.data.error?.message || 'Failed to update client');
+		throw new Error(response.data.error?.message || "Failed to update client");
 	}
-	
+
 	return response.data.data!;
 };
 
 export const deleteClient = async (id: string): Promise<{ message: string; id: string }> => {
-	const response = await api.delete<ApiResponse<{ message: string; id: string }>>(`/clients/${id}`);
-	
+	const response = await api.delete<ApiResponse<{ message: string; id: string }>>(
+		`/clients/${id}`
+	);
+
 	if (!response.data.success) {
-		throw new Error(response.data.error?.message || 'Failed to delete client');
+		throw new Error(response.data.error?.message || "Failed to delete client");
 	}
-	
-	return response.data.data || { message: 'Client deleted successfully', id };
+
+	return response.data.data || { message: "Client deleted successfully", id };
 };
 
-// ============================================
-// CLIENT CONTACT API
-// ============================================
+// ============================================================================
+// INDEPENDENT CONTACT API
+// ============================================================================
 
-export const getClientContacts = async (clientId: string): Promise<ClientContact[]> => {
-	const response = await api.get<ApiResponse<ClientContact[]>>(`/clients/${clientId}/contacts`);
+export const getAllContacts = async (): Promise<Contact[]> => {
+	const response = await api.get<ApiResponse<Contact[]>>("/contacts");
 	return response.data.data || [];
 };
 
-export const createClientContact = async (clientId: string, data: CreateClientContactInput): Promise<ClientContact> => {
-	const response = await api.post<ApiResponse<ClientContact>>(`/clients/${clientId}/contacts`, data);
-	
-	if (!response.data.success) {
-		throw new Error(response.data.error?.message || 'Failed to create contact');
+export const getContactById = async (contactId: string): Promise<Contact> => {
+	const response = await api.get<ApiResponse<Contact>>(`/contacts/${contactId}`);
+
+	if (!response.data.data) {
+		throw new Error("Contact not found");
 	}
-	
+
+	return response.data.data;
+};
+
+export const getClientContacts = async (clientId: string): Promise<ClientContactLink[]> => {
+	const response = await api.get<ApiResponse<ClientContactLink[]>>(
+		`/clients/${clientId}/contacts`
+	);
+	return response.data.data || [];
+};
+
+export const createContact = async (data: CreateContactInput): Promise<Contact> => {
+	const response = await api.post<ApiResponse<Contact>>("/contacts", data);
+
+	if (!response.data.success) {
+		throw new Error(response.data.error?.message || "Failed to create contact");
+	}
+
 	return response.data.data!;
 };
 
-export const updateClientContact = async (clientId: string,contactId: string,data: UpdateClientContactInput): Promise<ClientContact> => {
-	const response = await api.put<ApiResponse<ClientContact>>(`/clients/${clientId}/contacts/${contactId}`, data);
-	
+export const updateContact = async (
+	contactId: string,
+	data: UpdateContactInput
+): Promise<Contact> => {
+	const response = await api.put<ApiResponse<Contact>>(`/contacts/${contactId}`, data);
+
 	if (!response.data.success) {
-		throw new Error(response.data.error?.message || 'Failed to update contact');
+		throw new Error(response.data.error?.message || "Failed to update contact");
 	}
-	
+
 	return response.data.data!;
 };
 
-export const deleteClientContact = async (clientId: string, contactId: string): Promise<{ message: string }> => {
-	const response = await api.delete<ApiResponse<{ message: string }>>(`/clients/${clientId}/contacts/${contactId}`);
-	
+export const deleteContact = async (contactId: string): Promise<{ message: string }> => {
+	const response = await api.delete<ApiResponse<{ message: string }>>(
+		`/contacts/${contactId}`
+	);
+
 	if (!response.data.success) {
-		throw new Error(response.data.error?.message || 'Failed to delete contact');
+		throw new Error(response.data.error?.message || "Failed to delete contact");
 	}
-	
-	return response.data.data || { message: 'Contact deleted successfully' };
+
+	return response.data.data || { message: "Contact deleted successfully" };
 };
 
-// ============================================
+// ============================================================================
+// CLIENT-CONTACT RELATIONSHIP API
+// ============================================================================
+
+export const linkContactToClient = async (
+	clientId: string,
+	contactId: string,
+	data: LinkContactInput
+): Promise<ClientContactLink> => {
+	const response = await api.post<ApiResponse<ClientContactLink>>(
+		`/clients/${clientId}/contacts/${contactId}/link`,
+		data
+	);
+
+	if (!response.data.success) {
+		throw new Error(response.data.error?.message || "Failed to link contact to client");
+	}
+
+	return response.data.data!;
+};
+
+export const updateClientContact = async (
+	clientId: string,
+	contactId: string,
+	data: UpdateClientContactInput
+): Promise<ClientContactLink> => {
+	const response = await api.put<ApiResponse<ClientContactLink>>(
+		`/clients/${clientId}/contacts/${contactId}/relationship`,
+		data
+	);
+
+	if (!response.data.success) {
+		throw new Error(
+			response.data.error?.message ||
+				"Failed to update client-contact relationship"
+		);
+	}
+
+	return response.data.data!;
+};
+
+export const unlinkContactFromClient = async (
+	clientId: string,
+	contactId: string
+): Promise<{ message: string }> => {
+	const response = await api.delete<ApiResponse<{ message: string }>>(
+		`/clients/${clientId}/contacts/${contactId}/link`
+	);
+
+	if (!response.data.success) {
+		throw new Error(
+			response.data.error?.message || "Failed to unlink contact from client"
+		);
+	}
+
+	return response.data.data || { message: "Contact unlinked successfully" };
+};
+
+// ============================================================================
+// CONTACT NOTE API
+// ============================================================================
+
+export const getContactNotes = async (contactId: string): Promise<ContactNote[]> => {
+	const response = await api.get<ApiResponse<ContactNote[]>>(`/contacts/${contactId}/notes`);
+	return response.data.data || [];
+};
+
+export const createContactNote = async (
+	contactId: string,
+	data: CreateContactNoteInput
+): Promise<ContactNote> => {
+	const response = await api.post<ApiResponse<ContactNote>>(
+		`/contacts/${contactId}/notes`,
+		data
+	);
+
+	if (!response.data.success) {
+		throw new Error(response.data.error?.message || "Failed to create contact note");
+	}
+
+	return response.data.data!;
+};
+
+export const updateContactNote = async (
+	contactId: string,
+	noteId: string,
+	data: UpdateContactNoteInput
+): Promise<ContactNote> => {
+	const response = await api.put<ApiResponse<ContactNote>>(
+		`/contacts/${contactId}/notes/${noteId}`,
+		data
+	);
+
+	if (!response.data.success) {
+		throw new Error(response.data.error?.message || "Failed to update contact note");
+	}
+
+	return response.data.data!;
+};
+
+export const deleteContactNote = async (
+	contactId: string,
+	noteId: string
+): Promise<{ message: string }> => {
+	const response = await api.delete<ApiResponse<{ message: string }>>(
+		`/contacts/${contactId}/notes/${noteId}`
+	);
+
+	if (!response.data.success) {
+		throw new Error(response.data.error?.message || "Failed to delete contact note");
+	}
+
+	return response.data.data || { message: "Contact note deleted successfully" };
+};
+
+// ============================================================================
 // CLIENT NOTE API
-// ============================================
+// ============================================================================
 
 export const getClientNotes = async (clientId: string): Promise<ClientNote[]> => {
 	const response = await api.get<ApiResponse<ClientNote[]>>(`/clients/${clientId}/notes`);
 	return response.data.data || [];
 };
 
-export const createClientNote = async (clientId: string, data: CreateClientNoteInput): Promise<ClientNote> => {
-	const response = await api.post<ApiResponse<ClientNote>>(`/clients/${clientId}/notes`, data);
-	
+export const createClientNote = async (
+	clientId: string,
+	data: CreateClientNoteInput
+): Promise<ClientNote> => {
+	const response = await api.post<ApiResponse<ClientNote>>(
+		`/clients/${clientId}/notes`,
+		data
+	);
+
 	if (!response.data.success) {
-		throw new Error(response.data.error?.message || 'Failed to create note');
+		throw new Error(response.data.error?.message || "Failed to create client note");
 	}
-	
+
 	return response.data.data!;
 };
 
-export const updateClientNote = async (clientId: string, noteId: string, data: UpdateClientNoteInput): Promise<ClientNote> => {
-	const response = await api.put<ApiResponse<ClientNote>>(`/clients/${clientId}/notes/${noteId}`, data);
-	
+export const updateClientNote = async (
+	clientId: string,
+	noteId: string,
+	data: UpdateClientNoteInput
+): Promise<ClientNote> => {
+	const response = await api.put<ApiResponse<ClientNote>>(
+		`/clients/${clientId}/notes/${noteId}`,
+		data
+	);
+
 	if (!response.data.success) {
-		throw new Error(response.data.error?.message || 'Failed to update note');
+		throw new Error(response.data.error?.message || "Failed to update client note");
 	}
-	
+
 	return response.data.data!;
 };
 
-export const deleteClientNote = async (clientId: string, noteId: string): Promise<{ message: string }> => {
-	const response = await api.delete<ApiResponse<{ message: string }>>(`/clients/${clientId}/notes/${noteId}`);
-	
+export const deleteClientNote = async (
+	clientId: string,
+	noteId: string
+): Promise<{ message: string }> => {
+	const response = await api.delete<ApiResponse<{ message: string }>>(
+		`/clients/${clientId}/notes/${noteId}`
+	);
+
 	if (!response.data.success) {
-		throw new Error(response.data.error?.message || 'Failed to delete note');
+		throw new Error(response.data.error?.message || "Failed to delete client note");
 	}
-	
-	return response.data.data || { message: 'Note deleted successfully' };
+
+	return response.data.data || { message: "Client note deleted successfully" };
 };

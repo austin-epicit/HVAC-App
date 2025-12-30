@@ -1,7 +1,7 @@
 // model client_note {
 //   id         String @unique @id @default(uuid())
 //   client_id  String
-//   tech_id          String? 
+//   tech_id          String?
 //   dispatcher_id    String?
 //   content    String
 //   created_at DateTime @default(now())
@@ -21,3 +21,6 @@ export const updateNoteSchema = z.object({
 	tech_id: z.string().uuid().nullable().optional(),
 	dispatcher_id: z.string().uuid().nullable().optional(),
 });
+
+export type CreateNoteInput = z.infer<typeof createNoteSchema>;
+export type UpdateNoteInput = z.infer<typeof updateNoteSchema>;
