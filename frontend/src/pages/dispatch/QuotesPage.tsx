@@ -3,11 +3,10 @@ import { useQuotesQuery, useCreateQuoteMutation } from "../../hooks/useQuotes";
 import { useClientByIdQuery } from "../../hooks/useClients";
 import { QuoteStatusValues, QuoteStatusLabels, type Quote } from "../../types/quotes";
 import { useState, useMemo, useEffect } from "react";
-import { Search, Plus, Eye, X } from "lucide-react";
+import { Search, Plus, X, MoreHorizontal } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import CreateQuote from "../../components/quotes/CreateQuote";
 
-// Helper to format dates consistently
 const formatDate = (date: Date | string) => {
 	return new Date(date).toLocaleDateString("en-US", {
 		month: "short",
@@ -16,7 +15,6 @@ const formatDate = (date: Date | string) => {
 	});
 };
 
-// Helper to format currency
 const formatCurrency = (amount: number) => {
 	return new Intl.NumberFormat("en-US", {
 		style: "currency",
@@ -34,15 +32,12 @@ export default function QuotesPage() {
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [searchInput, setSearchInput] = useState("");
 
-	// Get filters from URL query params
 	const queryParams = new URLSearchParams(location.search);
 	const clientFilter = queryParams.get("client");
 	const searchFilter = queryParams.get("search");
 
-	// Fetch client data if filtering by client
 	const { data: filterClient } = useClientByIdQuery(clientFilter);
 
-	// Sync search input with URL on mount and when URL changes
 	useEffect(() => {
 		setSearchInput(searchFilter || "");
 	}, [searchFilter]);
@@ -50,17 +45,14 @@ export default function QuotesPage() {
 	const display = useMemo(() => {
 		if (!quotes) return [];
 
-		// Use searchInput for instant preview, searchFilter for committed filter
 		const activeSearch = searchInput || searchFilter;
 
-		// Filter quotes based on client filter
 		let filtered: Quote[] = quotes;
 
 		if (clientFilter) {
 			filtered = quotes.filter((q) => q.client_id === clientFilter);
 		}
 
-		// Then filter by search (instant as user types)
 		if (activeSearch) {
 			filtered = filtered.filter((q) => {
 				const searchLower = activeSearch.toLowerCase();
@@ -178,6 +170,9 @@ export default function QuotesPage() {
 						<Plus size={16} className="text-white" />
 						New Quote
 					</button>
+					<button className="flex items-center justify-center w-10 h-10 bg-zinc-700 hover:bg-zinc-600 rounded-md transition-colors">
+						<MoreHorizontal size={20} className="text-white" />
+					</button>
 				</div>
 			</div>
 
@@ -268,23 +263,7 @@ export default function QuotesPage() {
 					data={display}
 					loadListener={isFetchLoading}
 					errListener={fetchError}
-					actionColumn={{
-						header: "",
-						cell: (row) => (
-							<button
-								onClick={(e) => {
-									e.stopPropagation();
-									navigate(
-										`/dispatch/quotes/${row.id}`
-									);
-								}}
-								className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded-md text-xs font-medium transition-colors"
-							>
-								<Eye size={14} />
-								View Details
-							</button>
-						),
-					}}
+					onRowClick={(row) => navigate(`/dispatch/quotes/${row.id}`)}
 				/>
 			</div>
 

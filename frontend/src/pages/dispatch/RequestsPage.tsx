@@ -8,11 +8,10 @@ import {
 	type Request,
 } from "../../types/requests";
 import { useState, useMemo, useEffect } from "react";
-import { Search, Plus, MoreHorizontal, Eye, X } from "lucide-react";
+import { Search, Plus, MoreHorizontal, X } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import CreateRequest from "../../components/requests/CreateRequest";
 
-// Helper to format dates consistently
 const formatDate = (date: Date | string) => {
 	return new Date(date).toLocaleDateString("en-US", {
 		month: "short",
@@ -33,15 +32,12 @@ export default function RequestsPage() {
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [searchInput, setSearchInput] = useState("");
 
-	// Get filters from URL query params
 	const queryParams = new URLSearchParams(location.search);
 	const clientFilter = queryParams.get("client");
 	const searchFilter = queryParams.get("search");
 
-	// Fetch client data if filtering by client
 	const { data: filterClient } = useClientByIdQuery(clientFilter);
 
-	// Sync search input with URL on mount and when URL changes
 	useEffect(() => {
 		setSearchInput(searchFilter || "");
 	}, [searchFilter]);
@@ -49,17 +45,14 @@ export default function RequestsPage() {
 	const display = useMemo(() => {
 		if (!requests) return [];
 
-		// Use searchInput for instant preview, searchFilter for committed filter
 		const activeSearch = searchInput || searchFilter;
 
-		// Filter requests based on client filter
 		let filtered: Request[] = requests;
 
 		if (clientFilter) {
 			filtered = requests.filter((r) => r.client_id === clientFilter);
 		}
 
-		// Then filter by search (instant as user types)
 		if (activeSearch) {
 			filtered = filtered.filter((r) => {
 				const searchLower = activeSearch.toLowerCase();
@@ -278,23 +271,9 @@ export default function RequestsPage() {
 					data={display}
 					loadListener={isFetchLoading}
 					errListener={fetchError}
-					actionColumn={{
-						header: "",
-						cell: (row) => (
-							<button
-								onClick={(e) => {
-									e.stopPropagation();
-									navigate(
-										`/dispatch/requests/${row.id}`
-									);
-								}}
-								className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded-md text-xs font-medium transition-colors"
-							>
-								<Eye size={14} />
-								View Details
-							</button>
-						),
-					}}
+					onRowClick={(row) =>
+						navigate(`/dispatch/requests/${row.id}`)
+					}
 				/>
 			</div>
 

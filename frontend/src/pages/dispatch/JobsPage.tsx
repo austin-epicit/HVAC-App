@@ -3,7 +3,7 @@ import { useAllJobsQuery, useCreateJobMutation } from "../../hooks/useJobs";
 import { useClientByIdQuery } from "../../hooks/useClients";
 import { JobStatusValues } from "../../types/jobs";
 import { useState, useMemo, useEffect } from "react";
-import { Search, Plus, Share, Eye, X } from "lucide-react";
+import { Search, Plus, MoreHorizontal, X } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import CreateJob from "../../components/jobs/CreateJob";
 import { addSpacesToCamelCase } from "../../util/util";
@@ -16,15 +16,12 @@ export default function JobsPage() {
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [searchInput, setSearchInput] = useState("");
 
-	// Get filters from URL query params
 	const queryParams = new URLSearchParams(location.search);
 	const clientFilter = queryParams.get("client");
 	const searchFilter = queryParams.get("search");
 
-	// Fetch client data if filtering by client
 	const { data: filterClient } = useClientByIdQuery(clientFilter);
 
-	// Sync search input with URL on mount and when URL changes
 	useEffect(() => {
 		setSearchInput(searchFilter || "");
 	}, [searchFilter]);
@@ -32,17 +29,14 @@ export default function JobsPage() {
 	const display = useMemo(() => {
 		if (!jobs) return [];
 
-		// Use searchInput for instant preview, searchFilter for committed filter
 		const activeSearch = searchInput || searchFilter;
 
-		// Filter jobs based on client filter
 		let filtered = jobs;
 
 		if (clientFilter) {
 			filtered = jobs.filter((j) => j.client_id === clientFilter);
 		}
 
-		// Then filter by search (instant as user types)
 		if (activeSearch) {
 			filtered = filtered.filter((j) => {
 				const searchLower = activeSearch.toLowerCase();
@@ -62,8 +56,7 @@ export default function JobsPage() {
 
 		return filtered
 			.map((j) => {
-				// Get next scheduled visit
-				const scheduledVisits = j.visits
+				const scheduledVisits = (j.visits || [])
 					.filter((v) => v.status === "Scheduled")
 					.sort(
 						(a, b) =>
@@ -93,7 +86,7 @@ export default function JobsPage() {
 								year: "numeric",
 							})
 						: "No visits scheduled",
-					visits: `${j.visits.length} visit${j.visits.length !== 1 ? "s" : ""}`,
+					visits: `${j.visits?.length || 0} visit${(j.visits?.length || 0) !== 1 ? "s" : ""}`,
 					status: addSpacesToCamelCase(j.status),
 					_rawStatus: j.status, // Keep raw status for sorting
 				};
@@ -117,7 +110,6 @@ export default function JobsPage() {
 			newParams.delete("search");
 		}
 
-		// Navigate with updated search param
 		navigate(`/dispatch/jobs?${newParams.toString()}`);
 	};
 
@@ -174,9 +166,8 @@ export default function JobsPage() {
 						New Job
 					</button>
 
-					<button className="flex items-center gap-2 px-4 py-2 bg-zinc-700 hover:bg-zinc-600 rounded-md text-sm font-medium transition-colors">
-						<Share size={16} className="text-white" />
-						Export
+					<button className="flex items-center justify-center w-10 h-10 bg-zinc-700 hover:bg-zinc-600 rounded-md transition-colors">
+						<MoreHorizontal size={20} className="text-white" />
 					</button>
 				</div>
 			</div>
@@ -268,23 +259,7 @@ export default function JobsPage() {
 					data={display}
 					loadListener={isFetchLoading}
 					errListener={fetchError}
-					actionColumn={{
-						header: "", // Empty header to remove "Actions" text
-						cell: (row) => (
-							<button
-								onClick={(e) => {
-									e.stopPropagation();
-									navigate(
-										`/dispatch/jobs/${row.id}`
-									);
-								}}
-								className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded-md text-xs font-medium transition-colors"
-							>
-								<Eye size={14} />
-								View Details
-							</button>
-						),
-					}}
+					onRowClick={(row) => navigate(`/dispatch/jobs/${row.id}`)}
 				/>
 			</div>
 
