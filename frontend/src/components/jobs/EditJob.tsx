@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { X, Trash2 } from "lucide-react";
 import { useUpdateJobMutation, useDeleteJobMutation } from "../../hooks/useJobs";
@@ -27,6 +27,7 @@ export default function EditJob({ isModalOpen, setIsModalOpen, job }: EditJobPro
 		status: job.status,
 	});
 	const [deleteConfirm, setDeleteConfirm] = useState(false);
+	const mouseDownOnBackdrop = useRef(false);
 
 	// Reset form data when modal opens with new job
 	useEffect(() => {
@@ -100,10 +101,17 @@ export default function EditJob({ isModalOpen, setIsModalOpen, job }: EditJobPro
 		}));
 	};
 
-	const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+	const handleBackdropMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
 		if (e.target === e.currentTarget) {
+			mouseDownOnBackdrop.current = true;
+		}
+	};
+
+	const handleBackdropMouseUp = (e: React.MouseEvent<HTMLDivElement>) => {
+		if (e.target === e.currentTarget && mouseDownOnBackdrop.current) {
 			setIsModalOpen(false);
 		}
+		mouseDownOnBackdrop.current = false;
 	};
 
 	if (!isModalOpen) return null;
@@ -111,7 +119,8 @@ export default function EditJob({ isModalOpen, setIsModalOpen, job }: EditJobPro
 	return (
 		<div
 			className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-			onClick={handleBackdropClick}
+			onMouseDown={handleBackdropMouseDown}
+			onMouseUp={handleBackdropMouseUp}
 		>
 			<div
 				className="bg-zinc-900 rounded-xl p-6 w-full max-w-md border border-zinc-800 max-h-[90vh] overflow-y-auto"

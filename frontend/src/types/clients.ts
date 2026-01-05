@@ -19,6 +19,29 @@ export interface Client {
 	notes: ClientNote[];
 }
 
+export interface ClientSummary {
+	id: string;
+	name: string;
+	address: string;
+	is_active: boolean;
+}
+export interface ClientWithPrimaryContact {
+	id: string;
+	name: string;
+	address: string;
+	is_active: boolean;
+	contacts?: Array<{
+		is_primary: boolean;
+		contact: {
+			id: string;
+			name: string;
+			email: string | null;
+			phone: string | null;
+			title: string | null;
+		};
+	}>;
+}
+
 export interface CreateClientInput {
 	name: string;
 	address: string;

@@ -1,119 +1,7 @@
 import z from "zod";
-import type { Client } from "./clients";
-import type { Quote } from "./quotes";
-import type { Job } from "./jobs";
 import type { Coordinates } from "./location";
-
-export interface Request {
-	id: string;
-	client_id: string;
-	title: string;
-	description: string;
-	address: string | null;
-	coords: Coordinates;
-	priority: "Low" | "Medium" | "High" | "Urgent" | "Emergency";
-	status:
-		| "New"
-		| "Reviewing"
-		| "NeedsQuote"
-		| "Quoted"
-		| "QuoteApproved"
-		| "QuoteRejected"
-		| "ConvertedToJob"
-		| "Cancelled";
-	requires_quote: boolean;
-	estimated_value: number | null;
-	source: string | null;
-	source_reference: string | null;
-	assigned_dispatcher_id: string | null;
-	cancellation_reason: string | null;
-	cancelled_at: Date | null;
-	created_at: Date;
-	updated_at: Date;
-
-	client?: Client;
-	assigned_dispatcher?: {
-		id: string;
-		name: string;
-		email: string;
-	};
-	quotes?: Quote[];
-	job?: Job | null;
-	notes?: RequestNote[];
-}
-
-export interface CreateRequestInput {
-	client_id: string;
-	title: string;
-	description: string;
-	address?: string;
-	coords?: Coordinates;
-	priority?: "Low" | "Medium" | "High" | "Urgent" | "Emergency";
-	requires_quote?: boolean;
-	estimated_value?: number | null;
-	source?: string | null;
-	source_reference?: string | null;
-	assigned_dispatcher_id?: string | null;
-}
-
-export interface UpdateRequestInput {
-	title?: string;
-	description?: string;
-	address?: string;
-	coords?: Coordinates;
-	priority?: "Low" | "Medium" | "High" | "Urgent" | "Emergency";
-	status?:
-		| "New"
-		| "Reviewing"
-		| "NeedsQuote"
-		| "Quoted"
-		| "QuoteApproved"
-		| "QuoteRejected"
-		| "ConvertedToJob"
-		| "Cancelled";
-	requires_quote?: boolean;
-	estimated_value?: number | null;
-	source?: string | null;
-	source_reference?: string | null;
-	assigned_dispatcher_id?: string | null;
-	cancellation_reason?: string | null;
-}
-
-export const CreateRequestSchema = z.object({
-	client_id: z.string().uuid("Invalid client ID"),
-	title: z.string().min(1, "Title is required"),
-	description: z.string().min(1, "Description is required"),
-	priority: z.enum(["Low", "Medium", "High", "Urgent", "Emergency"]).default("Medium"),
-	requires_quote: z.boolean().default(false),
-	estimated_value: z.number().min(0).optional().nullable(),
-	source: z.string().optional().or(z.literal("")).nullable(),
-	source_reference: z.string().optional().or(z.literal("")).nullable(),
-	assigned_dispatcher_id: z.string().uuid().optional().nullable(),
-});
-
-export const UpdateRequestSchema = z.object({
-	title: z.string().min(1).optional(),
-	description: z.string().min(1).optional(),
-	priority: z.enum(["Low", "Medium", "High", "Urgent", "Emergency"]).optional(),
-	status: z
-		.enum([
-			"New",
-			"Reviewing",
-			"NeedsQuote",
-			"Quoted",
-			"QuoteApproved",
-			"QuoteRejected",
-			"ConvertedToJob",
-			"Cancelled",
-		])
-		.optional(),
-	requires_quote: z.boolean().optional(),
-	estimated_value: z.number().min(0).optional().nullable(),
-	source: z.string().optional().or(z.literal("")).nullable(),
-	source_reference: z.string().optional().or(z.literal("")).nullable(),
-	assigned_dispatcher_id: z.string().uuid().optional().nullable(),
-	cancellation_reason: z.string().optional().or(z.literal("")).nullable(),
-});
+import type { Client, ClientWithPrimaryContact } from "./clients";
+import type { QuoteSummary } from "./quotes";
 
 export const RequestStatusValues = [
 	"New",
@@ -126,9 +14,13 @@ export const RequestStatusValues = [
 	"Cancelled",
 ] as const;
 
+export type RequestStatus = (typeof RequestStatusValues)[number];
+
 export const RequestPriorityValues = ["Low", "Medium", "High", "Urgent", "Emergency"] as const;
 
-export const RequestStatusLabels: Record<string, string> = {
+export type RequestPriority = (typeof RequestPriorityValues)[number];
+
+export const RequestStatusLabels: Record<RequestStatus, string> = {
 	New: "New",
 	Reviewing: "Reviewing",
 	NeedsQuote: "Needs Quote",
@@ -139,7 +31,7 @@ export const RequestStatusLabels: Record<string, string> = {
 	Cancelled: "Cancelled",
 };
 
-export const RequestPriorityLabels: Record<string, string> = {
+export const RequestPriorityLabels: Record<RequestPriority, string> = {
 	Low: "Low",
 	Medium: "Medium",
 	High: "High",
@@ -147,8 +39,7 @@ export const RequestPriorityLabels: Record<string, string> = {
 	Emergency: "Emergency",
 };
 
-// Status colors for UI
-export const RequestStatusColors: Record<string, string> = {
+export const RequestStatusColors: Record<RequestStatus, string> = {
 	New: "bg-blue-600/20 text-blue-400 border-blue-700",
 	Reviewing: "bg-yellow-600/20 text-yellow-400 border-yellow-700",
 	NeedsQuote: "bg-orange-600/20 text-orange-400 border-orange-700",
@@ -159,14 +50,93 @@ export const RequestStatusColors: Record<string, string> = {
 	Cancelled: "bg-gray-600/20 text-gray-400 border-gray-700",
 };
 
-// Priority colors for UI
-export const RequestPriorityColors: Record<string, string> = {
+export const RequestPriorityColors: Record<RequestPriority, string> = {
 	Low: "bg-gray-600/20 text-gray-400 border-gray-700",
 	Medium: "bg-blue-600/20 text-blue-400 border-blue-700",
 	High: "bg-orange-600/20 text-orange-400 border-orange-700",
 	Urgent: "bg-red-600/20 text-red-400 border-red-700",
 	Emergency: "bg-red-700/30 text-red-300 border-red-600 font-bold",
 };
+
+export interface RequestJobReference {
+	id: string;
+	name: string;
+	status: string;
+}
+
+export interface Request {
+	id: string;
+	client_id: string;
+	title: string;
+	description: string;
+	address: string | null;
+	coords: Coordinates;
+	priority: RequestPriority;
+	status: RequestStatus;
+	requires_quote: boolean;
+	estimated_value: number | null;
+	source: string | null;
+	source_reference: string | null;
+	cancellation_reason: string | null;
+	cancelled_at: Date | null;
+	created_at: Date;
+	updated_at: Date;
+
+	client?: ClientWithPrimaryContact;
+	quotes?: QuoteSummary[];
+	job?: RequestJobReference | null;
+	notes?: RequestNote[];
+}
+
+export interface CreateRequestInput {
+	client_id: string;
+	title: string;
+	description: string;
+	address?: string;
+	coords?: Coordinates;
+	priority?: RequestPriority;
+	requires_quote?: boolean;
+	estimated_value?: number | null;
+	source?: string | null;
+	source_reference?: string | null;
+}
+
+export interface UpdateRequestInput {
+	title?: string;
+	description?: string;
+	address?: string;
+	coords?: Coordinates;
+	priority?: RequestPriority;
+	status?: RequestStatus;
+	requires_quote?: boolean;
+	estimated_value?: number | null;
+	source?: string | null;
+	source_reference?: string | null;
+	cancellation_reason?: string | null;
+}
+
+export const CreateRequestSchema = z.object({
+	client_id: z.string().uuid("Invalid client ID"),
+	title: z.string().min(1, "Title is required"),
+	description: z.string().min(1, "Description is required"),
+	priority: z.enum(RequestPriorityValues).default("Medium"),
+	requires_quote: z.boolean().default(false),
+	estimated_value: z.number().min(0).optional().nullable(),
+	source: z.string().optional().or(z.literal("")).nullable(),
+	source_reference: z.string().optional().or(z.literal("")).nullable(),
+});
+
+export const UpdateRequestSchema = z.object({
+	title: z.string().min(1).optional(),
+	description: z.string().min(1).optional(),
+	priority: z.enum(RequestPriorityValues).optional(),
+	status: z.enum(RequestStatusValues).optional(),
+	requires_quote: z.boolean().optional(),
+	estimated_value: z.number().min(0).optional().nullable(),
+	source: z.string().optional().or(z.literal("")).nullable(),
+	source_reference: z.string().optional().or(z.literal("")).nullable(),
+	cancellation_reason: z.string().optional().or(z.literal("")).nullable(),
+});
 
 export interface RequestNote {
 	id: string;

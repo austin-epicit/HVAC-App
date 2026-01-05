@@ -81,6 +81,7 @@ import {
 	linkContactToClient,
 	updateClientContact,
 	unlinkContactFromClient,
+	searchContacts,
 } from "./controllers/contactsController.js";
 import {
 	getClientNotes,
@@ -1173,6 +1174,28 @@ app.delete("/clients/:id", async (req, res, next) => {
 // CONTACTS
 // ============================================
 
+// Search contacts
+app.get("/contacts/search", async (req, res, next) => {
+	try {
+		const { q, exclude_client_id } = req.query;
+
+		const result = await searchContacts(
+			q as string,
+			exclude_client_id as string | undefined
+		);
+
+		if (result.err) {
+			return res
+				.status(500)
+				.json(createErrorResponse(ErrorCodes.SERVER_ERROR, result.err));
+		}
+
+		res.status(200).json(createSuccessResponse(result.items));
+	} catch (err) {
+		next(err);
+	}
+});
+
 app.get("/clients/:clientId/contacts", async (req, res, next) => {
 	try {
 		const { clientId } = req.params;
@@ -1283,41 +1306,37 @@ app.delete("/contacts/:contactId", async (req, res, next) => {
 });
 
 // Link an existing contact to a client
-app.post(
-	"/clients/:clientId/contacts/:contactId/link",
-	async (req, res, next) => {
-		try {
-			const { clientId, contactId } = req.params;
-			const context = getUserContext(req);
-			const result = await linkContactToClient(
-				contactId,
-				clientId,
-				req.body,
-				context
-			);
+app.post("/clients/:clientId/contacts/link", async (req, res, next) => {
+	try {
+		const { clientId } = req.params;
+		const { contact_id, relationship, is_primary, is_billing } = req.body;
+		const context = getUserContext(req);
 
-			if (result.err) {
-				const statusCode = result.err.includes("not found")
-					? 404
-					: result.err.includes("already linked")
-					? 409
-					: 400;
-				return res
-					.status(statusCode)
-					.json(
-						createErrorResponse(
-							ErrorCodes.VALIDATION_ERROR,
-							result.err
-						)
-					);
-			}
+		const result = await linkContactToClient(
+			contact_id,
+			clientId,
+			{ relationship, is_primary, is_billing },
+			context
+		);
 
-			res.status(201).json(createSuccessResponse(result.item));
-		} catch (err) {
-			next(err);
+		if (result.err) {
+			const statusCode = result.err.includes("not found")
+				? 404
+				: result.err.includes("already linked")
+				? 409
+				: 400;
+			return res
+				.status(statusCode)
+				.json(
+					createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+				);
 		}
+
+		res.status(201).json(createSuccessResponse(result.item));
+	} catch (err) {
+		next(err);
 	}
-);
+});
 
 // Update a client-contact relationship
 app.put(

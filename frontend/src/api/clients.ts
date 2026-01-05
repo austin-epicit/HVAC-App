@@ -10,9 +10,6 @@ import type {
 	UpdateContactInput,
 	LinkContactInput,
 	UpdateClientContactInput,
-	ContactNote,
-	CreateContactNoteInput,
-	UpdateContactNoteInput,
 	ClientNote,
 	CreateClientNoteInput,
 	UpdateClientNoteInput,
@@ -138,17 +135,34 @@ export const deleteContact = async (contactId: string): Promise<{ message: strin
 	return response.data.data || { message: "Contact deleted successfully" };
 };
 
+export const searchContacts = async (
+	query: string,
+	excludeClientId?: string
+): Promise<Contact[]> => {
+	const params = new URLSearchParams({ q: query });
+	if (excludeClientId) {
+		params.append("exclude_client_id", excludeClientId);
+	}
+
+	const response = await api.get<ApiResponse<Contact[]>>(`/contacts/search?${params}`);
+	return response.data.data || [];
+};
+
 // ============================================================================
 // CLIENT-CONTACT RELATIONSHIP API
 // ============================================================================
 
 export const linkContactToClient = async (
 	clientId: string,
-	contactId: string,
-	data: LinkContactInput
+	data: {
+		contact_id: string;
+		relationship: string;
+		is_primary: boolean;
+		is_billing: boolean;
+	}
 ): Promise<ClientContactLink> => {
 	const response = await api.post<ApiResponse<ClientContactLink>>(
-		`/clients/${clientId}/contacts/${contactId}/link`,
+		`/clients/${clientId}/contacts/link`,
 		data
 	);
 
@@ -194,63 +208,6 @@ export const unlinkContactFromClient = async (
 	}
 
 	return response.data.data || { message: "Contact unlinked successfully" };
-};
-
-// ============================================================================
-// CONTACT NOTE API
-// ============================================================================
-
-export const getContactNotes = async (contactId: string): Promise<ContactNote[]> => {
-	const response = await api.get<ApiResponse<ContactNote[]>>(`/contacts/${contactId}/notes`);
-	return response.data.data || [];
-};
-
-export const createContactNote = async (
-	contactId: string,
-	data: CreateContactNoteInput
-): Promise<ContactNote> => {
-	const response = await api.post<ApiResponse<ContactNote>>(
-		`/contacts/${contactId}/notes`,
-		data
-	);
-
-	if (!response.data.success) {
-		throw new Error(response.data.error?.message || "Failed to create contact note");
-	}
-
-	return response.data.data!;
-};
-
-export const updateContactNote = async (
-	contactId: string,
-	noteId: string,
-	data: UpdateContactNoteInput
-): Promise<ContactNote> => {
-	const response = await api.put<ApiResponse<ContactNote>>(
-		`/contacts/${contactId}/notes/${noteId}`,
-		data
-	);
-
-	if (!response.data.success) {
-		throw new Error(response.data.error?.message || "Failed to update contact note");
-	}
-
-	return response.data.data!;
-};
-
-export const deleteContactNote = async (
-	contactId: string,
-	noteId: string
-): Promise<{ message: string }> => {
-	const response = await api.delete<ApiResponse<{ message: string }>>(
-		`/contacts/${contactId}/notes/${noteId}`
-	);
-
-	if (!response.data.success) {
-		throw new Error(response.data.error?.message || "Failed to delete contact note");
-	}
-
-	return response.data.data || { message: "Contact note deleted successfully" };
 };
 
 // ============================================================================

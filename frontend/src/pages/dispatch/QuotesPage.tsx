@@ -1,7 +1,307 @@
+import AdaptableTable from "../../components/AdaptableTable";
+import { useQuotesQuery, useCreateQuoteMutation } from "../../hooks/useQuotes";
+import { useClientByIdQuery } from "../../hooks/useClients";
+import { QuoteStatusValues, QuoteStatusLabels, type Quote } from "../../types/quotes";
+import { useState, useMemo, useEffect } from "react";
+import { Search, Plus, Eye, X } from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
+import CreateQuote from "../../components/quotes/CreateQuote";
+
+// Helper to format dates consistently
+const formatDate = (date: Date | string) => {
+	return new Date(date).toLocaleDateString("en-US", {
+		month: "short",
+		day: "numeric",
+		year: "numeric",
+	});
+};
+
+// Helper to format currency
+const formatCurrency = (amount: number) => {
+	return new Intl.NumberFormat("en-US", {
+		style: "currency",
+		currency: "USD",
+		minimumFractionDigits: 2,
+		maximumFractionDigits: 2,
+	}).format(amount);
+};
+
 export default function QuotesPage() {
+	const navigate = useNavigate();
+	const location = useLocation();
+	const { data: quotes, isLoading: isFetchLoading, error: fetchError } = useQuotesQuery();
+	const { mutateAsync: createQuote } = useCreateQuoteMutation();
+	const [isModalOpen, setIsModalOpen] = useState(false);
+	const [searchInput, setSearchInput] = useState("");
+
+	// Get filters from URL query params
+	const queryParams = new URLSearchParams(location.search);
+	const clientFilter = queryParams.get("client");
+	const searchFilter = queryParams.get("search");
+
+	// Fetch client data if filtering by client
+	const { data: filterClient } = useClientByIdQuery(clientFilter);
+
+	// Sync search input with URL on mount and when URL changes
+	useEffect(() => {
+		setSearchInput(searchFilter || "");
+	}, [searchFilter]);
+
+	const display = useMemo(() => {
+		if (!quotes) return [];
+
+		// Use searchInput for instant preview, searchFilter for committed filter
+		const activeSearch = searchInput || searchFilter;
+
+		// Filter quotes based on client filter
+		let filtered: Quote[] = quotes;
+
+		if (clientFilter) {
+			filtered = quotes.filter((q) => q.client_id === clientFilter);
+		}
+
+		// Then filter by search (instant as user types)
+		if (activeSearch) {
+			filtered = filtered.filter((q) => {
+				const searchLower = activeSearch.toLowerCase();
+				const clientName = q.client?.name?.toLowerCase() || "";
+				const title = q.title?.toLowerCase() || "";
+				const quoteNumber = q.quote_number?.toLowerCase() || "";
+				const status = q.status?.toLowerCase() || "";
+				const address = q.address?.toLowerCase() || "";
+				const priority = q.priority?.toLowerCase() || "";
+
+				return (
+					title.includes(searchLower) ||
+					clientName.includes(searchLower) ||
+					quoteNumber.includes(searchLower) ||
+					status.includes(searchLower) ||
+					address.includes(searchLower) ||
+					priority.includes(searchLower)
+				);
+			});
+		}
+
+		return filtered
+			.map((q) => {
+				return {
+					id: q.id,
+					client: q.client?.name || "Unknown Client",
+					quoteNumber: q.quote_number,
+					property: q.address || "No address",
+					created: formatDate(q.created_at),
+					status: QuoteStatusLabels[q.status] || q.status,
+					total: formatCurrency(Number(q.total)),
+					_rawStatus: q.status, // Keep raw status for sorting
+					_rawTotal: Number(q.total), // Keep raw total for sorting
+					_createdDate: new Date(q.created_at), // Keep date object for sorting
+				};
+			})
+			.sort((a, b) => {
+				// First sort by status
+				const statusDiff =
+					QuoteStatusValues.indexOf(a._rawStatus as any) -
+					QuoteStatusValues.indexOf(b._rawStatus as any);
+				if (statusDiff !== 0) return statusDiff;
+
+				// Then by created date (newest first)
+				return b._createdDate.getTime() - a._createdDate.getTime();
+			})
+			.map(({ _rawStatus, _rawTotal, _createdDate, ...rest }) => rest);
+	}, [quotes, searchInput, searchFilter, clientFilter]);
+
+	const handleSearchSubmit = (e: React.FormEvent) => {
+		e.preventDefault();
+
+		const newParams = new URLSearchParams(location.search);
+
+		if (searchInput.trim()) {
+			newParams.set("search", searchInput.trim());
+		} else {
+			newParams.delete("search");
+		}
+
+		navigate(`/dispatch/quotes?${newParams.toString()}`);
+	};
+
+	const removeFilter = (filterType: "client" | "search") => {
+		const newParams = new URLSearchParams(location.search);
+		newParams.delete(filterType);
+
+		if (filterType === "search") {
+			setSearchInput("");
+		}
+
+		navigate(
+			`/dispatch/quotes${newParams.toString() ? `?${newParams.toString()}` : ""}`
+		);
+	};
+
+	const clearAllFilters = () => {
+		setSearchInput("");
+		navigate("/dispatch/quotes");
+	};
+
+	const hasFilters = clientFilter || searchFilter;
+
 	return (
-		<div>
-			<h2>Quotes Here</h2>
+		<div className="text-white">
+			<div className="flex flex-wrap items-center justify-between gap-4 mb-2">
+				<h2 className="text-2xl font-semibold">Quotes</h2>
+
+				<div className="flex gap-2 text-nowrap">
+					<form
+						onSubmit={handleSearchSubmit}
+						className="relative w-full"
+					>
+						<Search
+							size={18}
+							className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+						/>
+						<input
+							type="text"
+							placeholder="Search quotes..."
+							value={searchInput}
+							onChange={(e) =>
+								setSearchInput(e.target.value)
+							}
+							className="w-full pl-11 pr-3 py-2 rounded-md bg-zinc-800 border border-zinc-700 text-sm 
+							text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 
+							focus:ring-blue-500"
+						/>
+					</form>
+
+					<button
+						className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-md text-sm font-medium transition-colors"
+						onClick={() => setIsModalOpen(true)}
+					>
+						<Plus size={16} className="text-white" />
+						New Quote
+					</button>
+				</div>
+			</div>
+
+			{/* Single Filter Bar with Multiple Filters */}
+			{hasFilters && (
+				<div className="mb-2 p-3 bg-zinc-800 rounded-lg border border-zinc-700">
+					<div className="flex items-center justify-between">
+						<div className="flex items-center gap-2 flex-wrap">
+							<span className="text-sm text-zinc-400">
+								Active filters:
+							</span>
+
+							{/* Client Filter Chip */}
+							{clientFilter && filterClient && (
+								<div className="flex items-center gap-2 px-3 py-1.5 bg-blue-600/20 border border-blue-500/30 rounded-md">
+									<span className="text-sm text-blue-300">
+										Client:{" "}
+										<span className="font-medium text-white">
+											{
+												filterClient.name
+											}
+										</span>
+									</span>
+									<button
+										onClick={() =>
+											removeFilter(
+												"client"
+											)
+										}
+										className="text-blue-300 hover:text-white transition-colors"
+										aria-label="Remove client filter"
+									>
+										<X size={14} />
+									</button>
+								</div>
+							)}
+
+							{/* Search Filter Chip */}
+							{searchFilter && (
+								<div className="flex items-center gap-2 px-3 py-1.5 bg-purple-600/20 border border-purple-500/30 rounded-md">
+									<span className="text-sm text-purple-300">
+										Search:{" "}
+										<span className="font-medium text-white">
+											"
+											{
+												searchFilter
+											}
+											"
+										</span>
+									</span>
+									<button
+										onClick={() =>
+											removeFilter(
+												"search"
+											)
+										}
+										className="text-purple-300 hover:text-white transition-colors"
+										aria-label="Remove search filter"
+									>
+										<X size={14} />
+									</button>
+								</div>
+							)}
+
+							{/* Results Count */}
+							<span className="text-sm text-zinc-500">
+								• {display.length}{" "}
+								{display.length === 1
+									? "result"
+									: "results"}
+							</span>
+						</div>
+
+						{/* Clear All Button */}
+						<button
+							onClick={clearAllFilters}
+							className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-red-400 hover:text-red-300 hover:bg-zinc-700/50 rounded-md transition-colors"
+						>
+							Clear All
+							<X size={14} />
+						</button>
+					</div>
+				</div>
+			)}
+
+			<div className="shadow-sm border border-zinc-800 p-3 bg-zinc-900 rounded-lg overflow-hidden text-left">
+				<AdaptableTable
+					data={display}
+					loadListener={isFetchLoading}
+					errListener={fetchError}
+					actionColumn={{
+						header: "",
+						cell: (row) => (
+							<button
+								onClick={(e) => {
+									e.stopPropagation();
+									navigate(
+										`/dispatch/quotes/${row.id}`
+									);
+								}}
+								className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded-md text-xs font-medium transition-colors"
+							>
+								<Eye size={14} />
+								View Details
+							</button>
+						),
+					}}
+				/>
+			</div>
+
+			<CreateQuote
+				isModalOpen={isModalOpen}
+				setIsModalOpen={setIsModalOpen}
+				createQuote={async (input) => {
+					const newQuote = await createQuote(input);
+
+					if (!newQuote?.id)
+						throw new Error(
+							"Quote creation failed: no ID returned"
+						);
+
+					return newQuote.id;
+				}}
+			/>
 		</div>
 	);
 }

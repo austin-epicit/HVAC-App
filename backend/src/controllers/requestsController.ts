@@ -25,13 +25,6 @@ export const getAllRequests = async () => {
 					name: true,
 				},
 			},
-			assigned_dispatcher: {
-				select: {
-					id: true,
-					name: true,
-					email: true,
-				},
-			},
 			quotes: {
 				select: {
 					id: true,
@@ -63,13 +56,24 @@ export const getRequestById = async (requestId: string) => {
 					name: true,
 					address: true,
 					coords: true,
-				},
-			},
-			assigned_dispatcher: {
-				select: {
-					id: true,
-					name: true,
-					email: true,
+					is_active: true,
+					contacts: {
+						where: {
+							is_primary: true,
+						},
+						include: {
+							contact: {
+								select: {
+									id: true,
+									name: true,
+									email: true,
+									phone: true,
+									title: true,
+								},
+							},
+						},
+						take: 1,
+					},
 				},
 			},
 			quotes: {
@@ -111,13 +115,6 @@ export const getRequestsByClientId = async (clientId: string) => {
 		where: { client_id: clientId },
 		include: {
 			client: true,
-			assigned_dispatcher: {
-				select: {
-					id: true,
-					name: true,
-					email: true,
-				},
-			},
 			quotes: {
 				select: {
 					id: true,
@@ -164,7 +161,7 @@ export const insertRequest = async (req: Request, context?: UserContext) => {
 					estimated_value: parsed.estimated_value,
 					source: parsed.source,
 					source_reference: parsed.source_reference,
-					assigned_dispatcher_id: parsed.assigned_dispatcher_id,
+
 					status: "New",
 				},
 			});
@@ -199,7 +196,6 @@ export const insertRequest = async (req: Request, context?: UserContext) => {
 				where: { id: request.id },
 				include: {
 					client: true,
-					assigned_dispatcher: true,
 					quotes: true,
 					job: true,
 				},
@@ -256,7 +252,6 @@ export const updateRequest = async (req: Request, context?: UserContext) => {
 				"requires_quote",
 				"source",
 				"source_reference",
-				"assigned_dispatcher_id",
 				"cancellation_reason",
 			] as const
 		);
@@ -307,9 +302,6 @@ export const updateRequest = async (req: Request, context?: UserContext) => {
 					...(parsed.source_reference !== undefined && {
 						source_reference: parsed.source_reference,
 					}),
-					...(parsed.assigned_dispatcher_id !== undefined && {
-						assigned_dispatcher_id: parsed.assigned_dispatcher_id,
-					}),
 					...(parsed.cancellation_reason !== undefined && {
 						cancellation_reason: parsed.cancellation_reason,
 					}),
@@ -319,7 +311,6 @@ export const updateRequest = async (req: Request, context?: UserContext) => {
 				},
 				include: {
 					client: true,
-					assigned_dispatcher: true,
 					quotes: true,
 					job: true,
 				},

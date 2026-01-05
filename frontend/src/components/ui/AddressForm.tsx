@@ -30,7 +30,7 @@ const AddressForm = ({ handleChange }: AddressFormProps) => {
 			colorBackground: "#17171aff", // bg-zinc-800
 			colorBackgroundHover: "#3f3f46", // bg-zinc-700
 			colorBackgroundActive: "#3f3f46",
-			colorText: "#ffffffff", // text-white
+			colorText: "#ffffffff", // popup text-white
 			colorPrimary: "#3b82f6", // blue-500
 			colorSecondary: "#3f3f46",
 
@@ -41,6 +41,11 @@ const AddressForm = ({ handleChange }: AddressFormProps) => {
 			paddingModal: "0.5rem",
 			paddingFooterLabel: "0.25rem",
 		},
+		cssText: `
+		input {
+			color: #ffffff !important; // input text-white
+		}
+	`,
 	};
 
 	return (

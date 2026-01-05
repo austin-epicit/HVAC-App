@@ -17,27 +17,26 @@ export interface UserContext {
 }
 
 async function generateJobNumber(): Promise<string> {
-	const year = new Date().getFullYear();
 	const lastJob = await db.job.findFirst({
 		where: {
 			job_number: {
-				startsWith: `J-${year}-`,
+				startsWith: "J-",
 			},
 		},
 		orderBy: {
-			created_at: "desc",
+			job_number: "desc",
 		},
 	});
 
 	let nextNumber = 1;
 	if (lastJob) {
-		const match = lastJob.job_number.match(/J-\d{4}-(\d+)/);
+		const match = lastJob.job_number.match(/J-(\d+)/);
 		if (match) {
 			nextNumber = parseInt(match[1]) + 1;
 		}
 	}
 
-	return `J-${year}-${nextNumber.toString().padStart(4, "0")}`;
+	return `J-${nextNumber.toString().padStart(4, "0")}`;
 }
 
 // ============================================================================
@@ -93,6 +92,24 @@ export const getJobById = async (id: string) => {
 					name: true,
 					address: true,
 					coords: true,
+					is_active: true,
+					contacts: {
+						where: {
+							is_primary: true,
+						},
+						include: {
+							contact: {
+								select: {
+									id: true,
+									name: true,
+									email: true,
+									phone: true,
+									title: true,
+								},
+							},
+						},
+						take: 1,
+					},
 				},
 			},
 			request: {

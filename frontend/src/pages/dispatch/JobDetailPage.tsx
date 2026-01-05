@@ -10,6 +10,8 @@ import {
 	TrendingUp,
 	Map,
 	Plus,
+	Mail,
+	Phone,
 } from "lucide-react";
 import {
 	useJobByIdQuery,
@@ -140,6 +142,8 @@ export default function JobDetailPage() {
 		}
 	};
 
+	const primaryContact = job.client?.contacts?.find((cc: any) => cc.is_primary)?.contact;
+
 	const sortedVisits = [...visits].sort(
 		(a, b) =>
 			new Date(a.scheduled_start_at).getTime() -
@@ -243,7 +247,25 @@ export default function JobDetailPage() {
 
 				{/* Client Details - 1/3 width */}
 				<div className="lg:col-span-1">
-					<Card title="Client Details" className="h-full">
+					<Card
+						title="Client Details"
+						headerAction={
+							job.client?.is_active !== undefined && (
+								<span
+									className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${
+										job.client.is_active
+											? "bg-green-500/20 text-green-400 border-green-500/30"
+											: "bg-red-500/20 text-red-400 border-red-500/30"
+									}`}
+								>
+									{job.client.is_active
+										? "Active"
+										: "Inactive"}
+								</span>
+							)
+						}
+						className="h-full"
+					>
 						<div className="space-y-4">
 							<div>
 								<h3 className="text-zinc-400 text-sm mb-2 flex items-center gap-2">
@@ -266,27 +288,63 @@ export default function JobDetailPage() {
 								</p>
 							</div>
 
-							<div>
-								<h3 className="text-zinc-400 text-sm mb-2">
-									Status
-								</h3>
-								{job.client?.is_active !==
-									undefined && (
-									<span
-										className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-											job.client
-												.is_active
-												? "bg-green-500/20 text-green-400 border border-green-500/30"
-												: "bg-red-500/20 text-red-400 border border-red-500/30"
-										}`}
-									>
-										{job.client
-											.is_active
-											? "Active Client"
-											: "Inactive Client"}
-									</span>
-								)}
-							</div>
+							{/* Primary Contact within Client Card */}
+							{primaryContact && (
+								<div className="pt-4 border-t border-zinc-700">
+									<div className="flex items-center justify-between mb-3">
+										<h3 className="text-zinc-400 text-sm">
+											Primary
+											Contact
+										</h3>
+										{primaryContact.title && (
+											<span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-zinc-800 text-zinc-300 border border-zinc-700">
+												{
+													primaryContact.title
+												}
+											</span>
+										)}
+									</div>
+									<div className="space-y-2">
+										<p className="text-white font-medium">
+											{
+												primaryContact.name
+											}
+										</p>
+
+										{primaryContact.email && (
+											<div className="flex items-center gap-2 text-sm">
+												<Mail
+													size={
+														14
+													}
+													className="text-zinc-400 flex-shrink-0"
+												/>
+												<a className="text-white truncate">
+													{
+														primaryContact.email
+													}
+												</a>
+											</div>
+										)}
+
+										{primaryContact.phone && (
+											<div className="flex items-center gap-2 text-sm">
+												<Phone
+													size={
+														14
+													}
+													className="text-zinc-400 flex-shrink-0"
+												/>
+												<a className="text-white">
+													{
+														primaryContact.phone
+													}
+												</a>
+											</div>
+										)}
+									</div>
+								</div>
+							)}
 
 							<button
 								onClick={() =>
@@ -564,21 +622,22 @@ export default function JobDetailPage() {
 							</span>
 						) : undefined
 					}
-					className="h-fit"
 				>
 					{visits.length === 0 ? (
-						<div className="text-center py-12">
-							<Users
-								size={48}
-								className="mx-auto text-zinc-600 mb-3"
-							/>
-							<h3 className="text-zinc-400 text-lg font-medium mb-2">
-								No Visits Created
-							</h3>
-							<p className="text-zinc-500 text-sm max-w-sm mx-auto">
-								Create a visit to assign technicians
-								to this job.
-							</p>
+						<div className="flex items-center justify-center min-h-[300px]">
+							<div className="text-center">
+								<Users
+									size={48}
+									className="mx-auto text-zinc-600 mb-3"
+								/>
+								<h3 className="text-zinc-400 text-lg font-medium mb-2">
+									No Visits Created
+								</h3>
+								<p className="text-zinc-500 text-sm max-w-sm mx-auto">
+									Create a visit to assign
+									technicians to this job.
+								</p>
+							</div>
 						</div>
 					) : visits.every(
 							(v) =>

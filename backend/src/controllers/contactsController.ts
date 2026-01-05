@@ -19,9 +19,6 @@ export interface UserContext {
 // CONTACT CRUD
 // ============================================================================
 
-/**
- * Get all contacts for a client (through client_contact join table)
- */
 export const getClientContacts = async (clientId: string) => {
 	return await db.client_contact.findMany({
 		where: { client_id: clientId },
@@ -32,9 +29,6 @@ export const getClientContacts = async (clientId: string) => {
 	});
 };
 
-/**
- * Get a specific contact by ID (independent entity)
- */
 export const getContactById = async (contactId: string) => {
 	return await db.contact.findUnique({
 		where: { id: contactId },
@@ -53,9 +47,6 @@ export const getContactById = async (contactId: string) => {
 	});
 };
 
-/**
- * Get all independent contacts (not filtered by client)
- */
 export const getAllContacts = async () => {
 	return await db.contact.findMany({
 		where: { is_active: true },
@@ -75,10 +66,6 @@ export const getAllContacts = async () => {
 	});
 };
 
-/**
- * Create a new independent contact and optionally link to client
- * Includes smart duplicate detection
- */
 export const insertContact = async (data: unknown, context?: UserContext) => {
 	try {
 		const parsed = createContactSchema.parse(data);
@@ -112,7 +99,6 @@ export const insertContact = async (data: unknown, context?: UserContext) => {
 		}
 
 		const created = await db.$transaction(async (tx) => {
-			// Create independent contact
 			const contact = await tx.contact.create({
 				data: {
 					name: parsed.name,
@@ -146,14 +132,12 @@ export const insertContact = async (data: unknown, context?: UserContext) => {
 					},
 				});
 
-				// Update client activity
 				await tx.client.update({
 					where: { id: parsed.client_id },
 					data: { last_activity: new Date() },
 				});
 			}
 
-			// Unified activity log
 			await logActivity({
 				event_type: "contact.created",
 				action: "created",
@@ -203,9 +187,6 @@ export const insertContact = async (data: unknown, context?: UserContext) => {
 	}
 };
 
-/**
- * Update an independent contact
- */
 export const updateContact = async (
 	contactId: string,
 	data: unknown,
@@ -327,9 +308,6 @@ export const updateContact = async (
 	}
 };
 
-/**
- * Delete a contact (only if not linked to any clients)
- */
 export const deleteContact = async (
 	contactId: string,
 	context?: UserContext
@@ -390,9 +368,6 @@ export const deleteContact = async (
 // CLIENT-CONTACT RELATIONSHIP MANAGEMENT
 // ============================================================================
 
-/**
- * Link an existing contact to a client
- */
 export const linkContactToClient = async (
 	contactId: string,
 	clientId: string,
@@ -482,9 +457,6 @@ export const linkContactToClient = async (
 	}
 };
 
-/**
- * Update a client-contact relationship
- */
 export const updateClientContact = async (
 	contactId: string,
 	clientId: string,
@@ -568,9 +540,6 @@ export const updateClientContact = async (
 	}
 };
 
-/**
- * Unlink a contact from a client
- */
 export const unlinkContactFromClient = async (
 	contactId: string,
 	clientId: string,
@@ -622,5 +591,55 @@ export const unlinkContactFromClient = async (
 		return { err: "", message: "Contact unlinked successfully" };
 	} catch (error) {
 		return { err: "Internal server error" };
+	}
+};
+
+export const searchContacts = async (
+	query: string,
+	excludeClientId?: string
+) => {
+	try {
+		if (!query || query.trim().length < 2) {
+			return { err: "", items: [] };
+		}
+
+		const where: any = {
+			is_active: true,
+			OR: [
+				{ name: { contains: query.trim(), mode: "insensitive" } },
+				{ email: { contains: query.trim(), mode: "insensitive" } },
+				{ phone: { contains: query.trim(), mode: "insensitive" } },
+			],
+		};
+
+		// Exclude contacts already linked to this client
+		if (excludeClientId) {
+			where.client_contacts = {
+				none: {
+					client_id: excludeClientId,
+				},
+			};
+		}
+
+		const contacts = await db.contact.findMany({
+			where,
+			select: {
+				id: true,
+				name: true,
+				email: true,
+				phone: true,
+				company: true,
+				title: true,
+			},
+			take: 10, // Limit results
+			orderBy: {
+				name: "asc",
+			},
+		});
+
+		return { err: "", items: contacts };
+	} catch (error) {
+		console.error("Search contacts error:", error);
+		return { err: "Internal server error", items: [] };
 	}
 };

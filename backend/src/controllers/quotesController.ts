@@ -19,27 +19,26 @@ export interface UserContext {
 }
 
 async function generateQuoteNumber(): Promise<string> {
-	const year = new Date().getFullYear();
 	const lastQuote = await db.quote.findFirst({
 		where: {
 			quote_number: {
-				startsWith: `Q-${year}-`,
+				startsWith: "Q-",
 			},
 		},
 		orderBy: {
-			created_at: "desc",
+			quote_number: "desc",
 		},
 	});
 
 	let nextNumber = 1;
 	if (lastQuote) {
-		const match = lastQuote.quote_number.match(/Q-\d{4}-(\d+)/);
+		const match = lastQuote.quote_number.match(/Q-(\d+)/);
 		if (match) {
 			nextNumber = parseInt(match[1]) + 1;
 		}
 	}
 
-	return `Q-${year}-${nextNumber.toString().padStart(4, "0")}`;
+	return `Q-${nextNumber.toString().padStart(4, "0")}`;
 }
 
 export const getAllQuotes = async () => {
@@ -84,6 +83,22 @@ export const getQuoteById = async (quoteId: string) => {
 					name: true,
 					address: true,
 					coords: true,
+					is_active: true,
+					contacts: {
+						where: { is_primary: true },
+						include: {
+							contact: {
+								select: {
+									id: true,
+									name: true,
+									email: true,
+									phone: true,
+									title: true,
+								},
+							},
+						},
+						take: 1,
+					},
 				},
 			},
 			request: {

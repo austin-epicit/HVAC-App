@@ -172,9 +172,6 @@ model request {
   created_at  DateTime       @default(now())
   updated_at  DateTime       @updatedAt
   
-  assigned_dispatcher_id String?
-  assigned_dispatcher    dispatcher? @relation(fields: [assigned_dispatcher_id], references: [id])
-  
   requires_quote    Boolean  @default(false)
   estimated_value   Decimal? @db.Decimal(10, 2)
   source            String?  // "phone", "email", "web"
@@ -253,8 +250,8 @@ model quote {
   approved_at  DateTime?
   rejected_at  DateTime?
   
-  valid_until  DateTime?
-  expires_at   DateTime?
+  valid_until  DateTime? //The pricing deadline for the client to accept the quote (revision needed)
+  expires_at   DateTime? //The deadline for when the quote is invalid/expired
   
   rejection_reason String?
   

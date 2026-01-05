@@ -1,0 +1,564 @@
+import { useParams, useNavigate } from "react-router-dom";
+import {
+	Edit2,
+	User,
+	Calendar,
+	MapPin,
+	DollarSign,
+	MoreVertical,
+	FileText,
+	Briefcase,
+	TrendingUp,
+	Phone,
+	Mail,
+	Globe,
+} from "lucide-react";
+import { useRequestByIdQuery } from "../../hooks/useRequests";
+import Card from "../../components/ui/Card";
+import EditRequest from "../../components/requests/EditRequest";
+import { useState, useRef, useEffect } from "react";
+
+export default function RequestDetailPage() {
+	const { requestId } = useParams<{ requestId: string }>();
+	const navigate = useNavigate();
+	const { data: request, isLoading } = useRequestByIdQuery(requestId!);
+	const [showActionsMenu, setShowActionsMenu] = useState(false);
+	const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+	const menuRef = useRef<HTMLDivElement>(null);
+
+	useEffect(() => {
+		function handleClickOutside(event: MouseEvent) {
+			if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+				setShowActionsMenu(false);
+			}
+		}
+
+		document.addEventListener("mousedown", handleClickOutside);
+		return () => {
+			document.removeEventListener("mousedown", handleClickOutside);
+		};
+	}, []);
+
+	if (isLoading) {
+		return (
+			<div className="flex items-center justify-center h-64">
+				<div className="text-white text-lg">Loading request details...</div>
+			</div>
+		);
+	}
+
+	if (!request) {
+		return (
+			<div className="flex items-center justify-center h-64">
+				<div className="text-white text-lg">Request not found</div>
+			</div>
+		);
+	}
+
+	// Get primary contact from client_contact join table
+	const primaryContact = request.client?.contacts?.find((cc: any) => cc.is_primary)?.contact;
+
+	const getStatusColor = (status: string) => {
+		switch (status) {
+			case "New":
+				return "bg-blue-500/20 text-blue-400 border-blue-500/30";
+			case "Reviewed":
+				return "bg-purple-500/20 text-purple-400 border-purple-500/30";
+			case "Quoted":
+				return "bg-amber-500/20 text-amber-400 border-amber-500/30";
+			case "Approved":
+				return "bg-green-500/20 text-green-400 border-green-500/30";
+			case "Rejected":
+				return "bg-red-500/20 text-red-400 border-red-500/30";
+			case "Converted":
+				return "bg-green-500/20 text-green-400 border-green-500/30";
+			case "Cancelled":
+				return "bg-zinc-500/20 text-zinc-400 border-zinc-500/30";
+			default:
+				return "bg-zinc-500/20 text-zinc-400 border-zinc-500/30";
+		}
+	};
+
+	const getPriorityColor = (priority: string) => {
+		switch (priority?.toLowerCase()) {
+			case "high":
+				return "text-red-400";
+			case "medium":
+				return "text-amber-400";
+			case "low":
+				return "text-green-400";
+			default:
+				return "text-blue-400";
+		}
+	};
+
+	const getSourceIcon = (source?: string | null) => {
+		switch (source?.toLowerCase()) {
+			case "phone":
+				return <Phone size={14} />;
+			case "email":
+				return <Mail size={14} />;
+			case "web":
+				return <Globe size={14} />;
+			default:
+				return <FileText size={14} />;
+		}
+	};
+
+	const handleConvertToQuote = () => {
+		// TODO: Implement convert to quote logic
+		console.log("Converting to quote:", request.id);
+		setShowActionsMenu(false);
+	};
+
+	const handleConvertToJob = () => {
+		// TODO: Implement convert to job logic
+		console.log("Converting to job:", request.id);
+		setShowActionsMenu(false);
+	};
+
+	return (
+		<div className="text-white space-y-6">
+			{/* Header */}
+			<div className="grid grid-cols-2 gap-4 mb-6 items-center">
+				<h1 className="text-3xl font-bold text-white">{request.title}</h1>
+
+				<div className="justify-self-end flex items-center gap-3">
+					<span
+						className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium border ${getStatusColor(
+							request.status
+						)}`}
+					>
+						{request.status}
+					</span>
+
+					{/* Actions Menu */}
+					<div className="relative" ref={menuRef}>
+						<button
+							onClick={() =>
+								setShowActionsMenu(!showActionsMenu)
+							}
+							className="p-2 hover:bg-zinc-800 rounded-md transition-colors"
+						>
+							<MoreVertical size={20} />
+						</button>
+
+						{showActionsMenu && (
+							<div className="absolute right-0 mt-2 w-56 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl z-50">
+								<div className="py-1">
+									<button
+										onClick={
+											handleConvertToQuote
+										}
+										className="w-full px-4 py-2 text-left text-sm hover:bg-zinc-800 transition-colors flex items-center gap-2"
+									>
+										<FileText
+											size={16}
+										/>
+										Convert to Quote
+									</button>
+									<button
+										onClick={
+											handleConvertToJob
+										}
+										className="w-full px-4 py-2 text-left text-sm hover:bg-zinc-800 transition-colors flex items-center gap-2"
+									>
+										<Briefcase
+											size={16}
+										/>
+										Convert to Job
+									</button>
+								</div>
+							</div>
+						)}
+					</div>
+				</div>
+			</div>
+
+			{/* Request Information (2/3) and Client Details (1/3) */}
+			<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+				{/* Request Information - 2/3 width */}
+				<div className="lg:col-span-2">
+					<Card
+						title="Request Information"
+						headerAction={
+							<button
+								onClick={() =>
+									setIsEditModalOpen(true)
+								}
+								className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-md text-sm font-medium transition-colors"
+							>
+								<Edit2 size={14} />
+								Edit
+							</button>
+						}
+						className="h-full"
+					>
+						<div className="space-y-4">
+							<div>
+								<h3 className="text-zinc-400 text-sm mb-1">
+									Description
+								</h3>
+								<p className="text-white break-words">
+									{request.description ||
+										"No description provided"}
+								</p>
+							</div>
+
+							{request.address && (
+								<div>
+									<h3 className="text-zinc-400 text-sm mb-1 flex items-center gap-2">
+										<MapPin size={14} />
+										Address
+									</h3>
+									<p className="text-white break-words">
+										{request.address}
+									</p>
+								</div>
+							)}
+
+							<div className="grid grid-cols-2 gap-4">
+								<div>
+									<h3 className="text-zinc-400 text-sm mb-1 flex items-center gap-2">
+										<TrendingUp
+											size={14}
+										/>
+										Priority
+									</h3>
+									<p
+										className={`font-medium capitalize ${getPriorityColor(request.priority)}`}
+									>
+										{request.priority}
+									</p>
+								</div>
+								<div>
+									<h3 className="text-zinc-400 text-sm mb-1 flex items-center gap-2">
+										<Calendar
+											size={14}
+										/>
+										Created
+									</h3>
+									<p className="text-white">
+										{new Date(
+											request.created_at
+										).toLocaleDateString(
+											"en-US",
+											{
+												year: "numeric",
+												month: "short",
+												day: "numeric",
+											}
+										)}
+									</p>
+								</div>
+							</div>
+
+							{request.estimated_value && (
+								<div>
+									<h3 className="text-zinc-400 text-sm mb-1 flex items-center gap-2">
+										<DollarSign
+											size={14}
+										/>
+										Estimated Value
+									</h3>
+									<p className="text-white font-medium">
+										$
+										{Number(
+											request.estimated_value
+										).toLocaleString(
+											"en-US",
+											{
+												minimumFractionDigits: 2,
+												maximumFractionDigits: 2,
+											}
+										)}
+									</p>
+								</div>
+							)}
+
+							{request.source && (
+								<div>
+									<h3 className="text-zinc-400 text-sm mb-1 flex items-center gap-2">
+										{getSourceIcon(
+											request.source
+										)}
+										Source
+									</h3>
+									<div className="flex items-center gap-2">
+										<span className="text-white capitalize">
+											{
+												request.source
+											}
+										</span>
+										{request.source_reference && (
+											<>
+												<span className="text-zinc-600">
+													•
+												</span>
+												<span className="text-zinc-400 text-sm">
+													{
+														request.source_reference
+													}
+												</span>
+											</>
+										)}
+									</div>
+								</div>
+							)}
+
+							{request.requires_quote && (
+								<div>
+									<span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-500/20 text-amber-400 border border-amber-500/30">
+										Quote Required
+									</span>
+								</div>
+							)}
+
+							{request.cancelled_at && (
+								<div className="pt-4 border-t border-zinc-700">
+									<h3 className="text-zinc-400 text-sm mb-2">
+										Cancellation Details
+									</h3>
+									<div className="space-y-2">
+										<p className="text-sm text-zinc-300">
+											Cancelled
+											on:{" "}
+											{new Date(
+												request.cancelled_at
+											).toLocaleDateString(
+												"en-US",
+												{
+													year: "numeric",
+													month: "short",
+													day: "numeric",
+													hour: "numeric",
+													minute: "2-digit",
+												}
+											)}
+										</p>
+										{request.cancellation_reason && (
+											<p className="text-sm text-zinc-400">
+												Reason:{" "}
+												{
+													request.cancellation_reason
+												}
+											</p>
+										)}
+									</div>
+								</div>
+							)}
+						</div>
+					</Card>
+				</div>
+
+				{/* Client Details - 1/3 width */}
+				<div className="lg:col-span-1">
+					<Card
+						title="Client Details"
+						headerAction={
+							request.client?.is_active !== undefined && (
+								<span
+									className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${
+										request.client
+											.is_active
+											? "bg-green-500/20 text-green-400 border-green-500/30"
+											: "bg-red-500/20 text-red-400 border-red-500/30"
+									}`}
+								>
+									{request.client.is_active
+										? "Active"
+										: "Inactive"}
+								</span>
+							)
+						}
+						className="h-full"
+					>
+						<div className="space-y-4">
+							<div>
+								<h3 className="text-zinc-400 text-sm mb-2 flex items-center gap-2">
+									<User size={14} />
+									Client Name
+								</h3>
+								<p>
+									{request.client?.name ||
+										"Unknown Client"}
+								</p>
+							</div>
+
+							{request.client?.address && (
+								<div>
+									<h3 className="text-zinc-400 text-sm mb-1">
+										Address
+									</h3>
+									<p className="text-white text-sm break-words">
+										{
+											request
+												.client
+												.address
+										}
+									</p>
+								</div>
+							)}
+
+							{/* Primary Contact within Client Card */}
+							{primaryContact && (
+								<div className="pt-4 border-t border-zinc-700">
+									<div className="flex items-center justify-between mb-3">
+										<h3 className="text-zinc-400 text-sm">
+											Primary
+											Contact
+										</h3>
+										{primaryContact.title && (
+											<span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-zinc-800 text-zinc-300 border border-zinc-700">
+												{
+													primaryContact.title
+												}
+											</span>
+										)}
+									</div>
+									<div className="space-y-2">
+										<p className="text-white font-medium">
+											{
+												primaryContact.name
+											}
+										</p>
+
+										{primaryContact.email && (
+											<div className="flex items-center gap-2 text-sm">
+												<Mail
+													size={
+														14
+													}
+													className="text-zinc-400 flex-shrink-0"
+												/>
+												<a className="text-white truncate">
+													{
+														primaryContact.email
+													}
+												</a>
+											</div>
+										)}
+
+										{primaryContact.phone && (
+											<div className="flex items-center gap-2 text-sm">
+												<Phone
+													size={
+														14
+													}
+													className="text-zinc-400 flex-shrink-0"
+												/>
+												<a className="text-white">
+													{
+														primaryContact.phone
+													}
+												</a>
+											</div>
+										)}
+									</div>
+								</div>
+							)}
+
+							<button
+								onClick={() =>
+									navigate(
+										`/dispatch/clients/${request.client_id}`
+									)
+								}
+								className="w-full mt-4 px-4 py-2 bg-zinc-700 hover:bg-zinc-600 rounded-md text-sm font-medium transition-colors"
+							>
+								View Full Client Profile
+							</button>
+						</div>
+					</Card>
+				</div>
+			</div>
+
+			{/* Quotes - Full Width */}
+			<Card
+				title="Quotes"
+				headerAction={
+					request.quotes && request.quotes.length > 0 ? (
+						<span className="text-sm text-zinc-400">
+							{request.quotes.length} quote(s)
+						</span>
+					) : undefined
+				}
+			>
+				{!request.quotes || request.quotes.length === 0 ? (
+					<div className="text-center py-12">
+						<FileText
+							size={48}
+							className="mx-auto text-zinc-600 mb-3"
+						/>
+						<h3 className="text-zinc-400 text-lg font-medium mb-2">
+							No Quotes
+						</h3>
+						<p className="text-zinc-500 text-sm max-w-sm mx-auto mb-4">
+							No quotes have been created for this request
+							yet.
+						</p>
+						{request.requires_quote && (
+							<p className="text-amber-400 text-xs">
+								Quote required for this request
+							</p>
+						)}
+					</div>
+				) : (
+					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+						{request.quotes.map((quote: any) => (
+							<div
+								key={quote.id}
+								className="bg-zinc-800 border border-zinc-700 rounded-lg p-4 hover:border-zinc-600 transition-colors cursor-pointer"
+								onClick={() =>
+									navigate(
+										`/dispatch/quotes/${quote.id}`
+									)
+								}
+							>
+								<div className="flex items-start justify-between mb-2">
+									<h4 className="text-white font-medium">
+										{quote.title ||
+											"Quote"}
+									</h4>
+									<span className="text-green-400 font-medium text-sm">
+										$
+										{Number(
+											quote.total_amount
+										).toLocaleString(
+											"en-US",
+											{
+												minimumFractionDigits: 2,
+												maximumFractionDigits: 2,
+											}
+										)}
+									</span>
+								</div>
+								<div className="flex items-center gap-2 text-xs text-zinc-400">
+									<Calendar size={12} />
+									{new Date(
+										quote.created_at
+									).toLocaleDateString(
+										"en-US",
+										{
+											month: "short",
+											day: "numeric",
+											year: "numeric",
+										}
+									)}
+								</div>
+							</div>
+						))}
+					</div>
+				)}
+			</Card>
+
+			{request && (
+				<EditRequest
+					isModalOpen={isEditModalOpen}
+					setIsModalOpen={setIsEditModalOpen}
+					request={request}
+				/>
+			)}
+		</div>
+	);
+}

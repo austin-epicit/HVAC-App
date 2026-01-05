@@ -147,9 +147,19 @@ export const useClientContactsQuery = (
 // INDEPENDENT CONTACT MUTATIONS
 // ============================================================================
 
-/**
- * Create a new independent contact (optionally link to client)
- */
+export const useSearchContactsQuery = (
+	query: string,
+	clientId: string,
+	enabled: boolean = true
+): UseQueryResult<Contact[], Error> => {
+	return useQuery({
+		queryKey: ["contacts", "search", query, clientId],
+		queryFn: () => clientApi.searchContacts(query, clientId),
+		enabled: enabled && query.length >= 2,
+		staleTime: 30000, // Cache for 30 seconds
+	});
+};
+
 export const useCreateContactMutation = (): UseMutationResult<
 	Contact,
 	Error,
@@ -254,42 +264,52 @@ export const useDeleteContactMutation = (): UseMutationResult<
 /**
  * Link an existing contact to a client
  */
-export const useLinkContactToClientMutation = (): UseMutationResult<
+export const useLinkContactMutation = (): UseMutationResult<
 	ClientContactLink,
 	Error,
-	{ clientId: string; contactId: string; data: LinkContactInput }
+	{
+		clientId: string;
+		data: {
+			contact_id: string;
+			relationship: string;
+			is_primary: boolean;
+			is_billing: boolean;
+		};
+	}
 > => {
 	const queryClient = useQueryClient();
 
 	return useMutation({
 		mutationFn: ({
 			clientId,
-			contactId,
 			data,
 		}: {
 			clientId: string;
-			contactId: string;
-			data: LinkContactInput;
-		}) => clientApi.linkContactToClient(clientId, contactId, data),
+			data: {
+				contact_id: string;
+				relationship: string;
+				is_primary: boolean;
+				is_billing: boolean;
+			};
+		}) => clientApi.linkContactToClient(clientId, data),
 		onSuccess: (_, variables) => {
-			// Invalidate client's contacts
+			// Invalidate client contacts to refresh the list
 			queryClient.invalidateQueries({
 				queryKey: ["clients", variables.clientId, "contacts"],
 			});
 			queryClient.invalidateQueries({
 				queryKey: ["clients", variables.clientId],
 			});
-
 			// Invalidate the contact
 			queryClient.invalidateQueries({
-				queryKey: ["contacts", variables.contactId],
+				queryKey: ["contacts", variables.data.contact_id],
 			});
 			queryClient.invalidateQueries({
 				queryKey: ["contacts"],
 			});
 		},
 		onError: (error: Error) => {
-			console.error("Failed to link contact to client:", error);
+			console.error("Failed to link contact:", error);
 		},
 	});
 };

@@ -187,7 +187,6 @@ export const insertJobVisit = async (req: Request, context?: UserContext) => {
 				});
 			}
 
-			// Update job status if needed
 			if (parsed.status === "Scheduled" && job.status === "Unscheduled") {
 				await tx.job.update({
 					where: { id: parsed.job_id },
@@ -195,7 +194,6 @@ export const insertJobVisit = async (req: Request, context?: UserContext) => {
 				});
 			}
 
-			// Unified activity log
 			await logActivity({
 				event_type: "job_visit.created",
 				action: "created",
@@ -397,7 +395,6 @@ export const assignTechniciansToVisit = async (
 				})),
 			});
 
-			// Unified activity log
 			await logActivity({
 				event_type: "job_visit.technicians_assigned",
 				action: "updated",
@@ -457,7 +454,6 @@ export const deleteJobVisit = async (id: string, context?: UserContext) => {
 				where: { visit_id: id },
 			});
 
-			// Unified activity log
 			await logActivity({
 				event_type: "job_visit.deleted",
 				action: "deleted",

@@ -4,39 +4,132 @@ import { Calendar } from "lucide-react";
 import { format } from "date-fns";
 
 import "react-day-picker/dist/style.css";
-import "./DatePicker.css"; 
 
 type DatePickerProps = {
-  value: Date;
-  onChange: (date: Date) => void;
-  disabled?: boolean;
+	value: Date;
+	onChange: (date: Date) => void;
+	disabled?: boolean;
 };
 
 export default function DatePicker({ value, onChange, disabled }: DatePickerProps) {
-  const [open, setOpen] = useState(false);
-  const [alignRight, setAlignRight] = useState(false);
+	const [open, setOpen] = useState(false);
+	const [alignRight, setAlignRight] = useState(false);
+	const [showAbove, setShowAbove] = useState(false);
 
-  const buttonRef = useRef<HTMLButtonElement>(null);
+	const buttonRef = useRef<HTMLButtonElement>(null);
+	const calendarRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (open && buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect();
+	useEffect(() => {
+		if (open && buttonRef.current) {
+			const rect = buttonRef.current.getBoundingClientRect();
+			const shouldAlignRight = rect.left > window.innerWidth / 2;
 
-      // If button is on the right half of the screen → align dropdown to the right
-      const shouldAlignRight = rect.left > window.innerWidth / 2;
+			// Estimate calendar height (~350px is typical for DayPicker)
+			const calendarHeight = 350;
+			const spaceBelow = window.innerHeight - rect.bottom;
+			const spaceAbove = rect.top;
 
-      setAlignRight(shouldAlignRight);
-    }
-  }, [open]);
+			// Show above if there's not enough space below but there is space above
+			const shouldShowAbove =
+				spaceBelow < calendarHeight && spaceAbove > calendarHeight;
 
-  return (
-    <div className="relative w-full">
-      <button
-        ref={buttonRef}
-        type="button"
-        disabled={disabled}
-        onClick={() => setOpen(!open)}
-        className="
+			setAlignRight(shouldAlignRight);
+			setShowAbove(shouldShowAbove);
+		}
+	}, [open]);
+
+	useEffect(() => {
+		function handleClickOutside(event: MouseEvent) {
+			if (
+				open &&
+				buttonRef.current &&
+				calendarRef.current &&
+				!buttonRef.current.contains(event.target as Node) &&
+				!calendarRef.current.contains(event.target as Node)
+			) {
+				setOpen(false);
+			}
+		}
+
+		document.addEventListener("mousedown", handleClickOutside);
+		return () => {
+			document.removeEventListener("mousedown", handleClickOutside);
+		};
+	}, [open]);
+
+	return (
+		<div className="relative w-full">
+			<style>{`
+        .date-picker-dark {
+          --rdp-accent-color: #3b82f6;
+          --rdp-background-color: #18181b;
+          --rdp-accent-background-color: #1e40af;
+          color: #e4e4e7;
+          border-radius: 4px;
+          pointer-events: auto !important;
+          overscroll-behavior: contain;
+        }
+
+        .date-picker-dark .rdp-month_caption {
+          color: #e4e4e7;
+          font-weight: 600;
+          padding: 0 0 0 0.8rem;
+          margin-bottom: 0.25rem;
+          font-size: 1rem;
+        }
+
+        .date-picker-dark .rdp-weekdays {
+          padding: 0 0.25rem;
+        }
+
+        .date-picker-dark .rdp-weekday {
+          color: #a1a1aa;
+          font-size: 0.70rem;
+          padding: 0.05rem 0.25rem;
+        }
+
+        .date-picker-dark .rdp-day_button {
+          padding: 0.15rem 0.15rem;
+          border-radius: 3px;
+          font-size: 0.80rem;
+          line-height: 1rem;
+        }
+
+        .date-picker-dark .rdp-day_button:hover:not([disabled]):not(.rdp-day_selected) {
+          background-color: #27272a;
+        }
+
+        .date-picker-dark .rdp-day_button.rdp-day_selected {
+          background-color: #3b82f6;
+          color: white;
+        }
+
+        .date-picker-dark .rdp-day_button.rdp-day_today:not(.rdp-day_selected) {
+          color: #3b82f6;
+          font-weight: 600;
+        }
+
+        .date-picker-dark .rdp-day_button:disabled {
+          opacity: 0.25;
+        }
+
+        .date-picker-dark .rdp-nav_button {
+          padding: 0.2rem;
+          border-radius: 4px;
+          color: #e4e4e7;
+        }
+
+        .date-picker-dark .rdp-nav_button:hover {
+          background-color: #27272a;
+        }
+      `}</style>
+
+			<button
+				ref={buttonRef}
+				type="button"
+				disabled={disabled}
+				onClick={() => setOpen(!open)}
+				className="
           border border-zinc-800 
           p-2 w-full 
           rounded-sm 
@@ -46,33 +139,35 @@ export default function DatePicker({ value, onChange, disabled }: DatePickerProp
           transition-all 
           disabled:opacity-50 disabled:cursor-not-allowed
         "
-      >
-        <span>{format(value, "MMMM dd, yyyy")}</span>
-        <Calendar className="h-4 w-4 opacity-50" />
-      </button>
+			>
+				<span>{format(value, "MMMM dd, yyyy")}</span>
+				<Calendar className="h-4 w-4 opacity-50" />
+			</button>
 
-      {open && (
-        <div
-          className={`
-            absolute z-50 mt-1 
+			{open && (
+				<div
+					ref={calendarRef}
+					className={`
+            absolute z-50 
             bg-zinc-950 border border-zinc-800 
             rounded-sm shadow-xl p-0.5
             ${alignRight ? "right-0" : "left-0"}
+            ${showAbove ? "bottom-full mb-1" : "top-full mt-1"}
           `}
-        >
-          <DayPicker
-            mode="single"
-            selected={value}
-            onSelect={(date) => {
-              if (date) {
-                onChange(date);
-                setOpen(false);
-              }
-            }}
-            className="date-picker-dark"
-          />
-        </div>
-      )}
-    </div>
-  );
+				>
+					<DayPicker
+						mode="single"
+						selected={value}
+						onSelect={(date) => {
+							if (date) {
+								onChange(date);
+								setOpen(false);
+							}
+						}}
+						className="date-picker-dark"
+					/>
+				</div>
+			)}
+		</div>
+	);
 }

@@ -1,5 +1,5 @@
 import z from "zod";
-import type { Client } from "./clients";
+import type { ClientSummary, ClientWithPrimaryContact } from "./clients";
 import type { Coordinates } from "./location";
 
 export const JobStatusValues = [
@@ -33,6 +33,55 @@ export interface JobVisitTechnician {
 	};
 }
 
+export interface JobSummary {
+	id: string;
+	name: string;
+	client_id: string;
+	address: string;
+	description: string;
+	priority: JobPriority;
+	status: JobStatus;
+}
+
+export interface VisitReference {
+	id: string;
+	scheduled_start_at: Date | string;
+	scheduled_end_at: Date | string;
+	status: VisitStatus;
+}
+
+export interface Job {
+	id: string;
+	name: string;
+	client_id: string;
+	address: string;
+	coords: Coordinates;
+	description: string;
+	priority: JobPriority;
+	status: JobStatus;
+	created_at: Date | string;
+	client?: ClientWithPrimaryContact;
+	visits?: JobVisit[];
+	notes?: JobNote[];
+}
+
+export interface JobVisit {
+	id: string;
+	job_id: string;
+	schedule_type: ScheduleType;
+	scheduled_start_at: Date | string;
+	scheduled_end_at: Date | string;
+	arrival_window_start?: Date | string | null;
+	arrival_window_end?: Date | string | null;
+	actual_start_at?: Date | string | null;
+	actual_end_at?: Date | string | null;
+	status: VisitStatus;
+
+	job?: JobSummary & { client: ClientSummary; coords: Coordinates };
+	visit_techs: JobVisitTechnician[];
+	notes?: JobNote[];
+}
+
 export interface JobNote {
 	id: string;
 	job_id: string;
@@ -64,53 +113,7 @@ export interface JobNote {
 		name: string;
 		email: string;
 	} | null;
-	visit?: {
-		id: string;
-		scheduled_start_at: Date | string;
-		scheduled_end_at: Date | string;
-		status: VisitStatus;
-	} | null;
-}
-
-export interface JobVisit {
-	id: string;
-	job_id: string;
-	job?: {
-		id: string;
-		name: string;
-		client_id: string;
-		client: Client;
-		address: string;
-		coords: Coordinates;
-		description: string;
-		priority: JobPriority;
-		status: JobStatus;
-	};
-	schedule_type: ScheduleType;
-	scheduled_start_at: Date | string;
-	scheduled_end_at: Date | string;
-	arrival_window_start?: Date | string | null;
-	arrival_window_end?: Date | string | null;
-	actual_start_at?: Date | string | null;
-	actual_end_at?: Date | string | null;
-	status: VisitStatus;
-	visit_techs: JobVisitTechnician[];
-	notes?: JobNote[];
-}
-
-export interface Job {
-	id: string;
-	name: string;
-	client_id: string;
-	client: Client;
-	address: string;
-	coords: Coordinates;
-	description: string;
-	priority: JobPriority;
-	status: JobStatus;
-	created_at: Date | string;
-	visits: JobVisit[];
-	notes: JobNote[];
+	visit?: VisitReference | null;
 }
 
 export interface CreateJobInput {

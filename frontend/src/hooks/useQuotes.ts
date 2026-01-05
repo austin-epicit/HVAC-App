@@ -1,0 +1,450 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+	getAllQuotes,
+	getQuoteById,
+	getQuotesByClientId,
+	getQuotesByRequestId,
+	createQuote,
+	updateQuote,
+	deleteQuote,
+	sendQuote,
+	approveQuote,
+	rejectQuote,
+	recordQuoteView,
+	reviseQuote,
+	addLineItem,
+	updateLineItem,
+	deleteLineItem,
+	getQuoteNotes,
+	createQuoteNote,
+	updateQuoteNote,
+	deleteQuoteNote,
+	getQuoteStatistics,
+} from "../api/quotes";
+import type {
+	Quote,
+	CreateQuoteInput,
+	UpdateQuoteInput,
+	CreateQuoteLineItemInput,
+	UpdateQuoteLineItemInput,
+	CreateQuoteNoteInput,
+	UpdateQuoteNoteInput,
+} from "../types/quotes";
+
+// ============================================================================
+// Query Keys
+// ============================================================================
+
+export const quoteKeys = {
+	all: ["quotes"] as const,
+	lists: () => [...quoteKeys.all, "list"] as const,
+	list: (filters?: Record<string, unknown>) => [...quoteKeys.lists(), filters] as const,
+	details: () => [...quoteKeys.all, "detail"] as const,
+	detail: (id: string) => [...quoteKeys.details(), id] as const,
+	byClient: (clientId: string) => [...quoteKeys.all, "client", clientId] as const,
+	byRequest: (requestId: string) => [...quoteKeys.all, "request", requestId] as const,
+	notes: (quoteId: string) => [...quoteKeys.all, "notes", quoteId] as const,
+	statistics: (clientId?: string) => [...quoteKeys.all, "statistics", clientId] as const,
+};
+
+// ============================================================================
+// Queries
+// ============================================================================
+
+/**
+ * Get all quotes
+ */
+export const useQuotesQuery = () => {
+	return useQuery({
+		queryKey: quoteKeys.lists(),
+		queryFn: getAllQuotes,
+	});
+};
+
+/**
+ * Get a single quote by ID
+ */
+export const useQuoteByIdQuery = (id: string) => {
+	return useQuery({
+		queryKey: quoteKeys.detail(id),
+		queryFn: () => getQuoteById(id),
+		enabled: !!id,
+	});
+};
+
+/**
+ * Get quotes by client ID
+ */
+export const useQuotesByClientIdQuery = (clientId: string) => {
+	return useQuery({
+		queryKey: quoteKeys.byClient(clientId),
+		queryFn: () => getQuotesByClientId(clientId),
+		enabled: !!clientId,
+	});
+};
+
+/**
+ * Get quotes by request ID
+ */
+export const useQuotesByRequestIdQuery = (requestId: string) => {
+	return useQuery({
+		queryKey: quoteKeys.byRequest(requestId),
+		queryFn: () => getQuotesByRequestId(requestId),
+		enabled: !!requestId,
+	});
+};
+
+/**
+ * Get quote notes
+ */
+export const useQuoteNotesQuery = (quoteId: string) => {
+	return useQuery({
+		queryKey: quoteKeys.notes(quoteId),
+		queryFn: () => getQuoteNotes(quoteId),
+		enabled: !!quoteId,
+	});
+};
+
+/**
+ * Get quote statistics
+ */
+export const useQuoteStatisticsQuery = (clientId?: string) => {
+	return useQuery({
+		queryKey: quoteKeys.statistics(clientId),
+		queryFn: () => getQuoteStatistics(clientId),
+	});
+};
+
+// ============================================================================
+// Mutations - Quote CRUD
+// ============================================================================
+
+/**
+ * Create a new quote
+ */
+export const useCreateQuoteMutation = () => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: (input: CreateQuoteInput) => createQuote(input),
+		onSuccess: (newQuote) => {
+			// Invalidate lists
+			queryClient.invalidateQueries({ queryKey: quoteKeys.lists() });
+
+			// Invalidate client-specific quotes if applicable
+			if (newQuote.client_id) {
+				queryClient.invalidateQueries({
+					queryKey: quoteKeys.byClient(newQuote.client_id),
+				});
+			}
+
+			// Invalidate request-specific quotes if applicable
+			if (newQuote.request_id) {
+				queryClient.invalidateQueries({
+					queryKey: quoteKeys.byRequest(newQuote.request_id),
+				});
+			}
+
+			// Invalidate statistics
+			queryClient.invalidateQueries({ queryKey: quoteKeys.statistics() });
+		},
+	});
+};
+
+/**
+ * Update a quote
+ */
+export const useUpdateQuoteMutation = () => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({ id, data }: { id: string; data: UpdateQuoteInput }) =>
+			updateQuote(id, data),
+		onSuccess: (updatedQuote) => {
+			// Invalidate the specific quote
+			queryClient.invalidateQueries({
+				queryKey: quoteKeys.detail(updatedQuote.id),
+			});
+
+			// Invalidate lists
+			queryClient.invalidateQueries({ queryKey: quoteKeys.lists() });
+
+			// Invalidate client-specific quotes
+			if (updatedQuote.client_id) {
+				queryClient.invalidateQueries({
+					queryKey: quoteKeys.byClient(updatedQuote.client_id),
+				});
+			}
+
+			// Invalidate request-specific quotes if applicable
+			if (updatedQuote.request_id) {
+				queryClient.invalidateQueries({
+					queryKey: quoteKeys.byRequest(updatedQuote.request_id),
+				});
+			}
+
+			// Invalidate statistics
+			queryClient.invalidateQueries({ queryKey: quoteKeys.statistics() });
+		},
+	});
+};
+
+/**
+ * Delete a quote
+ */
+export const useDeleteQuoteMutation = () => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({ id, hardDelete }: { id: string; hardDelete?: boolean }) =>
+			deleteQuote(id, hardDelete),
+		onSuccess: () => {
+			// Invalidate all quote-related queries
+			queryClient.invalidateQueries({ queryKey: quoteKeys.all });
+		},
+	});
+};
+
+// ============================================================================
+// Mutations - Quote Actions
+// ============================================================================
+
+/**
+ * Send a quote
+ */
+export const useSendQuoteMutation = () => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: (id: string) => sendQuote(id),
+		onSuccess: (updatedQuote) => {
+			queryClient.invalidateQueries({
+				queryKey: quoteKeys.detail(updatedQuote.id),
+			});
+			queryClient.invalidateQueries({ queryKey: quoteKeys.lists() });
+			queryClient.invalidateQueries({ queryKey: quoteKeys.statistics() });
+		},
+	});
+};
+
+/**
+ * Approve a quote
+ */
+export const useApproveQuoteMutation = () => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: (id: string) => approveQuote(id),
+		onSuccess: (updatedQuote) => {
+			queryClient.invalidateQueries({
+				queryKey: quoteKeys.detail(updatedQuote.id),
+			});
+			queryClient.invalidateQueries({ queryKey: quoteKeys.lists() });
+			queryClient.invalidateQueries({ queryKey: quoteKeys.statistics() });
+		},
+	});
+};
+
+/**
+ * Reject a quote
+ */
+export const useRejectQuoteMutation = () => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({ id, rejectionReason }: { id: string; rejectionReason?: string }) =>
+			rejectQuote(id, rejectionReason),
+		onSuccess: (updatedQuote) => {
+			queryClient.invalidateQueries({
+				queryKey: quoteKeys.detail(updatedQuote.id),
+			});
+			queryClient.invalidateQueries({ queryKey: quoteKeys.lists() });
+			queryClient.invalidateQueries({ queryKey: quoteKeys.statistics() });
+		},
+	});
+};
+
+/**
+ * Record quote view
+ */
+export const useRecordQuoteViewMutation = () => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: (id: string) => recordQuoteView(id),
+		onSuccess: (updatedQuote) => {
+			queryClient.invalidateQueries({
+				queryKey: quoteKeys.detail(updatedQuote.id),
+			});
+		},
+	});
+};
+
+/**
+ * Revise a quote (create new version)
+ */
+export const useReviseQuoteMutation = () => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: (id: string) => reviseQuote(id),
+		onSuccess: (newQuote) => {
+			// Invalidate lists
+			queryClient.invalidateQueries({ queryKey: quoteKeys.lists() });
+
+			// Invalidate client quotes
+			if (newQuote.client_id) {
+				queryClient.invalidateQueries({
+					queryKey: quoteKeys.byClient(newQuote.client_id),
+				});
+			}
+
+			// Invalidate request quotes if applicable
+			if (newQuote.request_id) {
+				queryClient.invalidateQueries({
+					queryKey: quoteKeys.byRequest(newQuote.request_id),
+				});
+			}
+
+			// Invalidate the old quote (since it gets deactivated)
+			if (newQuote.previous_quote_id) {
+				queryClient.invalidateQueries({
+					queryKey: quoteKeys.detail(newQuote.previous_quote_id),
+				});
+			}
+		},
+	});
+};
+
+// ============================================================================
+// Mutations - Line Items
+// ============================================================================
+
+/**
+ * Add a line item to a quote
+ */
+export const useAddLineItemMutation = () => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({
+			quoteId,
+			data,
+		}: {
+			quoteId: string;
+			data: CreateQuoteLineItemInput;
+		}) => addLineItem(quoteId, data),
+		onSuccess: (_, variables) => {
+			// Invalidate the quote to refresh line items
+			queryClient.invalidateQueries({
+				queryKey: quoteKeys.detail(variables.quoteId),
+			});
+		},
+	});
+};
+
+/**
+ * Update a line item
+ */
+export const useUpdateLineItemMutation = () => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({
+			quoteId,
+			lineItemId,
+			data,
+		}: {
+			quoteId: string;
+			lineItemId: string;
+			data: UpdateQuoteLineItemInput;
+		}) => updateLineItem(quoteId, lineItemId, data),
+		onSuccess: (_, variables) => {
+			queryClient.invalidateQueries({
+				queryKey: quoteKeys.detail(variables.quoteId),
+			});
+		},
+	});
+};
+
+/**
+ * Delete a line item
+ */
+export const useDeleteLineItemMutation = () => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({ quoteId, lineItemId }: { quoteId: string; lineItemId: string }) =>
+			deleteLineItem(quoteId, lineItemId),
+		onSuccess: (_, variables) => {
+			queryClient.invalidateQueries({
+				queryKey: quoteKeys.detail(variables.quoteId),
+			});
+		},
+	});
+};
+
+// ============================================================================
+// Mutations - Notes
+// ============================================================================
+
+/**
+ * Create a quote note
+ */
+export const useCreateQuoteNoteMutation = () => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({ quoteId, data }: { quoteId: string; data: CreateQuoteNoteInput }) =>
+			createQuoteNote(quoteId, data),
+		onSuccess: (_, variables) => {
+			queryClient.invalidateQueries({
+				queryKey: quoteKeys.notes(variables.quoteId),
+			});
+			queryClient.invalidateQueries({
+				queryKey: quoteKeys.detail(variables.quoteId),
+			});
+		},
+	});
+};
+
+/**
+ * Update a quote note
+ */
+export const useUpdateQuoteNoteMutation = () => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({
+			quoteId,
+			noteId,
+			data,
+		}: {
+			quoteId: string;
+			noteId: string;
+			data: UpdateQuoteNoteInput;
+		}) => updateQuoteNote(quoteId, noteId, data),
+		onSuccess: (_, variables) => {
+			queryClient.invalidateQueries({
+				queryKey: quoteKeys.notes(variables.quoteId),
+			});
+		},
+	});
+};
+
+/**
+ * Delete a quote note
+ */
+export const useDeleteQuoteNoteMutation = () => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({ quoteId, noteId }: { quoteId: string; noteId: string }) =>
+			deleteQuoteNote(quoteId, noteId),
+		onSuccess: (_, variables) => {
+			queryClient.invalidateQueries({
+				queryKey: quoteKeys.notes(variables.quoteId),
+			});
+		},
+	});
+};

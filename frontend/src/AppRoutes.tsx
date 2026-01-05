@@ -12,8 +12,10 @@ import MapPage from "./pages/dispatch/MapPage";
 import ReportingPage from "./pages/dispatch/ReportingPage";
 import SettingsPage from "./pages/dispatch/SettingsPage";
 import QuotesPage from "./pages/dispatch/QuotesPage";
+import QuoteDetailPage from "./pages/dispatch/QuoteDetailPage";
 import AssignTechnicianPage from "./pages/dispatch/AssignTechnicianPage";
 import RequestsPage from "./pages/dispatch/RequestsPage";
+import RequestDetailsPage from "./pages/dispatch/RequestDetailPage";
 import InventoryPage from "./pages/dispatch/InventoryPage";
 import FullMapPage from "./pages/dispatch/FullMapPage";
 
@@ -59,7 +61,12 @@ export default function AppRoutes() {
 				<Route path="settings" element={<SettingsPage />} />
 				<Route path="inventory" element={<InventoryPage />} />
 				<Route path="quotes" element={<QuotesPage />} />
+				<Route path="quotes/:quoteId" element={<QuoteDetailPage />} />
 				<Route path="requests" element={<RequestsPage />} />
+				<Route
+					path="requests/:requestId"
+					element={<RequestDetailsPage />}
+				/>
 			</Route>
 
 			<Route

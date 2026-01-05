@@ -217,7 +217,6 @@ export const insertJobNote = async (
 				},
 			});
 
-			// Unified activity log
 			await logActivity({
 				event_type: "job_note.created",
 				action: "created",
@@ -359,7 +358,6 @@ export const updateJobNote = async (
 			});
 
 			if (Object.keys(changes).length > 0) {
-				// Unified activity log
 				await logActivity({
 					event_type: "job_note.updated",
 					action: "updated",
@@ -412,7 +410,6 @@ export const deleteJobNote = async (
 		}
 
 		await db.$transaction(async (tx) => {
-			// Unified activity log
 			await logActivity({
 				event_type: "job_note.deleted",
 				action: "deleted",

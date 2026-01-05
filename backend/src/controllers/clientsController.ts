@@ -49,7 +49,6 @@ export const insertClient = async (data: unknown, context?: UserContext) => {
 				},
 			});
 
-			// Unified activity log (replaces logAction + auditLog)
 			await logActivity({
 				event_type: "client.created",
 				action: "created",
@@ -182,7 +181,6 @@ export const deleteClient = async (id: string, context?: UserContext) => {
 		}
 
 		await db.$transaction(async (tx) => {
-			// Cascade deletes handled by schema onDelete: Cascade
 			await tx.client.delete({ where: { id } });
 
 			await logActivity({

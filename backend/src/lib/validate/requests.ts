@@ -33,7 +33,6 @@ export const createRequestSchema = z.object({
 		.nullable()
 		.or(z.literal(""))
 		.transform((val) => (val === "" || val === null ? null : val)),
-	assigned_dispatcher_id: z.string().uuid().optional().nullable(),
 });
 
 export const updateRequestSchema = z
@@ -81,7 +80,6 @@ export const updateRequestSchema = z
 			.nullable()
 			.or(z.literal(""))
 			.transform((val) => (val === "" || val === null ? null : val)),
-		assigned_dispatcher_id: z.string().uuid().optional().nullable(),
 		cancellation_reason: z
 			.string()
 			.optional()
@@ -101,7 +99,6 @@ export const updateRequestSchema = z
 			data.estimated_value !== undefined ||
 			data.source !== undefined ||
 			data.source_reference !== undefined ||
-			data.assigned_dispatcher_id !== undefined ||
 			data.cancellation_reason !== undefined,
 		{ message: "At least one field must be provided for update" }
 	);
