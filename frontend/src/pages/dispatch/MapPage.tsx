@@ -5,6 +5,7 @@ import { useAllClientsQuery } from "../../hooks/useClients";
 import type { StaticMarker } from "../../types/location";
 import { Expand } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useAllTechniciansQuery } from "../../hooks/useTechnicians";
 
 export default function MapPage() {
 	const nav = useNavigate();
@@ -12,10 +13,20 @@ export default function MapPage() {
 	const staticMarkers: StaticMarker[] = [];
 
 	const { data: clients } = useAllClientsQuery();
-
 	if (clients)
 		clients.forEach((c) => {
 			staticMarkers.push({ coords: c.coords, type: "CLIENT", label: c.name });
+		});
+
+	const { data: technicians } = useAllTechniciansQuery();
+	if (technicians)
+		technicians.forEach((t) => {
+			if (t.status != "Offline" && t.status != "Break")
+				staticMarkers.push({
+					coords: t.coords,
+					type: "TECHNICIAN",
+					label: t.name,
+				});
 		});
 
 	return (

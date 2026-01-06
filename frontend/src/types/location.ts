@@ -11,5 +11,5 @@ export interface StaticMarker {
 
 export type Coordinates = { lat: number; lon: number };
 
-export const MarkerType = ["CLIENT", "SITE", "WAREHOUSE", "RESOURCE"] as const;
+export const MarkerType = ["CLIENT", "SITE", "WAREHOUSE", "RESOURCE", "TECHNICIAN"] as const;
 export type MarkerTypeValue = (typeof MarkerType)[number];

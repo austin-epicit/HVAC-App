@@ -1579,7 +1579,7 @@ app.post("/technicians", async (req, res, next) => {
 	}
 });
 
-app.put("/technicians/:id", async (req, res, next) => {
+app.post("/technicians/:id/ping", async (req, res, next) => {
 	try {
 		const { id } = req.params;
 		const context = getUserContext(req);
@@ -1607,7 +1607,7 @@ app.put("/technicians/:id", async (req, res, next) => {
 	}
 });
 
-app.post("/technicians/:id/ping", async (req, res, next) => {
+app.put("/technicians/:id", async (req, res, next) => {
 	try {
 		const { id } = req.params;
 		const context = getUserContext(req);
