@@ -97,6 +97,8 @@ import {
 	updateTechnician,
 	deleteTechnician,
 } from "./controllers/techniciansController.js";
+import http from "http";
+import { Server } from "socket.io";
 
 export interface UserContext {
 	techId?: string;
@@ -181,12 +183,17 @@ if (!frontend) {
 	frontend = "http://localhost:5173";
 }
 
-app.use(
-	cors({
-		origin: process.env.NODE_ENV === "production" ? frontend : "*", // Allow all origins in development
-		credentials: true,
-	})
-);
+const corsOptions = {
+	origin: process.env.NODE_ENV === "production" ? frontend : "*",
+	credentials: true,
+};
+
+app.use(cors(corsOptions));
+
+const server = http.createServer(app);
+const io = new Server(server, {
+	cors: corsOptions,
+});
 
 let port: string | undefined = process.env["SERVER_PORT"];
 if (!port) {
@@ -1579,6 +1586,35 @@ app.post("/technicians", async (req, res, next) => {
 	}
 });
 
+app.post("/technicians/:id/ping", async (req, res, next) => {
+	try {
+		const { id } = req.params;
+		const context = getUserContext(req);
+		const result = await updateTechnician(id, req.body, context);
+
+		if (result.err) {
+			const isDuplicate = result.err
+				.toLowerCase()
+				.includes("already exists");
+			return res
+				.status(isDuplicate ? 409 : 400)
+				.json(
+					createErrorResponse(
+						isDuplicate
+							? ErrorCodes.CONFLICT
+							: ErrorCodes.VALIDATION_ERROR,
+						result.err
+					)
+				);
+		}
+
+		io.emit("technician-update", result.item);
+		res.json(createSuccessResponse(result.item));
+	} catch (err) {
+		next(err);
+	}
+});
+
 app.put("/technicians/:id", async (req, res, next) => {
 	try {
 		const { id } = req.params;
@@ -1637,6 +1673,6 @@ app.delete("/technicians/:id", async (req, res, next) => {
 app.use(notFoundHandler);
 app.use(errorHandler);
 
-app.listen(port, () => {
+server.listen(port, () => {
 	console.log(`✓ Server running on http://localhost:${port}`);
 });

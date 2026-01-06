@@ -1,8 +1,18 @@
 import z from "zod";
-import type { JobPriority, JobStatus, ScheduleType, VisitStatus } from "./jobs";
-import type { Coordinates } from "./location";
+import type {
+	JobPriority,
+	JobStatus,
+	ScheduleType,
+	VisitStatus,
+} from "./jobs.js";
+import type { Coordinates } from "./location.js";
 
-export const TechnicianStatusValues = ["Offline", "Available", "Busy", "Break"] as const;
+export const TechnicianStatusValues = [
+	"Offline",
+	"Available",
+	"Busy",
+	"Break",
+] as const;
 export type TechnicianStatus = (typeof TechnicianStatusValues)[number];
 
 export interface VisitTechnician {
@@ -109,7 +119,10 @@ export const UpdateTechnicianSchema = z
 		name: z.string().min(1, "Technician name is required").optional(),
 		email: z.string().email("Invalid email address").optional(),
 		phone: z.string().min(1, "Phone number is required").optional(),
-		password: z.string().min(8, "Password must be at least 8 characters").optional(),
+		password: z
+			.string()
+			.min(8, "Password must be at least 8 characters")
+			.optional(),
 		title: z.string().min(1, "Title is required").optional(),
 		description: z.string().optional(),
 		status: z.enum(TechnicianStatusValues).optional(),
@@ -129,3 +142,11 @@ export const UpdateTechnicianSchema = z
 			data.last_login !== undefined,
 		{ message: "At least one field must be provided for update" }
 	);
+
+// for technician class
+
+export const TechnicianStartingPointValues = [
+	{ lat: 43.9604, lon: -91.25478 },
+] as const;
+export type TechnicianStartingPoint =
+	(typeof TechnicianStartingPointValues)[number];

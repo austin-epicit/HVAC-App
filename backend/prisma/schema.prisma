@@ -71,38 +71,37 @@ enum technician_status {
 }
 
 model contact {
-  id          String   @id @unique @default(uuid())
-  name        String
-  email       String?
-  phone       String?
-  company     String?
-  title       String?
-  type        String?  // "customer", "vendor", "property_manager", "tenant"
-  misc_info   String?  @db.Text
-  is_active   Boolean  @default(true)
-  
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
-  
-  client_contacts   client_contact[]
+  id        String  @id @unique @default(uuid())
+  name      String
+  email     String?
+  phone     String?
+  company   String?
+  title     String?
+  type      String? // "customer", "vendor", "property_manager", "tenant"
+  misc_info String? @db.Text
+  is_active Boolean @default(true)
 
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  client_contacts client_contact[]
+
+  @@unique([email, phone])
   @@index([email])
   @@index([phone])
   @@index([is_active])
-  @@unique([email, phone])
 }
 
-
 model client_contact {
-  client_id   String
-  contact_id  String
-  client      client  @relation(fields: [client_id], references: [id], onDelete: Cascade)
-  contact     contact @relation(fields: [contact_id], references: [id], onDelete: Cascade)
-  
+  client_id  String
+  contact_id String
+  client     client  @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  contact    contact @relation(fields: [contact_id], references: [id], onDelete: Cascade)
+
   relationship String  @default("contact")
   is_primary   Boolean @default(false)
   is_billing   Boolean @default(false)
-  
+
   @@id([client_id, contact_id])
   @@index([contact_id])
 }
@@ -120,31 +119,31 @@ model client {
   created_at    DateTime @default(now())
   last_activity DateTime @default(now())
   updated_at    DateTime @updatedAt
-  
-  contacts      client_contact[]
-  requests      request[]
-  quotes        quote[]
-  jobs          job[]
-  notes         client_note[]
+
+  contacts client_contact[]
+  requests request[]
+  quotes   quote[]
+  jobs     job[]
+  notes    client_note[]
 
   @@index([is_active])
   @@index([created_at])
 }
 
 model client_note {
-  id          String   @id @unique @default(uuid())
-  client_id   String
-  client      client   @relation(fields: [client_id], references: [id], onDelete: Cascade)
-  
-  content     String   @db.Text
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
-  
+  id        String @id @unique @default(uuid())
+  client_id String
+  client    client @relation(fields: [client_id], references: [id], onDelete: Cascade)
+
+  content    String   @db.Text
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
   creator_tech_id           String?
   creator_dispatcher_id     String?
   last_editor_tech_id       String?
   last_editor_dispatcher_id String?
-  
+
   creator_tech           technician? @relation("ClientNoteCreator", fields: [creator_tech_id], references: [id])
   creator_dispatcher     dispatcher? @relation("ClientNoteCreator", fields: [creator_dispatcher_id], references: [id])
   last_editor_tech       technician? @relation("ClientNoteEditor", fields: [last_editor_tech_id], references: [id])
@@ -159,10 +158,10 @@ model client_note {
 // ============================================================================
 
 model request {
-  id          String         @id @default(uuid())
-  client_id   String
-  client      client         @relation(fields: [client_id], references: [id])
-  
+  id        String @id @default(uuid())
+  client_id String
+  client    client @relation(fields: [client_id], references: [id])
+
   title       String
   description String         @db.Text
   priority    priority       @default(Medium)
@@ -171,42 +170,44 @@ model request {
   status      request_status @default(New)
   created_at  DateTime       @default(now())
   updated_at  DateTime       @updatedAt
-  
-  requires_quote    Boolean  @default(false)
-  estimated_value   Decimal? @db.Decimal(10, 2)
-  source            String?  // "phone", "email", "web"
-  source_reference  String?
-  
+
+  requires_quote   Boolean  @default(false)
+  estimated_value  Decimal? @db.Decimal(10, 2)
+  source           String? // "phone", "email", "web"
+  source_reference String?
+
   cancelled_at        DateTime?
   cancellation_reason String?
 
-  quotes   quote[]
-  job      job?
-  notes    request_note[]
+  quotes       quote[]
+  job          job?
+  notes        request_note[]
+  dispatcher   dispatcher?    @relation(fields: [dispatcherId], references: [id])
+  dispatcherId String?
 
   @@index([client_id])
   @@index([status])
   @@index([priority])
   @@index([created_at])
   @@index([updated_at])
-  @@index([assigned_dispatcher_id])
-  @@index([status, priority])  // Composite for "urgent pending requests"
+  // @@index([assigned_dispatcher_id])
+  @@index([status, priority]) // Composite for "urgent pending requests"
 }
 
 model request_note {
-  id          String   @id @default(uuid())
-  request_id  String
-  request     request  @relation(fields: [request_id], references: [id], onDelete: Cascade)
-  
-  content     String   @db.Text
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
-  
+  id         String  @id @default(uuid())
+  request_id String
+  request    request @relation(fields: [request_id], references: [id], onDelete: Cascade)
+
+  content    String   @db.Text
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
   creator_tech_id           String?
   creator_dispatcher_id     String?
   last_editor_tech_id       String?
   last_editor_dispatcher_id String?
-  
+
   creator_tech           technician? @relation("RequestNoteCreator", fields: [creator_tech_id], references: [id])
   creator_dispatcher     dispatcher? @relation("RequestNoteCreator", fields: [creator_dispatcher_id], references: [id])
   last_editor_tech       technician? @relation("RequestNoteEditor", fields: [last_editor_tech_id], references: [id])
@@ -216,48 +217,48 @@ model request_note {
 }
 
 model quote {
-  id           String       @id @default(uuid())
-  quote_number String       @unique
+  id           String   @id @default(uuid())
+  quote_number String   @unique
   client_id    String
-  client       client       @relation(fields: [client_id], references: [id])
+  client       client   @relation(fields: [client_id], references: [id])
   request_id   String?
-  request      request?     @relation(fields: [request_id], references: [id])
-  
-  title        String
-  description  String       @db.Text
-  status       quote_status @default(Draft)
+  request      request? @relation(fields: [request_id], references: [id])
 
-  address      String
-  coords       Json?
-  priority     priority @default(Medium)
-  
-  is_active    Boolean @default(true)
-  version      Int     @default(1)
+  title       String
+  description String       @db.Text
+  status      quote_status @default(Draft)
+
+  address  String
+  coords   Json?
+  priority priority @default(Medium)
+
+  is_active         Boolean @default(true)
+  version           Int     @default(1)
   previous_quote_id String? @unique
   previous_quote    quote?  @relation("QuoteRevisions", fields: [previous_quote_id], references: [id])
   revised_quote     quote?  @relation("QuoteRevisions")
-  
+
   subtotal        Decimal @db.Decimal(10, 2)
   tax_rate        Decimal @default(0) @db.Decimal(5, 4)
   tax_amount      Decimal @default(0) @db.Decimal(10, 2)
   discount_amount Decimal @default(0) @db.Decimal(10, 2)
   total           Decimal @db.Decimal(10, 2)
-  
-  created_at   DateTime  @default(now())
-  updated_at   DateTime  @updatedAt
-  sent_at      DateTime?
-  viewed_at    DateTime?
-  approved_at  DateTime?
-  rejected_at  DateTime?
-  
-  valid_until  DateTime? //The pricing deadline for the client to accept the quote (revision needed)
-  expires_at   DateTime? //The deadline for when the quote is invalid/expired
-  
+
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+  sent_at     DateTime?
+  viewed_at   DateTime?
+  approved_at DateTime?
+  rejected_at DateTime?
+
+  valid_until DateTime? //The pricing deadline for the client to accept the quote (revision needed)
+  expires_at  DateTime? //The deadline for when the quote is invalid/expired
+
   rejection_reason String?
-  
+
   created_by_dispatcher_id String?
   created_by_dispatcher    dispatcher? @relation("QuoteCreator", fields: [created_by_dispatcher_id], references: [id])
-  
+
   line_items quote_line_item[]
   notes      quote_note[]
   job        job?
@@ -268,41 +269,41 @@ model quote {
   @@index([is_active])
   @@index([quote_number])
   @@index([created_at])
-  @@index([client_id, is_active])  // Find active quotes for client
+  @@index([client_id, is_active]) // Find active quotes for client
 }
 
 model quote_line_item {
-  id          String  @id @default(uuid())
-  quote_id    String
-  quote       quote   @relation(fields: [quote_id], references: [id], onDelete: Cascade)
-  
+  id       String @id @default(uuid())
+  quote_id String
+  quote    quote  @relation(fields: [quote_id], references: [id], onDelete: Cascade)
+
   name        String
   description String? @db.Text
   quantity    Decimal @db.Decimal(10, 2)
   unit_price  Decimal @db.Decimal(10, 2)
   total       Decimal @db.Decimal(10, 2)
-  
-  item_type   String? // "labor", "material", "equipment"
-  sort_order  Int     @default(0)
+
+  item_type  String? // "labor", "material", "equipment"
+  sort_order Int     @default(0)
 
   @@index([quote_id])
   @@index([sort_order])
 }
 
 model quote_note {
-  id          String   @id @default(uuid())
-  quote_id    String
-  quote       quote    @relation(fields: [quote_id], references: [id], onDelete: Cascade)
-  
-  content     String   @db.Text
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
-  
+  id       String @id @default(uuid())
+  quote_id String
+  quote    quote  @relation(fields: [quote_id], references: [id], onDelete: Cascade)
+
+  content    String   @db.Text
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
   creator_tech_id           String?
   creator_dispatcher_id     String?
   last_editor_tech_id       String?
   last_editor_dispatcher_id String?
-  
+
   creator_tech           technician? @relation("QuoteNoteCreator", fields: [creator_tech_id], references: [id])
   creator_dispatcher     dispatcher? @relation("QuoteNoteCreator", fields: [creator_dispatcher_id], references: [id])
   last_editor_tech       technician? @relation("QuoteNoteEditor", fields: [last_editor_tech_id], references: [id])
@@ -312,34 +313,34 @@ model quote_note {
 }
 
 model job {
-  id          String     @id @unique @default(uuid())
-  job_number  String     @unique
+  id          String   @id @unique @default(uuid())
+  job_number  String   @unique
   name        String
-  description String     @db.Text
-  priority    priority   @default(Medium)
+  description String   @db.Text
+  priority    priority @default(Medium)
   address     String
   coords      Json
-  
-  status      job_status @default(Unscheduled)
-  
-  created_at  DateTime   @default(now())
-  updated_at  DateTime   @updatedAt
-  completed_at  DateTime?
-  cancelled_at  DateTime?
+
+  status job_status @default(Unscheduled)
+
+  created_at          DateTime  @default(now())
+  updated_at          DateTime  @updatedAt
+  completed_at        DateTime?
+  cancelled_at        DateTime?
   cancellation_reason String?
-  
-  client_id   String
-  client      client     @relation(fields: [client_id], references: [id])
-  
-  request_id  String?    @unique  // One job per request
-  request     request?   @relation(fields: [request_id], references: [id])
-  
-  quote_id    String?    @unique  // One job per quote
-  quote       quote?     @relation(fields: [quote_id], references: [id])
-  
+
+  client_id String
+  client    client @relation(fields: [client_id], references: [id])
+
+  request_id String?  @unique // One job per request
+  request    request? @relation(fields: [request_id], references: [id])
+
+  quote_id String? @unique // One job per quote
+  quote    quote?  @relation(fields: [quote_id], references: [id])
+
   estimated_total Decimal? @db.Decimal(10, 2)
   actual_total    Decimal? @db.Decimal(10, 2)
-  
+
   visits     job_visit[]
   notes      job_note[]
   line_items job_line_item[]
@@ -351,33 +352,33 @@ model job {
   @@index([updated_at])
   @@index([request_id])
   @@index([quote_id])
-  @@index([client_id, status])  // Active jobs for client
+  @@index([client_id, status]) // Active jobs for client
 }
 
 model job_line_item {
-  id          String  @id @default(uuid())
-  job_id      String
-  job         job     @relation(fields: [job_id], references: [id], onDelete: Cascade)
-  
+  id     String @id @default(uuid())
+  job_id String
+  job    job    @relation(fields: [job_id], references: [id], onDelete: Cascade)
+
   name        String
   description String? @db.Text
   quantity    Decimal @db.Decimal(10, 2)
   unit_price  Decimal @db.Decimal(10, 2)
   total       Decimal @db.Decimal(10, 2)
-  
-  source      String  // "quote", "manual", "field_addition"
-  item_type   String? // "labor", "material", "equipment"
-  
-  created_at  DateTime @default(now())
+
+  source    String // "quote", "manual", "field_addition"
+  item_type String? // "labor", "material", "equipment"
+
+  created_at DateTime @default(now())
 
   @@index([job_id])
 }
 
 model job_visit {
-  id                   String       @id @default(uuid())
-  job_id               String
-  job                  job          @relation(fields: [job_id], references: [id], onDelete: Cascade)
-  
+  id     String @id @default(uuid())
+  job_id String
+  job    job    @relation(fields: [job_id], references: [id], onDelete: Cascade)
+
   schedule_type        schedule_type @default(exact)
   scheduled_start_at   DateTime
   scheduled_end_at     DateTime
@@ -385,11 +386,11 @@ model job_visit {
   arrival_window_end   DateTime?
   actual_start_at      DateTime?
   actual_end_at        DateTime?
-  
-  status               visit_status  @default(Scheduled)
-  
-  visit_techs          job_visit_technician[]
-  notes                job_note[]             @relation("VisitNotes")
+
+  status visit_status @default(Scheduled)
+
+  visit_techs job_visit_technician[]
+  notes       job_note[]             @relation("VisitNotes")
 
   @@index([job_id])
   @@index([status])
@@ -409,22 +410,22 @@ model job_visit_technician {
 }
 
 model job_note {
-  id          String   @id @default(uuid())
-  job_id      String
-  job         job      @relation(fields: [job_id], references: [id], onDelete: Cascade)
-  
-  content     String   @db.Text
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
-  
+  id     String @id @default(uuid())
+  job_id String
+  job    job    @relation(fields: [job_id], references: [id], onDelete: Cascade)
+
+  content    String   @db.Text
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
   creator_tech_id           String?
   creator_dispatcher_id     String?
   last_editor_tech_id       String?
   last_editor_dispatcher_id String?
-  
+
   visit_id String?
   visit    job_visit? @relation("VisitNotes", fields: [visit_id], references: [id], onDelete: Cascade)
-  
+
   creator_tech           technician? @relation("JobNoteCreator", fields: [creator_tech_id], references: [id])
   creator_dispatcher     dispatcher? @relation("JobNoteCreator", fields: [creator_dispatcher_id], references: [id])
   last_editor_tech       technician? @relation("JobNoteEditor", fields: [last_editor_tech_id], references: [id])
@@ -439,16 +440,16 @@ model job_note {
 // ============================================================================
 
 model inventory_item {
-  id          String  @id @unique @default(uuid())
+  id          String @id @unique @default(uuid())
   name        String
-  description String  @db.Text
+  description String @db.Text
   location    String
-  quantity    Int     @default(0)
-  
-  unit_price  Decimal? @db.Decimal(10, 2)
-  cost        Decimal? @db.Decimal(10, 2)
-  sku         String?  @unique
-  is_active   Boolean  @default(true)
+  quantity    Int    @default(0)
+
+  unit_price Decimal? @db.Decimal(10, 2)
+  cost       Decimal? @db.Decimal(10, 2)
+  sku        String?  @unique
+  is_active  Boolean  @default(true)
 
   @@index([sku])
   @@index([is_active])
@@ -470,9 +471,9 @@ model technician {
   hire_date   DateTime
   coords      Json              @default("{}")
   last_login  DateTime          @default(now())
-  
+
   visit_techs job_visit_technician[]
-  
+
   created_client_notes      client_note[]  @relation("ClientNoteCreator")
   last_edited_client_notes  client_note[]  @relation("ClientNoteEditor")
   created_job_notes         job_note[]     @relation("JobNoteCreator")
@@ -495,10 +496,10 @@ model dispatcher {
   title       String
   description String
   last_login  DateTime @default(now())
-  
+
   assigned_requests request[]
-  created_quotes    quote[] @relation("QuoteCreator")
-  
+  created_quotes    quote[]   @relation("QuoteCreator")
+
   created_client_notes      client_note[]  @relation("ClientNoteCreator")
   last_edited_client_notes  client_note[]  @relation("ClientNoteEditor")
   created_job_notes         job_note[]     @relation("JobNoteCreator")
@@ -516,29 +517,29 @@ model dispatcher {
 // ============================================================================
 
 model log {
-  id          String   @id @default(uuid())
-  
-  event_type  String   // "client_note.created", "job.status_changed", "quote.sent"
-  action      String   // "created", "updated", "deleted", "viewed", "sent"
-  entity_type String   // "client_note", "job", "request", "quote", "client"
-  entity_id   String   // UUID of the entity
-  
-  actor_type  String   // "technician", "dispatcher", "system"
-  actor_id    String? 
-  actor_name  String?  
-  
-  changes     Json?    // { field_name: { old: "...", new: "..." } }
-  
-  timestamp   DateTime @default(now())
-  ip_address  String?
-  user_agent  String?
-  
-  reason      String? 
-  
-  @@index([entity_type, entity_id])  
-  @@index([event_type])              
-  @@index([action])                   
-  @@index([timestamp])               
-  @@index([actor_type, actor_id])     
-  @@index([actor_type])               
+  id String @id @default(uuid())
+
+  event_type  String // "client_note.created", "job.status_changed", "quote.sent"
+  action      String // "created", "updated", "deleted", "viewed", "sent"
+  entity_type String // "client_note", "job", "request", "quote", "client"
+  entity_id   String // UUID of the entity
+
+  actor_type String // "technician", "dispatcher", "system"
+  actor_id   String?
+  actor_name String?
+
+  changes Json? // { field_name: { old: "...", new: "..." } }
+
+  timestamp  DateTime @default(now())
+  ip_address String?
+  user_agent String?
+
+  reason String?
+
+  @@index([entity_type, entity_id])
+  @@index([event_type])
+  @@index([action])
+  @@index([timestamp])
+  @@index([actor_type, actor_id])
+  @@index([actor_type])
 }

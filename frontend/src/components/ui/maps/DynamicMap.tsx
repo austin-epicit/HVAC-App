@@ -5,21 +5,20 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import CreateMarker from "./MarkerFactory";
 
 interface DynamicMapProps {
-	containerRef: React.RefObject<HTMLDivElement>;
+	containerRef: React.RefObject<HTMLDivElement | null>;
 	staticMarkers?: StaticMarker[];
 }
 
 const DynamicMap = ({ containerRef, staticMarkers = [] }: DynamicMapProps) => {
-	const MAPBOX_KEY = import.meta.env.VITE_MAPBOX_TOKEN;
-	if (!MAPBOX_KEY) console.error("Issue loading Mapbox public key!");
-
 	const mapRef = useRef<mapboxgl.Map | null>(null);
+	const markersRef = useRef<Map<string, mapboxgl.Marker>>(new Map());
 
 	useEffect(() => {
-		mapboxgl.accessToken = MAPBOX_KEY;
+		if (mapRef.current) return;
+		mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
 
 		mapRef.current = new mapboxgl.Map({
-			container: containerRef.current,
+			container: containerRef.current!,
 			center: [-91.22, 43.85],
 			zoom: 10,
 			style: "mapbox://styles/mapbox/standard",
@@ -32,14 +31,41 @@ const DynamicMap = ({ containerRef, staticMarkers = [] }: DynamicMapProps) => {
 				},
 			},
 		});
+	}, [containerRef]);
 
-		if (staticMarkers.length && mapRef.current)
-			staticMarkers.forEach((m) => {
-				new mapboxgl.Marker({ element: CreateMarker(m) })
+	useEffect(() => {
+		const map = mapRef.current;
+		if (!map) return;
+
+		const currentMarkerIds = new Set();
+
+		staticMarkers.forEach((m) => {
+			const markerId = `${m.type}-${m.label}`;
+			currentMarkerIds.add(markerId);
+
+			const existingMarker = markersRef.current.get(markerId);
+
+			if (existingMarker) {
+				existingMarker.setLngLat(m.coords);
+			} else {
+				const newMarker = new mapboxgl.Marker({
+					element: CreateMarker(m),
+					anchor: "bottom",
+				})
 					.setLngLat(m.coords)
-					.addTo(mapRef.current!);
-			});
-	}, [MAPBOX_KEY, containerRef, staticMarkers, staticMarkers.length]);
+					.addTo(map);
+
+				markersRef.current.set(markerId, newMarker);
+			}
+		});
+
+		markersRef.current.forEach((marker, id) => {
+			if (!currentMarkerIds.has(id)) {
+				marker.remove();
+				markersRef.current.delete(id);
+			}
+		});
+	}, [staticMarkers]);
 
 	return null;
 };
