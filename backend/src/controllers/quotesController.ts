@@ -105,9 +105,8 @@ export const getQuoteById = async (quoteId: string) => {
 				select: {
 					id: true,
 					title: true,
-					description: true,
-					priority: true,
 					status: true,
+					created_at: true,
 				},
 			},
 			job: {
@@ -116,6 +115,7 @@ export const getQuoteById = async (quoteId: string) => {
 					job_number: true,
 					name: true,
 					status: true,
+					created_at: true,
 				},
 			},
 			line_items: {

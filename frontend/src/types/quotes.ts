@@ -61,18 +61,21 @@ export interface QuoteSummary {
 	status: QuoteStatus;
 	total: number;
 	created_at: Date;
+	is_active: boolean;
 }
 
 export interface QuoteRequestReference {
 	id: string;
 	title: string;
 	status: string;
+	created_at: Date | string;
 }
 
 export interface QuoteJobReference {
 	id: string;
 	name: string;
 	status: string;
+	created_at: Date | string;
 }
 
 export interface QuoteVersionReference {

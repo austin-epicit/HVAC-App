@@ -14,16 +14,25 @@ import {
 	Globe,
 } from "lucide-react";
 import { useRequestByIdQuery } from "../../hooks/useRequests";
+import { useCreateQuoteMutation } from "../../hooks/useQuotes";
+import { useCreateJobMutation } from "../../hooks/useJobs";
 import Card from "../../components/ui/Card";
 import EditRequest from "../../components/requests/EditRequest";
+import ConvertToQuote from "../../components/requests/ConvertToQuote";
+import ConvertToJob from "../../components/requests/ConvertToJob";
 import { useState, useRef, useEffect } from "react";
 
 export default function RequestDetailPage() {
 	const { requestId } = useParams<{ requestId: string }>();
 	const navigate = useNavigate();
 	const { data: request, isLoading } = useRequestByIdQuery(requestId!);
+	const { mutateAsync: createQuote } = useCreateQuoteMutation();
+	const { mutateAsync: createJob } = useCreateJobMutation();
+
 	const [showActionsMenu, setShowActionsMenu] = useState(false);
 	const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+	const [isConvertToQuoteModalOpen, setIsConvertToQuoteModalOpen] = useState(false);
+	const [isConvertToJobModalOpen, setIsConvertToJobModalOpen] = useState(false);
 	const menuRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
@@ -56,13 +65,13 @@ export default function RequestDetailPage() {
 	}
 
 	// Get primary contact from client_contact join table
-	const primaryContact = request.client?.contacts?.find((cc: any) => cc.is_primary)?.contact;
+	const primaryContact = request.client?.contacts?.find((cc) => cc.is_primary)?.contact;
 
 	const getStatusColor = (status: string) => {
 		switch (status) {
 			case "New":
 				return "bg-blue-500/20 text-blue-400 border-blue-500/30";
-			case "Reviewed":
+			case "Reviewing":
 				return "bg-purple-500/20 text-purple-400 border-purple-500/30";
 			case "Quoted":
 				return "bg-amber-500/20 text-amber-400 border-amber-500/30";
@@ -106,15 +115,13 @@ export default function RequestDetailPage() {
 	};
 
 	const handleConvertToQuote = () => {
-		// TODO: Implement convert to quote logic
-		console.log("Converting to quote:", request.id);
 		setShowActionsMenu(false);
+		setIsConvertToQuoteModalOpen(true);
 	};
 
 	const handleConvertToJob = () => {
-		// TODO: Implement convert to job logic
-		console.log("Converting to job:", request.id);
 		setShowActionsMenu(false);
+		setIsConvertToJobModalOpen(true);
 	};
 
 	return (
@@ -504,60 +511,176 @@ export default function RequestDetailPage() {
 						)}
 					</div>
 				) : (
-					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-						{request.quotes.map((quote: any) => (
-							<div
+					<div className="flex flex-wrap gap-3">
+						{request.quotes.map((quote) => (
+							<button
 								key={quote.id}
-								className="bg-zinc-800 border border-zinc-700 rounded-lg p-4 hover:border-zinc-600 transition-colors cursor-pointer"
 								onClick={() =>
 									navigate(
 										`/dispatch/quotes/${quote.id}`
 									)
 								}
+								className="min-w-[300px] max-w-md flex-grow p-4 bg-zinc-800 hover:bg-zinc-750 rounded-lg border border-zinc-700 hover:border-zinc-600 transition-all cursor-pointer text-left group"
 							>
-								<div className="flex items-start justify-between mb-2">
-									<h4 className="text-white font-medium">
-										{quote.title ||
-											"Quote"}
-									</h4>
-									<span className="text-green-400 font-medium text-sm">
-										$
-										{Number(
-											quote.total_amount
-										).toLocaleString(
-											"en-US",
+								<div className="flex items-start justify-between gap-3">
+									<div className="flex-1 min-w-0">
+										<h4 className="text-white font-medium text-sm mb-1 group-hover:text-blue-400 transition-colors">
 											{
-												minimumFractionDigits: 2,
-												maximumFractionDigits: 2,
+												quote.quote_number
 											}
-										)}
-									</span>
+										</h4>
+										<p className="text-zinc-400 text-xs mb-2">
+											{quote.title ||
+												"Quote"}
+										</p>
+										<div className="flex items-center gap-2 text-xs text-zinc-500">
+											<Calendar
+												size={
+													12
+												}
+											/>
+											<span>
+												{new Date(
+													quote.created_at
+												).toLocaleDateString(
+													"en-US",
+													{
+														month: "short",
+														day: "numeric",
+														year: "numeric",
+													}
+												)}
+											</span>
+										</div>
+									</div>
+									<div className="flex flex-col items-end gap-2 flex-shrink-0">
+										<span className="text-green-400 font-semibold text-sm whitespace-nowrap">
+											$
+											{Number(
+												quote.total
+											).toLocaleString(
+												"en-US",
+												{
+													minimumFractionDigits: 2,
+													maximumFractionDigits: 2,
+												}
+											)}
+										</span>
+										<div className="flex flex-col items-end gap-1">
+											<span
+												className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(
+													quote.status
+												)}`}
+											>
+												{
+													quote.status
+												}
+											</span>
+											{!quote.is_active && (
+												<span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-zinc-700 text-zinc-400 border border-zinc-600">
+													Superseded
+												</span>
+											)}
+										</div>
+									</div>
 								</div>
-								<div className="flex items-center gap-2 text-xs text-zinc-400">
-									<Calendar size={12} />
-									{new Date(
-										quote.created_at
-									).toLocaleDateString(
-										"en-US",
-										{
-											month: "short",
-											day: "numeric",
-											year: "numeric",
-										}
-									)}
-								</div>
-							</div>
+							</button>
 						))}
 					</div>
 				)}
 			</Card>
 
+			{/* Related Job */}
+			{request.job && (
+				<Card title="Related Job">
+					<button
+						onClick={() =>
+							navigate(
+								`/dispatch/jobs/${request.job?.id}`
+							)
+						}
+						className="min-w-[300px] max-w-md p-4 bg-zinc-800 hover:bg-zinc-750 rounded-lg border border-zinc-700 hover:border-zinc-600 transition-all cursor-pointer text-left group"
+					>
+						<div className="flex items-start justify-between gap-3">
+							<div className="flex-1 min-w-0">
+								<h4 className="text-white font-medium text-sm mb-1 group-hover:text-blue-400 transition-colors">
+									{request.job.job_number}
+								</h4>
+								<p className="text-zinc-400 text-xs mb-2">
+									{request.job.name}
+								</p>
+								<div className="flex items-center gap-2 text-xs text-zinc-500">
+									<Calendar size={12} />
+									<span>
+										{new Date(
+											request.job
+												.created_at
+										).toLocaleDateString(
+											"en-US",
+											{
+												month: "short",
+												day: "numeric",
+												year: "numeric",
+											}
+										)}
+									</span>
+								</div>
+							</div>
+							<span
+								className={`flex-shrink-0 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(
+									request.job.status
+								)}`}
+							>
+								{request.job.status}
+							</span>
+						</div>
+					</button>
+				</Card>
+			)}
+
 			{request && (
-				<EditRequest
-					isModalOpen={isEditModalOpen}
-					setIsModalOpen={setIsEditModalOpen}
-					request={request}
-				/>
+				<>
+					<EditRequest
+						isModalOpen={isEditModalOpen}
+						setIsModalOpen={setIsEditModalOpen}
+						request={request}
+					/>
+
+					<ConvertToQuote
+						isModalOpen={isConvertToQuoteModalOpen}
+						setIsModalOpen={setIsConvertToQuoteModalOpen}
+						request={request}
+						onConvert={async (quoteData) => {
+							const newQuote =
+								await createQuote(quoteData);
+							if (!newQuote?.id) {
+								throw new Error(
+									"Quote creation failed: no ID returned"
+								);
+							}
+							// Navigate to the new quote
+							navigate(`/dispatch/quotes/${newQuote.id}`);
+							return newQuote.id;
+						}}
+					/>
+
+					<ConvertToJob
+						isModalOpen={isConvertToJobModalOpen}
+						setIsModalOpen={setIsConvertToJobModalOpen}
+						request={request}
+						onConvert={async (jobData) => {
+							const newJob = await createJob(jobData);
+							if (!newJob?.id) {
+								throw new Error(
+									"Job creation failed: no ID returned"
+								);
+							}
+							// Navigate to the new job
+							navigate(`/dispatch/jobs/${newJob.id}`);
+							return newJob.id;
+						}}
+					/>
+				</>
 			)}
 		</div>
 	);

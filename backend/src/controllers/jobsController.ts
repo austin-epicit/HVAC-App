@@ -116,14 +116,18 @@ export const getJobById = async (id: string) => {
 				select: {
 					id: true,
 					title: true,
-					description: true,
-					priority: true,
 					status: true,
+					created_at: true,
 				},
 			},
 			quote: {
-				include: {
-					line_items: true,
+				select: {
+					id: true,
+					quote_number: true,
+					title: true,
+					status: true,
+					total: true,
+					created_at: true,
 				},
 			},
 			visits: {
@@ -137,7 +141,31 @@ export const getJobById = async (id: string) => {
 				},
 			},
 			line_items: true,
-			notes: true,
+			notes: {
+				include: {
+					creator_tech: {
+						select: { id: true, name: true, email: true },
+					},
+					creator_dispatcher: {
+						select: { id: true, name: true, email: true },
+					},
+					last_editor_tech: {
+						select: { id: true, name: true, email: true },
+					},
+					last_editor_dispatcher: {
+						select: { id: true, name: true, email: true },
+					},
+					visit: {
+						select: {
+							id: true,
+							scheduled_start_at: true,
+							scheduled_end_at: true,
+							status: true,
+						},
+					},
+				},
+				orderBy: { created_at: "desc" },
+			},
 		},
 	});
 };
@@ -177,12 +205,7 @@ export const getJobsByClientId = async (clientId: string) => {
 
 export const insertJob = async (req: Request, context?: UserContext) => {
 	try {
-		console.log("=== CREATE JOB DEBUG ===");
-		console.log("Request body:", JSON.stringify(req.body, null, 2));
-
 		const parsed = createJobSchema.parse(req.body);
-
-		console.log("Parsed successfully:", JSON.stringify(parsed, null, 2));
 
 		const created = await db.$transaction(async (tx) => {
 			const client = await tx.client.findUnique({
@@ -193,7 +216,6 @@ export const insertJob = async (req: Request, context?: UserContext) => {
 				throw new Error("Client not found");
 			}
 
-			// Validate technicians if provided
 			if (parsed.tech_ids && parsed.tech_ids.length > 0) {
 				const existingTechs = await tx.technician.findMany({
 					where: { id: { in: parsed.tech_ids } },
@@ -210,6 +232,7 @@ export const insertJob = async (req: Request, context?: UserContext) => {
 				}
 			}
 
+			// Initialize job data with parsed values
 			let name = parsed.name;
 			let description = parsed.description;
 			let address = parsed.address;
@@ -217,8 +240,9 @@ export const insertJob = async (req: Request, context?: UserContext) => {
 				parsed.coords;
 			let priority = parsed.priority;
 			let estimatedTotal = parsed.estimated_total;
+			let quoteLineItems: any[] = [];
 
-			// If linked to quote, inherit fields and copy line items
+			// If linked to quote, inherit fields and prepare line items
 			if (parsed.quote_id) {
 				const quote = await tx.quote.findUnique({
 					where: { id: parsed.quote_id },
@@ -242,15 +266,23 @@ export const insertJob = async (req: Request, context?: UserContext) => {
 				if (!priority) priority = quote.priority;
 				if (!estimatedTotal) estimatedTotal = Number(quote.total);
 
-				// Update quote status
+				// Store line items for later creation
+				quoteLineItems = quote.line_items;
+
 				await tx.quote.update({
 					where: { id: parsed.quote_id },
 					data: { status: "Approved" },
 				});
-			}
 
-			// If linked to request (no quote), inherit from request
-			if (parsed.request_id && !parsed.quote_id) {
+				if (quote.request_id) {
+					await tx.request.update({
+						where: { id: quote.request_id },
+						data: { status: "ConvertedToJob" },
+					});
+				}
+			}
+			// If linked to request directly (no quote), inherit from request
+			else if (parsed.request_id) {
 				const request = await tx.request.findUnique({
 					where: { id: parsed.request_id },
 				});
@@ -266,6 +298,14 @@ export const insertJob = async (req: Request, context?: UserContext) => {
 					coords = request.coords as { lat: number; lon: number };
 				}
 				if (!priority) priority = request.priority;
+				if (request.estimated_value) {
+					estimatedTotal = Number(request.estimated_value);
+				}
+
+				await tx.request.update({
+					where: { id: parsed.request_id },
+					data: { status: "ConvertedToJob" },
+				});
 			}
 
 			if (!address) {
@@ -283,6 +323,7 @@ export const insertJob = async (req: Request, context?: UserContext) => {
 
 			const jobNumber = await generateJobNumber();
 
+			// Create the job
 			const job = await tx.job.create({
 				data: {
 					job_number: jobNumber,
@@ -299,40 +340,19 @@ export const insertJob = async (req: Request, context?: UserContext) => {
 				},
 			});
 
-			// Copy line items from quote if it exists
-			if (parsed.quote_id) {
-				const quote = await tx.quote.findUnique({
-					where: { id: parsed.quote_id },
-					include: {
-						line_items: {
-							orderBy: { sort_order: "asc" },
-						},
-					},
-				});
-
-				if (quote && quote.line_items.length > 0) {
-					for (const item of quote.line_items) {
-						await tx.job_line_item.create({
-							data: {
-								job_id: job.id,
-								name: item.name,
-								description: item.description,
-								quantity: item.quantity,
-								unit_price: item.unit_price,
-								total: item.total,
-								source: "quote",
-								item_type: item.item_type,
-							},
-						});
-					}
-				}
-			}
-
-			// Update request status if linked
-			if (parsed.request_id) {
-				await tx.request.update({
-					where: { id: parsed.request_id },
-					data: { status: "ConvertedToJob" },
+			// Copy line items from quote if available
+			if (quoteLineItems.length > 0) {
+				await tx.job_line_item.createMany({
+					data: quoteLineItems.map((item) => ({
+						job_id: job.id,
+						name: item.name,
+						description: item.description,
+						quantity: item.quantity,
+						unit_price: item.unit_price,
+						total: item.total,
+						source: "quote" as const,
+						item_type: item.item_type,
+					})),
 				});
 			}
 

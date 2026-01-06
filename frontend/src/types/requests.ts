@@ -61,7 +61,16 @@ export const RequestPriorityColors: Record<RequestPriority, string> = {
 export interface RequestJobReference {
 	id: string;
 	name: string;
+	job_number: string;
 	status: string;
+	created_at: Date | string;
+}
+
+export interface RequestRequestReference {
+	id: string;
+	title: string;
+	status: string;
+	created_at: Date | string;
 }
 
 export interface Request {

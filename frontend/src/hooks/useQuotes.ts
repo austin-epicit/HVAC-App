@@ -51,9 +51,6 @@ export const quoteKeys = {
 // Queries
 // ============================================================================
 
-/**
- * Get all quotes
- */
 export const useQuotesQuery = () => {
 	return useQuery({
 		queryKey: quoteKeys.lists(),
@@ -61,9 +58,6 @@ export const useQuotesQuery = () => {
 	});
 };
 
-/**
- * Get a single quote by ID
- */
 export const useQuoteByIdQuery = (id: string) => {
 	return useQuery({
 		queryKey: quoteKeys.detail(id),
@@ -72,9 +66,6 @@ export const useQuoteByIdQuery = (id: string) => {
 	});
 };
 
-/**
- * Get quotes by client ID
- */
 export const useQuotesByClientIdQuery = (clientId: string) => {
 	return useQuery({
 		queryKey: quoteKeys.byClient(clientId),
@@ -83,9 +74,6 @@ export const useQuotesByClientIdQuery = (clientId: string) => {
 	});
 };
 
-/**
- * Get quotes by request ID
- */
 export const useQuotesByRequestIdQuery = (requestId: string) => {
 	return useQuery({
 		queryKey: quoteKeys.byRequest(requestId),
@@ -94,9 +82,6 @@ export const useQuotesByRequestIdQuery = (requestId: string) => {
 	});
 };
 
-/**
- * Get quote notes
- */
 export const useQuoteNotesQuery = (quoteId: string) => {
 	return useQuery({
 		queryKey: quoteKeys.notes(quoteId),
@@ -105,9 +90,6 @@ export const useQuoteNotesQuery = (quoteId: string) => {
 	});
 };
 
-/**
- * Get quote statistics
- */
 export const useQuoteStatisticsQuery = (clientId?: string) => {
 	return useQuery({
 		queryKey: quoteKeys.statistics(clientId),
@@ -119,16 +101,13 @@ export const useQuoteStatisticsQuery = (clientId?: string) => {
 // Mutations - Quote CRUD
 // ============================================================================
 
-/**
- * Create a new quote
- */
 export const useCreateQuoteMutation = () => {
 	const queryClient = useQueryClient();
 
 	return useMutation({
 		mutationFn: (input: CreateQuoteInput) => createQuote(input),
 		onSuccess: (newQuote) => {
-			// Invalidate lists
+			// Invalidate quote lists
 			queryClient.invalidateQueries({ queryKey: quoteKeys.lists() });
 
 			// Invalidate client-specific quotes if applicable
@@ -136,12 +115,30 @@ export const useCreateQuoteMutation = () => {
 				queryClient.invalidateQueries({
 					queryKey: quoteKeys.byClient(newQuote.client_id),
 				});
+
+				//  Invalidate client queries
+				queryClient.invalidateQueries({
+					queryKey: ["clients", newQuote.client_id],
+				});
+				queryClient.invalidateQueries({
+					queryKey: ["clients"],
+				});
 			}
 
 			// Invalidate request-specific quotes if applicable
 			if (newQuote.request_id) {
 				queryClient.invalidateQueries({
 					queryKey: quoteKeys.byRequest(newQuote.request_id),
+				});
+
+				// Invalidate the specific request
+				queryClient.invalidateQueries({
+					queryKey: ["requests", newQuote.request_id],
+				});
+
+				// Invalidate request list
+				queryClient.invalidateQueries({
+					queryKey: ["requests"],
 				});
 			}
 
@@ -151,9 +148,6 @@ export const useCreateQuoteMutation = () => {
 	});
 };
 
-/**
- * Update a quote
- */
 export const useUpdateQuoteMutation = () => {
 	const queryClient = useQueryClient();
 
@@ -189,9 +183,6 @@ export const useUpdateQuoteMutation = () => {
 	});
 };
 
-/**
- * Delete a quote
- */
 export const useDeleteQuoteMutation = () => {
 	const queryClient = useQueryClient();
 
@@ -209,9 +200,6 @@ export const useDeleteQuoteMutation = () => {
 // Mutations - Quote Actions
 // ============================================================================
 
-/**
- * Send a quote
- */
 export const useSendQuoteMutation = () => {
 	const queryClient = useQueryClient();
 
@@ -227,9 +215,6 @@ export const useSendQuoteMutation = () => {
 	});
 };
 
-/**
- * Approve a quote
- */
 export const useApproveQuoteMutation = () => {
 	const queryClient = useQueryClient();
 
@@ -245,9 +230,6 @@ export const useApproveQuoteMutation = () => {
 	});
 };
 
-/**
- * Reject a quote
- */
 export const useRejectQuoteMutation = () => {
 	const queryClient = useQueryClient();
 
@@ -264,9 +246,6 @@ export const useRejectQuoteMutation = () => {
 	});
 };
 
-/**
- * Record quote view
- */
 export const useRecordQuoteViewMutation = () => {
 	const queryClient = useQueryClient();
 
@@ -280,9 +259,6 @@ export const useRecordQuoteViewMutation = () => {
 	});
 };
 
-/**
- * Revise a quote (create new version)
- */
 export const useReviseQuoteMutation = () => {
 	const queryClient = useQueryClient();
 
@@ -320,9 +296,6 @@ export const useReviseQuoteMutation = () => {
 // Mutations - Line Items
 // ============================================================================
 
-/**
- * Add a line item to a quote
- */
 export const useAddLineItemMutation = () => {
 	const queryClient = useQueryClient();
 
@@ -343,9 +316,6 @@ export const useAddLineItemMutation = () => {
 	});
 };
 
-/**
- * Update a line item
- */
 export const useUpdateLineItemMutation = () => {
 	const queryClient = useQueryClient();
 
@@ -367,9 +337,6 @@ export const useUpdateLineItemMutation = () => {
 	});
 };
 
-/**
- * Delete a line item
- */
 export const useDeleteLineItemMutation = () => {
 	const queryClient = useQueryClient();
 
@@ -388,9 +355,6 @@ export const useDeleteLineItemMutation = () => {
 // Mutations - Notes
 // ============================================================================
 
-/**
- * Create a quote note
- */
 export const useCreateQuoteNoteMutation = () => {
 	const queryClient = useQueryClient();
 
@@ -408,9 +372,6 @@ export const useCreateQuoteNoteMutation = () => {
 	});
 };
 
-/**
- * Update a quote note
- */
 export const useUpdateQuoteNoteMutation = () => {
 	const queryClient = useQueryClient();
 
@@ -432,9 +393,6 @@ export const useUpdateQuoteNoteMutation = () => {
 	});
 };
 
-/**
- * Delete a quote note
- */
 export const useDeleteQuoteNoteMutation = () => {
 	const queryClient = useQueryClient();
 

@@ -77,16 +77,24 @@ export const getRequestById = async (requestId: string) => {
 				},
 			},
 			quotes: {
-				include: {
-					line_items: {
-						orderBy: { sort_order: "asc" },
-					},
+				select: {
+					id: true,
+					quote_number: true,
+					title: true,
+					status: true,
+					is_active: true,
+					total: true,
+					created_at: true,
 				},
 				orderBy: { created_at: "desc" },
 			},
 			job: {
-				include: {
-					line_items: true,
+				select: {
+					id: true,
+					job_number: true,
+					name: true,
+					status: true,
+					created_at: true,
 				},
 			},
 			notes: {

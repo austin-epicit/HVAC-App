@@ -105,9 +105,6 @@ export const useDeleteClientMutation = (): UseMutationResult<
 // INDEPENDENT CONTACT QUERIES
 // ============================================================================
 
-/**
- * Get all independent contacts (system-wide)
- */
 export const useAllContactsQuery = (): UseQueryResult<Contact[], Error> => {
 	return useQuery({
 		queryKey: ["contacts"],
@@ -115,9 +112,6 @@ export const useAllContactsQuery = (): UseQueryResult<Contact[], Error> => {
 	});
 };
 
-/**
- * Get a specific independent contact by ID
- */
 export const useContactByIdQuery = (
 	contactId: string | null | undefined,
 	options?: { enabled?: boolean }
@@ -129,9 +123,6 @@ export const useContactByIdQuery = (
 	});
 };
 
-/**
- * Get all contacts linked to a specific client
- */
 export const useClientContactsQuery = (
 	clientId: string | null | undefined,
 	options?: { enabled?: boolean }
@@ -194,9 +185,6 @@ export const useCreateContactMutation = (): UseMutationResult<
 	});
 };
 
-/**
- * Update an independent contact
- */
 export const useUpdateContactMutation = (): UseMutationResult<
 	Contact,
 	Error,
@@ -235,9 +223,6 @@ export const useUpdateContactMutation = (): UseMutationResult<
 	});
 };
 
-/**
- * Delete an independent contact (only if not linked)
- */
 export const useDeleteContactMutation = (): UseMutationResult<
 	{ message: string },
 	Error,
@@ -261,9 +246,6 @@ export const useDeleteContactMutation = (): UseMutationResult<
 // CLIENT-CONTACT RELATIONSHIP MUTATIONS
 // ============================================================================
 
-/**
- * Link an existing contact to a client
- */
 export const useLinkContactMutation = (): UseMutationResult<
 	ClientContactLink,
 	Error,
@@ -314,9 +296,6 @@ export const useLinkContactMutation = (): UseMutationResult<
 	});
 };
 
-/**
- * Update a client-contact relationship (metadata only)
- */
 export const useUpdateClientContactMutation = (): UseMutationResult<
 	ClientContactLink,
 	Error,
@@ -348,9 +327,6 @@ export const useUpdateClientContactMutation = (): UseMutationResult<
 	});
 };
 
-/**
- * Unlink a contact from a client
- */
 export const useUnlinkContactFromClientMutation = (): UseMutationResult<
 	{ message: string },
 	Error,

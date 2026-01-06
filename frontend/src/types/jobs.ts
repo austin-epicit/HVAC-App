@@ -60,6 +60,9 @@ export interface Job {
 	priority: JobPriority;
 	status: JobStatus;
 	created_at: Date | string;
+	request_id: string | null;
+	quote_id: string | null;
+
 	client?: ClientWithPrimaryContact;
 	visits?: JobVisit[];
 	notes?: JobNote[];

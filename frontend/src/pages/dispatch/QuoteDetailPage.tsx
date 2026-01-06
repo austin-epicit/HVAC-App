@@ -4,7 +4,6 @@ import {
 	User,
 	Calendar,
 	MapPin,
-	DollarSign,
 	MoreVertical,
 	FileText,
 	Phone,
@@ -599,57 +598,89 @@ export default function QuoteDetailPage() {
 			{/* Related Request */}
 			{quote.request && (
 				<Card title="Related Request">
-					<div
+					<button
 						onClick={() =>
 							navigate(
 								`/dispatch/requests/${quote.request_id}`
 							)
 						}
-						className="p-4 bg-zinc-800 rounded-lg border border-zinc-700 hover:border-zinc-600 transition-colors cursor-pointer"
+						className="min-w-[300px] max-w-md p-4 bg-zinc-800 hover:bg-zinc-750 rounded-lg border border-zinc-700 hover:border-zinc-600 transition-all cursor-pointer text-left group"
 					>
-						<div className="flex items-start justify-between">
-							<div>
-								<h4 className="text-white font-medium mb-1">
+						<div className="flex items-start justify-between gap-3 mb-3">
+							<div className="flex-1 min-w-0">
+								<h4 className="text-white font-medium text-sm mb-1 group-hover:text-blue-400 transition-colors">
 									{quote.request.title}
 								</h4>
-								<span
-									className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(
-										quote.request.status
-									)}`}
-								>
-									{quote.request.status}
-								</span>
+								<div className="flex items-center gap-2 text-xs text-zinc-500 mt-1">
+									<Calendar size={12} />
+									<span>
+										{new Date(
+											quote
+												.request
+												.created_at
+										).toLocaleDateString(
+											"en-US",
+											{
+												month: "short",
+												day: "numeric",
+												year: "numeric",
+											}
+										)}
+									</span>
+								</div>
 							</div>
+							<span
+								className={`flex-shrink-0 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(
+									quote.request.status
+								)}`}
+							>
+								{quote.request.status}
+							</span>
 						</div>
-					</div>
+					</button>
 				</Card>
 			)}
 
 			{/* Related Job */}
 			{quote.job && (
 				<Card title="Related Job">
-					<div
+					<button
 						onClick={() =>
 							navigate(`/dispatch/jobs/${quote.job?.id}`)
 						}
-						className="p-4 bg-zinc-800 rounded-lg border border-zinc-700 hover:border-zinc-600 transition-colors cursor-pointer"
+						className="min-w-[300px] max-w-md p-4 bg-zinc-800 hover:bg-zinc-750 rounded-lg border border-zinc-700 hover:border-zinc-600 transition-all cursor-pointer text-left group"
 					>
-						<div className="flex items-start justify-between">
-							<div>
-								<h4 className="text-white font-medium mb-1">
+						<div className="flex items-start justify-between gap-3 mb-3">
+							<div className="flex-1 min-w-0">
+								<h4 className="text-white font-medium text-sm mb-1 group-hover:text-blue-400 transition-colors">
 									{quote.job?.name}
 								</h4>
-								<span
-									className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(
-										quote.job?.status ||
-											""
-									)}`}
-								>
-									{quote.job?.status}
-								</span>
+								<div className="flex items-center gap-2 text-xs text-zinc-500 mt-1">
+									<Calendar size={12} />
+									<span>
+										{new Date(
+											quote.job
+												.created_at
+										).toLocaleDateString(
+											"en-US",
+											{
+												month: "short",
+												day: "numeric",
+												year: "numeric",
+											}
+										)}
+									</span>
+								</div>
 							</div>
+							<span
+								className={`flex-shrink-0 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(
+									quote.job?.status || ""
+								)}`}
+							>
+								{quote.job?.status}
+							</span>
 						</div>
-					</div>
+					</button>
 				</Card>
 			)}
 
