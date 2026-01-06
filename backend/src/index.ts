@@ -1607,6 +1607,34 @@ app.put("/technicians/:id", async (req, res, next) => {
 	}
 });
 
+app.post("/technicians/:id/ping", async (req, res, next) => {
+	try {
+		const { id } = req.params;
+		const context = getUserContext(req);
+		const result = await updateTechnician(id, req.body, context);
+
+		if (result.err) {
+			const isDuplicate = result.err
+				.toLowerCase()
+				.includes("already exists");
+			return res
+				.status(isDuplicate ? 409 : 400)
+				.json(
+					createErrorResponse(
+						isDuplicate
+							? ErrorCodes.CONFLICT
+							: ErrorCodes.VALIDATION_ERROR,
+						result.err
+					)
+				);
+		}
+
+		res.json(createSuccessResponse(result.item));
+	} catch (err) {
+		next(err);
+	}
+});
+
 app.delete("/technicians/:id", async (req, res, next) => {
 	try {
 		const { id } = req.params;

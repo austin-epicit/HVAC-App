@@ -222,6 +222,61 @@ export const updateTechnician = async (
 	}
 };
 
+export const updateTechnicianLocation = async (
+	id: string,
+	data: unknown,
+	context?: UserContext
+) => {
+	try {
+		const parsed = updateTechnicianSchema.parse(data);
+
+		const existing = await db.technician.findUnique({
+			where: { id },
+		});
+
+		if (!existing) {
+			return { err: "Technician not found" };
+		}
+
+		const updated = await db.$transaction(async (tx) => {
+			const technician = await tx.technician.update({
+				where: { id },
+				data: parsed,
+			});
+
+			await logActivity({
+				event_type: "technician.updated",
+				action: "updated",
+				entity_type: "technician",
+				entity_id: id,
+				actor_type: context?.techId
+					? "technician"
+					: context?.dispatcherId
+					? "dispatcher"
+					: "system",
+				actor_id: context?.techId || context?.dispatcherId,
+				changes: "coords",
+				ip_address: context?.ipAddress,
+				user_agent: context?.userAgent,
+			});
+
+			return technician;
+		});
+
+		return { err: "", item: updated };
+	} catch (e) {
+		if (e instanceof ZodError) {
+			return {
+				err: `Validation failed: ${e.issues
+					.map((err) => err.message)
+					.join(", ")}`,
+			};
+		}
+		console.error("Error updating technician:", e);
+		return { err: "Internal server error" };
+	}
+};
+
 export const deleteTechnician = async (id: string, context?: UserContext) => {
 	try {
 		const existing = await db.technician.findUnique({
