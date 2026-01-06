@@ -97,6 +97,8 @@ import {
 	updateTechnician,
 	deleteTechnician,
 } from "./controllers/techniciansController.js";
+import http from "http";
+import { Server } from "socket.io";
 
 export interface UserContext {
 	techId?: string;
@@ -181,12 +183,17 @@ if (!frontend) {
 	frontend = "http://localhost:5173";
 }
 
-app.use(
-	cors({
-		origin: process.env.NODE_ENV === "production" ? frontend : "*", // Allow all origins in development
-		credentials: true,
-	})
-);
+const corsOptions = {
+	origin: process.env.NODE_ENV === "production" ? frontend : "*",
+	credentials: true,
+};
+
+app.use(cors(corsOptions));
+
+const server = http.createServer(app);
+const io = new Server(server, {
+	cors: corsOptions,
+});
 
 let port: string | undefined = process.env["SERVER_PORT"];
 if (!port) {
@@ -1601,6 +1608,7 @@ app.post("/technicians/:id/ping", async (req, res, next) => {
 				);
 		}
 
+		io.emit("technician-update", result.item);
 		res.json(createSuccessResponse(result.item));
 	} catch (err) {
 		next(err);
@@ -1665,6 +1673,6 @@ app.delete("/technicians/:id", async (req, res, next) => {
 app.use(notFoundHandler);
 app.use(errorHandler);
 
-app.listen(port, () => {
+server.listen(port, () => {
 	console.log(`✓ Server running on http://localhost:${port}`);
 });

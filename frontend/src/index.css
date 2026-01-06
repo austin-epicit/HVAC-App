@@ -2,11 +2,14 @@
 @import "tailwindcss";
 
 :root {
-  --main: #18181b;/* zinc-900 */
-  /*--secondary: #0d2a3b;*/
+	--main: #18181b;
 }
 
 * {
 	font-family: "Inter";
 }
 
+.mapboxgl-marker {
+	transition: transform 0.1s ease-out;
+	will-change: transform;
+}
