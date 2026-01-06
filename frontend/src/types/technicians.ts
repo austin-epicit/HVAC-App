@@ -1,5 +1,6 @@
 import z from "zod";
 import type { JobPriority, JobStatus, ScheduleType, VisitStatus } from "./jobs";
+import type { Coordinates } from "./location";
 
 export const TechnicianStatusValues = ["Offline", "Available", "Busy", "Break"] as const;
 export type TechnicianStatus = (typeof TechnicianStatusValues)[number];
@@ -43,6 +44,7 @@ export interface Technician {
 	phone: string;
 	title: string;
 	description: string;
+	coords: Coordinates;
 	status: TechnicianStatus;
 	hire_date: Date;
 	last_login: Date;
