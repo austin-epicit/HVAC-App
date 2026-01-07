@@ -1,5 +1,18 @@
+import z from "zod";
 import type { ClientWithPrimaryContact } from "./clients";
 import type { Coordinates } from "./location";
+import type {
+	Priority,
+	BaseNote,
+	RequestReference,
+	JobReference,
+	DispatcherReference,
+} from "./common";
+import { PriorityValues, PriorityLabels, PriorityColors } from "./common";
+
+// ============================================================================
+// QUOTE-SPECIFIC TYPES
+// ============================================================================
 
 export const QuoteStatusValues = [
 	"Draft",
@@ -12,9 +25,10 @@ export const QuoteStatusValues = [
 
 export type QuoteStatus = (typeof QuoteStatusValues)[number];
 
-export const QuotePriorityValues = ["Low", "Medium", "High"] as const;
-
-export type QuotePriority = (typeof QuotePriorityValues)[number];
+export type QuotePriority = Priority;
+export const QuotePriorityValues = PriorityValues;
+export const QuotePriorityLabels = PriorityLabels;
+export const QuotePriorityColors = PriorityColors;
 
 export const QuoteStatusLabels: Record<QuoteStatus, string> = {
 	Draft: "Draft",
@@ -32,18 +46,6 @@ export const QuoteStatusColors: Record<QuoteStatus, string> = {
 	Approved: "bg-green-500/20 text-green-400 border-green-500/30",
 	Rejected: "bg-red-500/20 text-red-400 border-red-500/30",
 	Expired: "bg-amber-500/20 text-amber-400 border-amber-500/30",
-};
-
-export const QuotePriorityLabels: Record<QuotePriority, string> = {
-	Low: "Low",
-	Medium: "Medium",
-	High: "High",
-};
-
-export const QuotePriorityColors: Record<QuotePriority, string> = {
-	Low: "bg-gray-600/20 text-gray-400 border-gray-700",
-	Medium: "bg-blue-600/20 text-blue-400 border-blue-700",
-	High: "bg-orange-600/20 text-orange-400 border-orange-700",
 };
 
 export const LineItemTypeValues = ["labor", "material", "equipment"] as const;
@@ -64,30 +66,10 @@ export interface QuoteSummary {
 	is_active: boolean;
 }
 
-export interface QuoteRequestReference {
-	id: string;
-	title: string;
-	status: string;
-	created_at: Date | string;
-}
-
-export interface QuoteJobReference {
-	id: string;
-	name: string;
-	status: string;
-	created_at: Date | string;
-}
-
 export interface QuoteVersionReference {
 	id: string;
 	quote_number: string;
 	version: number;
-}
-
-export interface DispatcherReference {
-	id: string;
-	name: string;
-	email: string;
 }
 
 // ============================================================================
@@ -130,10 +112,10 @@ export interface Quote {
 	created_by_dispatcher_id: string | null;
 
 	client?: ClientWithPrimaryContact;
-	request?: QuoteRequestReference;
+	request?: RequestReference | null;
 	line_items?: QuoteLineItem[];
 	notes?: QuoteNote[];
-	job?: QuoteJobReference | null;
+	job?: JobReference | null;
 	previous_quote?: QuoteVersionReference | null;
 	revised_quote?: QuoteVersionReference | null;
 	created_by_dispatcher?: DispatcherReference | null;
@@ -177,6 +159,41 @@ export interface UpdateQuoteInput {
 	is_active?: boolean;
 }
 
+export const CreateQuoteSchema = z.object({
+	client_id: z.string().uuid("Invalid client ID"),
+	request_id: z.string().uuid().optional(),
+	title: z.string().min(1, "Title is required"),
+	description: z.string().min(1, "Description is required"),
+	address: z.string().min(1, "Address is required"),
+	priority: z.enum(PriorityValues).default("Medium"),
+	status: z.enum(QuoteStatusValues).default("Draft"),
+	subtotal: z.number().min(0, "Subtotal must be positive"),
+	tax_rate: z.number().min(0).max(1).optional(),
+	tax_amount: z.number().min(0).optional(),
+	discount_amount: z.number().min(0).optional(),
+	total: z.number().min(0, "Total must be positive"),
+	valid_until: z.coerce.date().optional(),
+	expires_at: z.coerce.date().optional(),
+	created_by_dispatcher_id: z.string().uuid().optional(),
+});
+
+export const UpdateQuoteSchema = z.object({
+	title: z.string().min(1).optional(),
+	description: z.string().min(1).optional(),
+	address: z.string().min(1).optional(),
+	priority: z.enum(PriorityValues).optional(),
+	status: z.enum(QuoteStatusValues).optional(),
+	subtotal: z.number().min(0).optional(),
+	tax_rate: z.number().min(0).max(1).optional(),
+	tax_amount: z.number().min(0).optional(),
+	discount_amount: z.number().min(0).optional(),
+	total: z.number().min(0).optional(),
+	valid_until: z.coerce.date().optional().nullable(),
+	expires_at: z.coerce.date().optional().nullable(),
+	rejection_reason: z.string().optional().nullable(),
+	is_active: z.boolean().optional(),
+});
+
 // ============================================================================
 // LINE ITEM TYPES
 // ============================================================================
@@ -217,34 +234,29 @@ export interface UpdateQuoteLineItemInput {
 // QUOTE NOTES
 // ============================================================================
 
-export interface QuoteNote {
-	id: string;
+export interface QuoteNote extends BaseNote {
 	quote_id: string;
-	content: string;
-	created_at: Date;
-	updated_at: Date;
-	creator_tech_id: string | null;
-	creator_dispatcher_id: string | null;
-	last_editor_tech_id: string | null;
-	last_editor_dispatcher_id: string | null;
-
-	creator_tech?: { id: string; name: string } | null;
-	creator_dispatcher?: { id: string; name: string } | null;
-	last_editor_tech?: { id: string; name: string } | null;
-	last_editor_dispatcher?: { id: string; name: string } | null;
 }
 
 export interface CreateQuoteNoteInput {
 	content: string;
-	creator_tech_id?: string;
-	creator_dispatcher_id?: string;
 }
 
 export interface UpdateQuoteNoteInput {
-	content?: string;
-	last_editor_tech_id?: string;
-	last_editor_dispatcher_id?: string;
+	content: string;
 }
+
+export const CreateQuoteNoteSchema = z.object({
+	content: z.string().min(1, "Note content is required"),
+});
+
+export const UpdateQuoteNoteSchema = z.object({
+	content: z.string().min(1, "Note content is required"),
+});
+
+// ============================================================================
+// QUOTE STATISTICS
+// ============================================================================
 
 export interface QuoteStatistics {
 	total_quotes: number;

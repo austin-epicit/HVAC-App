@@ -1,7 +1,12 @@
 import z from "zod";
 import type { Coordinates } from "./location";
-import type { Client, ClientWithPrimaryContact } from "./clients";
-import type { QuoteSummary } from "./quotes";
+import type { ClientWithPrimaryContact } from "./clients";
+import type { Priority, BaseNote, QuoteReference, JobReference } from "./common";
+import { PriorityValues, PriorityLabels, PriorityColors } from "./common";
+
+// ============================================================================
+// REQUEST-SPECIFIC TYPES
+// ============================================================================
 
 export const RequestStatusValues = [
 	"New",
@@ -16,9 +21,10 @@ export const RequestStatusValues = [
 
 export type RequestStatus = (typeof RequestStatusValues)[number];
 
-export const RequestPriorityValues = ["Low", "Medium", "High", "Urgent", "Emergency"] as const;
-
-export type RequestPriority = (typeof RequestPriorityValues)[number];
+export type RequestPriority = Priority;
+export const RequestPriorityValues = PriorityValues;
+export const RequestPriorityLabels = PriorityLabels;
+export const RequestPriorityColors = PriorityColors;
 
 export const RequestStatusLabels: Record<RequestStatus, string> = {
 	New: "New",
@@ -29,14 +35,6 @@ export const RequestStatusLabels: Record<RequestStatus, string> = {
 	QuoteRejected: "Quote Rejected",
 	ConvertedToJob: "Converted to Job",
 	Cancelled: "Cancelled",
-};
-
-export const RequestPriorityLabels: Record<RequestPriority, string> = {
-	Low: "Low",
-	Medium: "Medium",
-	High: "High",
-	Urgent: "Urgent",
-	Emergency: "Emergency",
 };
 
 export const RequestStatusColors: Record<RequestStatus, string> = {
@@ -50,28 +48,9 @@ export const RequestStatusColors: Record<RequestStatus, string> = {
 	Cancelled: "bg-gray-600/20 text-gray-400 border-gray-700",
 };
 
-export const RequestPriorityColors: Record<RequestPriority, string> = {
-	Low: "bg-gray-600/20 text-gray-400 border-gray-700",
-	Medium: "bg-blue-600/20 text-blue-400 border-blue-700",
-	High: "bg-orange-600/20 text-orange-400 border-orange-700",
-	Urgent: "bg-red-600/20 text-red-400 border-red-700",
-	Emergency: "bg-red-700/30 text-red-300 border-red-600 font-bold",
-};
-
-export interface RequestJobReference {
-	id: string;
-	name: string;
-	job_number: string;
-	status: string;
-	created_at: Date | string;
-}
-
-export interface RequestRequestReference {
-	id: string;
-	title: string;
-	status: string;
-	created_at: Date | string;
-}
+// ============================================================================
+// REQUEST TYPES
+// ============================================================================
 
 export interface Request {
 	id: string;
@@ -92,8 +71,8 @@ export interface Request {
 	updated_at: Date;
 
 	client?: ClientWithPrimaryContact;
-	quotes?: QuoteSummary[];
-	job?: RequestJobReference | null;
+	quotes?: QuoteReference[];
+	job?: JobReference | null;
 	notes?: RequestNote[];
 }
 
@@ -128,7 +107,7 @@ export const CreateRequestSchema = z.object({
 	client_id: z.string().uuid("Invalid client ID"),
 	title: z.string().min(1, "Title is required"),
 	description: z.string().min(1, "Description is required"),
-	priority: z.enum(RequestPriorityValues).default("Medium"),
+	priority: z.enum(PriorityValues).default("Medium"),
 	requires_quote: z.boolean().default(false),
 	estimated_value: z.number().min(0).optional().nullable(),
 	source: z.string().optional().or(z.literal("")).nullable(),
@@ -138,7 +117,7 @@ export const CreateRequestSchema = z.object({
 export const UpdateRequestSchema = z.object({
 	title: z.string().min(1).optional(),
 	description: z.string().min(1).optional(),
-	priority: z.enum(RequestPriorityValues).optional(),
+	priority: z.enum(PriorityValues).optional(),
 	status: z.enum(RequestStatusValues).optional(),
 	requires_quote: z.boolean().optional(),
 	estimated_value: z.number().min(0).optional().nullable(),
@@ -147,21 +126,12 @@ export const UpdateRequestSchema = z.object({
 	cancellation_reason: z.string().optional().or(z.literal("")).nullable(),
 });
 
-export interface RequestNote {
-	id: string;
-	request_id: string;
-	content: string;
-	created_at: Date;
-	updated_at: Date;
+// ============================================================================
+// REQUEST NOTES
+// ============================================================================
 
-	creator_tech_id: string | null;
-	creator_dispatcher_id: string | null;
-	creator_tech?: { id: string; name: string; email: string };
-	creator_dispatcher?: { id: string; name: string; email: string };
-	last_editor_tech_id: string | null;
-	last_editor_dispatcher_id: string | null;
-	last_editor_tech?: { id: string; name: string; email: string };
-	last_editor_dispatcher?: { id: string; name: string; email: string };
+export interface RequestNote extends BaseNote {
+	request_id: string;
 }
 
 export interface CreateRequestNoteInput {

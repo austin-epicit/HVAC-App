@@ -1,6 +1,12 @@
 import z from "zod";
 import type { ClientSummary, ClientWithPrimaryContact } from "./clients";
 import type { Coordinates } from "./location";
+import type { Priority, BaseNote, RequestReference, QuoteReference } from "./common";
+import { PriorityValues, PriorityLabels, PriorityColors } from "./common";
+
+// ============================================================================
+// JOB-SPECIFIC TYPES
+// ============================================================================
 
 export const JobStatusValues = [
 	"Unscheduled",
@@ -9,6 +15,7 @@ export const JobStatusValues = [
 	"Completed",
 	"Cancelled",
 ] as const;
+
 export type JobStatus = (typeof JobStatusValues)[number];
 
 export const VisitStatusValues = ["Scheduled", "InProgress", "Completed", "Cancelled"] as const;
@@ -17,8 +24,22 @@ export type VisitStatus = (typeof VisitStatusValues)[number];
 export const ScheduleTypeValues = ["all_day", "exact", "window"] as const;
 export type ScheduleType = (typeof ScheduleTypeValues)[number];
 
-export const JobPriorityValues = ["Low", "Medium", "High", "Urgent", "Emergency"] as const;
-export type JobPriority = (typeof JobPriorityValues)[number];
+export type JobPriority = Priority;
+export const JobPriorityValues = PriorityValues;
+export const JobPriorityLabels = PriorityLabels;
+export const JobPriorityColors = PriorityColors;
+
+export const JobStatusLabels: Record<JobStatus, string> = {
+	Unscheduled: "Unscheduled",
+	Scheduled: "Scheduled",
+	InProgress: "In Progress",
+	Completed: "Completed",
+	Cancelled: "Cancelled",
+};
+
+// ============================================================================
+// JOB TYPES
+// ============================================================================
 
 export interface JobVisitTechnician {
 	visit_id: string;
@@ -36,6 +57,7 @@ export interface JobVisitTechnician {
 export interface JobSummary {
 	id: string;
 	name: string;
+	job_number: string;
 	client_id: string;
 	address: string;
 	description: string;
@@ -53,6 +75,7 @@ export interface VisitReference {
 export interface Job {
 	id: string;
 	name: string;
+	job_number: string;
 	client_id: string;
 	address: string;
 	coords: Coordinates;
@@ -64,6 +87,8 @@ export interface Job {
 	quote_id: string | null;
 
 	client?: ClientWithPrimaryContact;
+	request?: RequestReference | null;
+	quote?: QuoteReference | null;
 	visits?: JobVisit[];
 	notes?: JobNote[];
 }
@@ -85,37 +110,9 @@ export interface JobVisit {
 	notes?: JobNote[];
 }
 
-export interface JobNote {
-	id: string;
+export interface JobNote extends BaseNote {
 	job_id: string;
-	content: string;
 	visit_id?: string | null;
-	creator_tech_id?: string | null;
-	creator_dispatcher_id?: string | null;
-	last_editor_tech_id?: string | null;
-	last_editor_dispatcher_id?: string | null;
-	created_at: Date | string;
-	updated_at: Date | string;
-	creator_tech?: {
-		id: string;
-		name: string;
-		email: string;
-	} | null;
-	creator_dispatcher?: {
-		id: string;
-		name: string;
-		email: string;
-	} | null;
-	last_editor_tech?: {
-		id: string;
-		name: string;
-		email: string;
-	} | null;
-	last_editor_dispatcher?: {
-		id: string;
-		name: string;
-		email: string;
-	} | null;
 	visit?: VisitReference | null;
 }
 
@@ -129,6 +126,15 @@ export interface CreateJobInput {
 	status?: JobStatus;
 	request_id?: string | null;
 	quote_id?: string | null;
+}
+
+export interface UpdateJobInput {
+	name?: string;
+	address?: string;
+	coords?: Coordinates;
+	description?: string;
+	priority?: JobPriority;
+	status?: JobStatus;
 }
 
 export interface CreateJobVisitInput {
@@ -159,7 +165,7 @@ export interface CreateJobNoteInput {
 }
 
 export interface UpdateJobNoteInput {
-	content?: string;
+	content: string;
 	visit_id?: string | null;
 }
 
@@ -173,15 +179,27 @@ export interface JobVisitResponse {
 	data: JobVisit[];
 }
 
+// ============================================================================
+// VALIDATION SCHEMAS
+// ============================================================================
+
 export const CreateJobSchema = z.object({
 	name: z.string().min(1, "Job name is required"),
 	client_id: z.string().min(1, "Please select a client"),
 	address: z.string().default(""),
 	description: z.string().default(""),
-	priority: z.enum(JobPriorityValues).default("Medium"),
+	priority: z.enum(PriorityValues).default("Medium"),
 	status: z.enum(JobStatusValues).default("Unscheduled"),
 	request_id: z.string().uuid().optional().nullable(),
 	quote_id: z.string().uuid().optional().nullable(),
+});
+
+export const UpdateJobSchema = z.object({
+	name: z.string().min(1).optional(),
+	address: z.string().optional(),
+	description: z.string().optional(),
+	priority: z.enum(PriorityValues).optional(),
+	status: z.enum(JobStatusValues).optional(),
 });
 
 export const CreateJobVisitSchema = z
@@ -192,7 +210,7 @@ export const CreateJobVisitSchema = z
 		scheduled_end_at: z.coerce.date({ message: "End time is required" }),
 		arrival_window_start: z.coerce.date().optional().nullable(),
 		arrival_window_end: z.coerce.date().optional().nullable(),
-		status: z.enum(JobStatusValues).default("Scheduled"),
+		status: z.enum(VisitStatusValues).default("Scheduled"),
 		tech_ids: z.array(z.string().uuid()).optional(),
 	})
 	.refine(
@@ -283,6 +301,6 @@ export const CreateJobNoteSchema = z.object({
 });
 
 export const UpdateJobNoteSchema = z.object({
-	content: z.string().min(1, "Note content is required").optional(),
+	content: z.string().min(1, "Note content is required"),
 	visit_id: z.string().uuid().optional().nullable(),
 });
