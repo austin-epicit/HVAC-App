@@ -1,29 +1,32 @@
 import { useParams, useNavigate } from "react-router-dom";
 import {
-	Edit2,
-	User,
 	Calendar,
+	DollarSign,
+	FileText,
 	MapPin,
 	MoreVertical,
-	FileText,
-	Phone,
-	Mail,
-	Package,
+	Edit2,
+	Send,
+	CheckCircle,
 	Briefcase,
+	User,
+	Mail,
+	Phone,
 } from "lucide-react";
 import { useQuoteByIdQuery } from "../../hooks/useQuotes";
 import { useCreateJobMutation } from "../../hooks/useJobs";
 import Card from "../../components/ui/Card";
 import EditQuote from "../../components/quotes/EditQuote";
 import ConvertToJob from "../../components/quotes/ConvertToJob";
+import NoteManager from "../../components/quotes/QuoteNoteManager";
 import { useState, useRef, useEffect } from "react";
-import { QuoteStatusColors, QuotePriorityColors } from "../../types/quotes";
 
 export default function QuoteDetailPage() {
 	const { quoteId } = useParams<{ quoteId: string }>();
 	const navigate = useNavigate();
 	const { data: quote, isLoading } = useQuoteByIdQuery(quoteId!);
 	const { mutateAsync: createJob } = useCreateJobMutation();
+
 	const [showActionsMenu, setShowActionsMenu] = useState(false);
 	const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 	const [isConvertToJobModalOpen, setIsConvertToJobModalOpen] = useState(false);
@@ -58,39 +61,75 @@ export default function QuoteDetailPage() {
 		);
 	}
 
-	// Get primary contact from client
-	const primaryContact = quote.client?.contacts?.find((cc: any) => cc.is_primary)?.contact;
+	const primaryContact = quote.client?.contacts?.find((cc) => cc.is_primary)?.contact;
 
 	const getStatusColor = (status: string) => {
-		return (
-			QuoteStatusColors[status as keyof typeof QuoteStatusColors] ||
-			QuoteStatusColors.Draft
-		);
+		switch (status) {
+			case "Draft":
+				return "bg-gray-500/20 text-gray-400 border-gray-500/30";
+			case "Sent":
+				return "bg-blue-500/20 text-blue-400 border-blue-500/30";
+			case "Viewed":
+				return "bg-purple-500/20 text-purple-400 border-purple-500/30";
+			case "Accepted":
+				return "bg-green-500/20 text-green-400 border-green-500/30";
+			case "Rejected":
+				return "bg-red-500/20 text-red-400 border-red-500/30";
+			case "Expired":
+				return "bg-orange-500/20 text-orange-400 border-orange-500/30";
+			case "Revised":
+				return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30";
+			case "Approved":
+				return "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
+			case "New":
+				return "bg-blue-500/20 text-blue-400 border-blue-500/30";
+			case "Reviewing":
+				return "bg-purple-500/20 text-purple-400 border-purple-500/30";
+			case "NeedsQuote":
+				return "bg-orange-500/20 text-orange-400 border-orange-500/30";
+			case "Quoted":
+				return "bg-amber-500/20 text-amber-400 border-amber-500/30";
+			case "QuoteApproved":
+				return "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
+			case "QuoteRejected":
+				return "bg-rose-500/20 text-rose-400 border-rose-500/30";
+			case "ConvertedToJob":
+				return "bg-green-500/20 text-green-400 border-green-500/30";
+			case "Cancelled":
+				return "bg-zinc-500/20 text-zinc-400 border-zinc-500/30";
+			case "Unscheduled":
+				return "bg-gray-500/20 text-gray-400 border-gray-500/30";
+			case "Scheduled":
+				return "bg-blue-500/20 text-blue-400 border-blue-500/30";
+			case "InProgress":
+				return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30";
+			case "Completed":
+				return "bg-green-500/20 text-green-400 border-green-500/30";
+			default:
+				return "bg-zinc-500/20 text-zinc-400 border-zinc-500/30";
+		}
 	};
 
-	const getPriorityColor = (priority: string) => {
-		return (
-			QuotePriorityColors[priority as keyof typeof QuotePriorityColors] ||
-			QuotePriorityColors.Medium
-		);
+	const handleEdit = () => {
+		setShowActionsMenu(false);
+		setIsEditModalOpen(true);
 	};
 
-	const formatCurrency = (amount: number | string) => {
-		return new Intl.NumberFormat("en-US", {
-			style: "currency",
-			currency: "USD",
-			minimumFractionDigits: 2,
-			maximumFractionDigits: 2,
-		}).format(Number(amount));
+	const handleSendToClient = () => {
+		setShowActionsMenu(false);
+		// TODO: Implement send to client functionality
+		console.log("Send to client");
 	};
 
-	const formatDate = (date: Date | string | null) => {
-		if (!date) return "Not set";
-		return new Date(date).toLocaleDateString("en-US", {
-			year: "numeric",
-			month: "short",
-			day: "numeric",
-		});
+	const handleMarkAsApproved = () => {
+		setShowActionsMenu(false);
+		// TODO: Implement mark as approved functionality
+		console.log("Mark as approved");
+	};
+
+	const handleConvertToJob = () => {
+		setShowActionsMenu(false);
+		setIsConvertToJobModalOpen(true);
 	};
 
 	return (
@@ -98,12 +137,17 @@ export default function QuoteDetailPage() {
 			{/* Header */}
 			<div className="grid grid-cols-2 gap-4 mb-6 items-center">
 				<div>
-					<h1 className="text-3xl font-bold text-white">
-						{quote.title}
-					</h1>
-					<p className="text-sm text-zinc-400 mt-1 font-mono">
-						{quote.quote_number}
-					</p>
+					<div className="flex items-center gap-3 mb-1">
+						<h1 className="text-3xl font-bold text-white">
+							{quote.quote_number}
+						</h1>
+						{!quote.is_active && (
+							<span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-zinc-700 text-zinc-400 border border-zinc-600">
+								Superseded
+							</span>
+						)}
+					</div>
+					<p className="text-zinc-400 text-sm">{quote.title}</p>
 				</div>
 
 				<div className="justify-self-end flex items-center gap-3">
@@ -113,14 +157,6 @@ export default function QuoteDetailPage() {
 						)}`}
 					>
 						{quote.status}
-					</span>
-
-					<span
-						className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium border ${getPriorityColor(
-							quote.priority
-						)}`}
-					>
-						{quote.priority}
 					</span>
 
 					{/* Actions Menu */}
@@ -138,64 +174,47 @@ export default function QuoteDetailPage() {
 							<div className="absolute right-0 mt-2 w-56 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl z-50">
 								<div className="py-1">
 									<button
-										onClick={() => {
-											setShowActionsMenu(
-												false
-											);
-											setIsEditModalOpen(
-												true
-											);
-										}}
+										onClick={handleEdit}
 										className="w-full px-4 py-2 text-left text-sm hover:bg-zinc-800 transition-colors flex items-center gap-2"
 									>
 										<Edit2 size={16} />
 										Edit Quote
 									</button>
 									<button
-										onClick={() => {
-											console.log(
-												"Send quote"
-											);
-											setShowActionsMenu(
-												false
-											);
-										}}
+										onClick={
+											handleSendToClient
+										}
 										className="w-full px-4 py-2 text-left text-sm hover:bg-zinc-800 transition-colors flex items-center gap-2"
 									>
-										<Mail size={16} />
+										<Send size={16} />
 										Send to Client
 									</button>
 									<button
-										onClick={() => {
-											console.log(
-												"Approve quote"
-											);
-											setShowActionsMenu(
-												false
-											);
-										}}
+										onClick={
+											handleMarkAsApproved
+										}
 										className="w-full px-4 py-2 text-left text-sm hover:bg-zinc-800 transition-colors flex items-center gap-2"
 									>
-										<FileText
+										<CheckCircle
 											size={16}
 										/>
 										Mark as Approved
 									</button>
 									<button
-										onClick={() => {
-											setShowActionsMenu(
-												false
-											);
-											setIsConvertToJobModalOpen(
-												true
-											);
-										}}
+										onClick={
+											handleConvertToJob
+										}
 										className="w-full px-4 py-2 text-left text-sm hover:bg-zinc-800 transition-colors flex items-center gap-2"
+										disabled={
+											!!quote.job
+										}
 									>
 										<Briefcase
 											size={16}
 										/>
-										Convert to Job
+										{quote.job
+											? "Job Already Created"
+											: "Convert to Job"}
 									</button>
 								</div>
 							</div>
@@ -224,7 +243,7 @@ export default function QuoteDetailPage() {
 								<div>
 									<h3 className="text-zinc-400 text-sm mb-1 flex items-center gap-2">
 										<MapPin size={14} />
-										Property Address
+										Address
 									</h3>
 									<p className="text-white break-words">
 										{quote.address}
@@ -241,75 +260,59 @@ export default function QuoteDetailPage() {
 										Created
 									</h3>
 									<p className="text-white">
-										{formatDate(
+										{new Date(
 											quote.created_at
+										).toLocaleDateString(
+											"en-US",
+											{
+												year: "numeric",
+												month: "short",
+												day: "numeric",
+											}
 										)}
 									</p>
 								</div>
-								{quote.sent_at && (
+								{quote.valid_until && (
 									<div>
-										<h3 className="text-zinc-400 text-sm mb-1">
-											Sent
+										<h3 className="text-zinc-400 text-sm mb-1 flex items-center gap-2">
+											<Calendar
+												size={
+													14
+												}
+											/>
+											Valid Until
 										</h3>
 										<p className="text-white">
-											{formatDate(
-												quote.sent_at
+											{new Date(
+												quote.valid_until
+											).toLocaleDateString(
+												"en-US",
+												{
+													year: "numeric",
+													month: "short",
+													day: "numeric",
+												}
 											)}
 										</p>
 									</div>
 								)}
 							</div>
 
-							{quote.valid_until && (
-								<div>
-									<h3 className="text-zinc-400 text-sm mb-1">
-										Valid Until
-									</h3>
-									<p className="text-white">
-										{formatDate(
-											quote.valid_until
-										)}
-									</p>
-								</div>
-							)}
-
-							{quote.expires_at && (
-								<div>
-									<h3 className="text-zinc-400 text-sm mb-1">
-										Expires At
-									</h3>
-									<p className="text-white">
-										{formatDate(
-											quote.expires_at
-										)}
-									</p>
-								</div>
-							)}
-
-							{quote.version > 1 && (
-								<div>
-									<h3 className="text-zinc-400 text-sm mb-1">
-										Version
-									</h3>
-									<p className="text-white">
-										Version{" "}
-										{quote.version}
-									</p>
-								</div>
-							)}
-
-							{quote.rejection_reason && (
-								<div className="pt-4 border-t border-zinc-700">
-									<h3 className="text-zinc-400 text-sm mb-2">
-										Rejection Reason
-									</h3>
-									<p className="text-sm text-zinc-300">
-										{
-											quote.rejection_reason
-										}
-									</p>
-								</div>
-							)}
+							<div>
+								<h3 className="text-zinc-400 text-sm mb-1 flex items-center gap-2">
+									<DollarSign size={14} />
+									Quote Total
+								</h3>
+								<p className="text-white font-medium text-2xl">
+									$
+									{Number(
+										quote.total
+									).toLocaleString("en-US", {
+										minimumFractionDigits: 2,
+										maximumFractionDigits: 2,
+									})}
+								</p>
+							</div>
 						</div>
 					</Card>
 				</div>
@@ -362,7 +365,6 @@ export default function QuoteDetailPage() {
 								</div>
 							)}
 
-							{/* Primary Contact */}
 							{primaryContact && (
 								<div className="pt-4 border-t border-zinc-700">
 									<div className="flex items-center justify-between mb-3">
@@ -393,10 +395,7 @@ export default function QuoteDetailPage() {
 													}
 													className="text-zinc-400 flex-shrink-0"
 												/>
-												<a
-													href={`mailto:${primaryContact.email}`}
-													className="text-blue-400 hover:text-blue-300 transition-colors truncate"
-												>
+												<a className="text-white truncate">
 													{
 														primaryContact.email
 													}
@@ -412,10 +411,7 @@ export default function QuoteDetailPage() {
 													}
 													className="text-zinc-400 flex-shrink-0"
 												/>
-												<a
-													href={`tel:${primaryContact.phone}`}
-													className="text-blue-400 hover:text-blue-300 transition-colors"
-												>
+												<a className="text-white">
 													{
 														primaryContact.phone
 													}
@@ -441,260 +437,267 @@ export default function QuoteDetailPage() {
 				</div>
 			</div>
 
-			{/* Line Items - Full Width */}
+			{/* Line Items */}
 			<Card title="Line Items">
 				{!quote.line_items || quote.line_items.length === 0 ? (
-					<div className="text-center py-12">
-						<Package
-							size={48}
+					<div className="text-center py-8">
+						<FileText
+							size={40}
 							className="mx-auto text-zinc-600 mb-3"
 						/>
-						<h3 className="text-zinc-400 text-lg font-medium mb-2">
+						<h3 className="text-zinc-400 text-sm font-medium mb-1">
 							No Line Items
 						</h3>
-						<p className="text-zinc-500 text-sm max-w-sm mx-auto">
-							This quote doesn't have any line items yet.
+						<p className="text-zinc-500 text-xs">
+							No line items have been added to this quote
+							yet.
 						</p>
 					</div>
 				) : (
-					<div className="space-y-6">
-						{/* Line Items Table */}
-						<div className="overflow-x-auto">
-							<table className="w-full">
-								<thead>
-									<tr className="border-b border-zinc-700">
-										<th className="text-left py-3 px-4 text-sm font-semibold text-zinc-400">
-											Item
-										</th>
-										<th className="text-left py-3 px-4 text-sm font-semibold text-zinc-400">
-											Type
-										</th>
-										<th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">
-											Quantity
-										</th>
-										<th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">
-											Unit Price
-										</th>
-										<th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">
-											Total
-										</th>
-									</tr>
-								</thead>
-								<tbody>
-									{quote.line_items.map(
-										(item) => (
-											<tr
-												key={
-													item.id
+					<div className="overflow-x-auto">
+						<table className="w-full">
+							<thead>
+								<tr className="border-b border-zinc-700">
+									<th className="text-left py-3 px-4 text-sm font-medium text-zinc-400">
+										Description
+									</th>
+									<th className="text-right py-3 px-4 text-sm font-medium text-zinc-400">
+										Quantity
+									</th>
+									<th className="text-right py-3 px-4 text-sm font-medium text-zinc-400">
+										Unit Price
+									</th>
+									<th className="text-right py-3 px-4 text-sm font-medium text-zinc-400">
+										Total
+									</th>
+								</tr>
+							</thead>
+							<tbody>
+								{quote.line_items.map(
+									(item, index) => (
+										<tr
+											key={
+												item.id ||
+												index
+											}
+											className="border-b border-zinc-800 last:border-0"
+										>
+											<td className="py-3 px-4 text-sm text-white">
+												{
+													item.description
 												}
-												className="border-b border-zinc-800"
-											>
-												<td className="py-3 px-4">
-													<div className="text-white font-medium">
-														{
-															item.name
-														}
-													</div>
-													{item.description && (
-														<div className="text-sm text-zinc-400 mt-1">
-															{
-																item.description
-															}
-														</div>
-													)}
-												</td>
-												<td className="py-3 px-4">
-													{item.item_type ? (
-														<span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-zinc-800 text-zinc-300 border border-zinc-700 capitalize">
-															{
-																item.item_type
-															}
-														</span>
-													) : (
-														<span className="text-zinc-500 text-sm">
-															-
-														</span>
-													)}
-												</td>
-												<td className="py-3 px-4 text-right text-white">
-													{Number(
+											</td>
+											<td className="py-3 px-4 text-sm text-white text-right">
+												{
+													item.quantity
+												}
+											</td>
+											<td className="py-3 px-4 text-sm text-white text-right">
+												$
+												{Number(
+													item.unit_price
+												).toLocaleString(
+													"en-US",
+													{
+														minimumFractionDigits: 2,
+														maximumFractionDigits: 2,
+													}
+												)}
+											</td>
+											<td className="py-3 px-4 text-sm text-white text-right font-medium">
+												$
+												{(
+													Number(
 														item.quantity
-													).toFixed(
-														2
-													)}
-												</td>
-												<td className="py-3 px-4 text-right text-white">
-													{formatCurrency(
+													) *
+													Number(
 														item.unit_price
-													)}
-												</td>
-												<td className="py-3 px-4 text-right text-white font-semibold">
-													{formatCurrency(
-														item.total
-													)}
-												</td>
-											</tr>
-										)
-									)}
-								</tbody>
-							</table>
-						</div>
-
-						{/* Financial Summary */}
-						<div className="flex justify-end">
-							<div className="w-full md:w-1/2 lg:w-1/3 space-y-3 p-4 bg-zinc-800 rounded-lg border border-zinc-700">
-								<div className="flex items-center justify-between text-sm pb-3 border-b border-zinc-700">
-									<span className="text-zinc-400">
-										Subtotal:
-									</span>
-									<span className="font-semibold text-white">
-										{formatCurrency(
-											quote.subtotal
-										)}
-									</span>
-								</div>
-
-								{quote.tax_rate > 0 && (
-									<div className="flex items-center justify-between text-sm">
-										<span className="text-zinc-400">
-											Tax (
-											{(
-												Number(
-													quote.tax_rate
-												) *
-												100
-											).toFixed(
-												2
-											)}
-											%):
-										</span>
-										<span className="text-white">
-											{formatCurrency(
-												quote.tax_amount
-											)}
-										</span>
-									</div>
+													)
+												).toLocaleString(
+													"en-US",
+													{
+														minimumFractionDigits: 2,
+														maximumFractionDigits: 2,
+													}
+												)}
+											</td>
+										</tr>
+									)
 								)}
-
-								{quote.discount_amount > 0 && (
-									<div className="flex items-center justify-between text-sm">
-										<span className="text-zinc-400">
-											Discount:
-										</span>
-										<span className="text-white">
-											-
-											{formatCurrency(
-												quote.discount_amount
-											)}
-										</span>
-									</div>
-								)}
-
-								<div className="flex items-center justify-between text-lg font-bold pt-3 border-t border-zinc-700">
-									<span className="text-white">
+								<tr className="border-t-2 border-zinc-700">
+									<td
+										colSpan={3}
+										className="py-3 px-4 text-sm font-semibold text-white text-right"
+									>
 										Total:
-									</span>
-									<span className="text-green-400">
-										{formatCurrency(
+									</td>
+									<td className="py-3 px-4 text-sm font-bold text-white text-right">
+										$
+										{Number(
 											quote.total
+										).toLocaleString(
+											"en-US",
+											{
+												minimumFractionDigits: 2,
+												maximumFractionDigits: 2,
+											}
 										)}
-									</span>
-								</div>
-							</div>
-						</div>
+									</td>
+								</tr>
+							</tbody>
+						</table>
 					</div>
 				)}
 			</Card>
 
-			{/* Related Request */}
-			{quote.request && (
+			{/* Related Request and Job - Half Width Layout */}
+			<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+				{/* Related Request - Half Width */}
 				<Card title="Related Request">
-					<button
-						onClick={() =>
-							navigate(
-								`/dispatch/requests/${quote.request_id}`
-							)
-						}
-						className="min-w-[300px] max-w-md p-4 bg-zinc-800 hover:bg-zinc-750 rounded-lg border border-zinc-700 hover:border-zinc-600 transition-all cursor-pointer text-left group"
-					>
-						<div className="flex items-start justify-between gap-3 mb-3">
-							<div className="flex-1 min-w-0">
-								<h4 className="text-white font-medium text-sm mb-1 group-hover:text-blue-400 transition-colors">
-									{quote.request.title}
-								</h4>
-								<div className="flex items-center gap-2 text-xs text-zinc-500 mt-1">
-									<Calendar size={12} />
-									<span>
-										{new Date(
+					{!quote.request ? (
+						<div className="text-center py-8">
+							<FileText
+								size={40}
+								className="mx-auto text-zinc-600 mb-3"
+							/>
+							<h3 className="text-zinc-400 text-sm font-medium mb-1">
+								No Request
+							</h3>
+							<p className="text-zinc-500 text-xs">
+								This quote was not created from a
+								request.
+							</p>
+						</div>
+					) : (
+						<button
+							onClick={() =>
+								navigate(
+									`/dispatch/requests/${quote.request?.id}`
+								)
+							}
+							className="w-full p-4 bg-zinc-800 hover:bg-zinc-750 rounded-lg border border-zinc-700 hover:border-zinc-600 transition-all cursor-pointer text-left group"
+						>
+							<div className="flex items-start justify-between gap-3">
+								<div className="flex-1 min-w-0">
+									<h4 className="text-white font-medium text-sm mb-1 group-hover:text-blue-400 transition-colors">
+										{
 											quote
 												.request
-												.created_at
-										).toLocaleDateString(
-											"en-US",
-											{
-												month: "short",
-												day: "numeric",
-												year: "numeric",
-											}
-										)}
-									</span>
+												.title
+										}
+									</h4>
+									<div className="flex items-center gap-2 text-xs text-zinc-500 mt-2">
+										<Calendar
+											size={12}
+										/>
+										<span>
+											{new Date(
+												quote
+													.request
+													.created_at
+											).toLocaleDateString(
+												"en-US",
+												{
+													month: "short",
+													day: "numeric",
+													year: "numeric",
+												}
+											)}
+										</span>
+									</div>
 								</div>
+								<span
+									className={`flex-shrink-0 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(
+										quote.request.status
+									)}`}
+								>
+									{quote.request.status}
+								</span>
 							</div>
-							<span
-								className={`flex-shrink-0 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(
-									quote.request.status
-								)}`}
-							>
-								{quote.request.status}
-							</span>
-						</div>
-					</button>
+						</button>
+					)}
 				</Card>
-			)}
 
-			{/* Related Job */}
-			{quote.job && (
+				{/* Related Job - Half Width */}
 				<Card title="Related Job">
-					<button
-						onClick={() =>
-							navigate(`/dispatch/jobs/${quote.job?.id}`)
-						}
-						className="min-w-[300px] max-w-md p-4 bg-zinc-800 hover:bg-zinc-750 rounded-lg border border-zinc-700 hover:border-zinc-600 transition-all cursor-pointer text-left group"
-					>
-						<div className="flex items-start justify-between gap-3 mb-3">
-							<div className="flex-1 min-w-0">
-								<h4 className="text-white font-medium text-sm mb-1 group-hover:text-blue-400 transition-colors">
-									{quote.job?.name}
-								</h4>
-								<div className="flex items-center gap-2 text-xs text-zinc-500 mt-1">
-									<Calendar size={12} />
-									<span>
-										{new Date(
-											quote.job
-												.created_at
-										).toLocaleDateString(
-											"en-US",
-											{
-												month: "short",
-												day: "numeric",
-												year: "numeric",
-											}
-										)}
-									</span>
-								</div>
-							</div>
-							<span
-								className={`flex-shrink-0 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(
-									quote.job?.status || ""
-								)}`}
+					{!quote.job ? (
+						<div className="text-center py-8">
+							<Briefcase
+								size={40}
+								className="mx-auto text-zinc-600 mb-3"
+							/>
+							<h3 className="text-zinc-400 text-sm font-medium mb-1">
+								No Job Created
+							</h3>
+							<p className="text-zinc-500 text-xs mb-4">
+								This quote has not been converted to
+								a job yet.
+							</p>
+							<button
+								onClick={handleConvertToJob}
+								className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-md text-sm font-medium transition-colors flex items-center gap-2 mx-auto"
 							>
-								{quote.job?.status}
-							</span>
+								<Briefcase size={14} />
+								Convert to Job
+							</button>
 						</div>
-					</button>
+					) : (
+						<button
+							onClick={() =>
+								navigate(
+									`/dispatch/jobs/${quote.job?.id}`
+								)
+							}
+							className="w-full p-4 bg-zinc-800 hover:bg-zinc-750 rounded-lg border border-zinc-700 hover:border-zinc-600 transition-all cursor-pointer text-left group"
+						>
+							<div className="flex items-start justify-between gap-3">
+								<div className="flex-1 min-w-0">
+									<h4 className="text-white font-medium text-sm mb-1 group-hover:text-blue-400 transition-colors">
+										{
+											quote.job
+												.job_number
+										}
+									</h4>
+									<p className="text-zinc-400 text-xs mb-2">
+										{quote.job.name}
+									</p>
+									<div className="flex items-center gap-2 text-xs text-zinc-500">
+										<Calendar
+											size={12}
+										/>
+										<span>
+											{new Date(
+												quote
+													.job
+													.created_at
+											).toLocaleDateString(
+												"en-US",
+												{
+													month: "short",
+													day: "numeric",
+													year: "numeric",
+												}
+											)}
+										</span>
+									</div>
+								</div>
+								<span
+									className={`flex-shrink-0 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(
+										quote.job.status
+									)}`}
+								>
+									{quote.job.status}
+								</span>
+							</div>
+						</button>
+					)}
 				</Card>
-			)}
+			</div>
 
+			{/* Notes - Full Width */}
+			<NoteManager quoteId={quoteId!} />
+
+			{/* Modals */}
 			{quote && (
 				<>
 					<EditQuote

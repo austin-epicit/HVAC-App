@@ -76,9 +76,7 @@ export const deleteRequest = async (id: string): Promise<{ id: string }> => {
 // ============================================================================
 
 export const getRequestNotes = async (requestId: string): Promise<RequestNote[]> => {
-	const response = await api.get<ApiResponse<RequestNote[]>>(
-		`/api/requests/${requestId}/notes`
-	);
+	const response = await api.get<ApiResponse<RequestNote[]>>(`/requests/${requestId}/notes`);
 	return response.data.data || [];
 };
 

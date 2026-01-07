@@ -1,0 +1,325 @@
+import { ZodError } from "zod";
+import { db } from "../db.js";
+import {
+	createQuoteNoteSchema,
+	updateQuoteNoteSchema,
+} from "../lib/validate/quotes.js";
+import { logActivity, buildChanges } from "../services/logger.js";
+
+export interface UserContext {
+	techId?: string;
+	dispatcherId?: string;
+	ipAddress?: string;
+	userAgent?: string;
+}
+
+export const getQuoteNotes = async (quoteId: string) => {
+	return await db.quote_note.findMany({
+		where: { quote_id: quoteId },
+		include: {
+			creator_tech: {
+				select: {
+					id: true,
+					name: true,
+					email: true,
+				},
+			},
+			creator_dispatcher: {
+				select: {
+					id: true,
+					name: true,
+					email: true,
+				},
+			},
+			last_editor_tech: {
+				select: {
+					id: true,
+					name: true,
+					email: true,
+				},
+			},
+			last_editor_dispatcher: {
+				select: {
+					id: true,
+					name: true,
+					email: true,
+				},
+			},
+		},
+		orderBy: { created_at: "desc" },
+	});
+};
+
+export const getNoteById = async (quoteId: string, noteId: string) => {
+	return await db.quote_note.findFirst({
+		where: {
+			id: noteId,
+			quote_id: quoteId,
+		},
+		include: {
+			creator_tech: {
+				select: {
+					id: true,
+					name: true,
+					email: true,
+				},
+			},
+			creator_dispatcher: {
+				select: {
+					id: true,
+					name: true,
+					email: true,
+				},
+			},
+			last_editor_tech: {
+				select: {
+					id: true,
+					name: true,
+					email: true,
+				},
+			},
+			last_editor_dispatcher: {
+				select: {
+					id: true,
+					name: true,
+					email: true,
+				},
+			},
+		},
+	});
+};
+
+export const insertQuoteNote = async (
+	quoteId: string,
+	data: unknown,
+	context?: UserContext
+) => {
+	try {
+		const parsed = createQuoteNoteSchema.parse(data);
+
+		const quote = await db.quote.findUnique({ where: { id: quoteId } });
+		if (!quote) {
+			return { err: "Quote not found" };
+		}
+
+		const created = await db.$transaction(async (tx) => {
+			const noteData: any = {
+				quote_id: quoteId,
+				content: parsed.content,
+				creator_tech_id: context?.techId || null,
+				creator_dispatcher_id: context?.dispatcherId || null,
+			};
+
+			const note = await tx.quote_note.create({
+				data: noteData,
+				include: {
+					creator_tech: {
+						select: {
+							id: true,
+							name: true,
+							email: true,
+						},
+					},
+					creator_dispatcher: {
+						select: {
+							id: true,
+							name: true,
+							email: true,
+						},
+					},
+				},
+			});
+
+			await logActivity({
+				event_type: "quote_note.created",
+				action: "created",
+				entity_type: "quote_note",
+				entity_id: note.id,
+				actor_type: context?.techId
+					? "technician"
+					: context?.dispatcherId
+					? "dispatcher"
+					: "system",
+				actor_id: context?.techId || context?.dispatcherId,
+				changes: {
+					content: { old: null, new: parsed.content },
+					quote_id: { old: null, new: quoteId },
+				},
+				ip_address: context?.ipAddress,
+				user_agent: context?.userAgent,
+			});
+
+			return note;
+		});
+
+		return { err: "", item: created };
+	} catch (e) {
+		if (e instanceof ZodError) {
+			return {
+				err: `Validation failed: ${e.issues
+					.map((err) => err.message)
+					.join(", ")}`,
+			};
+		}
+		console.error("Error inserting quote note:", e);
+		return { err: "Internal server error" };
+	}
+};
+
+export const updateQuoteNote = async (
+	quoteId: string,
+	noteId: string,
+	data: unknown,
+	context?: UserContext
+) => {
+	try {
+		const parsed = updateQuoteNoteSchema.parse(data);
+
+		const existing = await db.quote_note.findFirst({
+			where: {
+				id: noteId,
+				quote_id: quoteId,
+			},
+		});
+
+		if (!existing) {
+			return { err: "Note not found" };
+		}
+
+		const changes = buildChanges(existing, parsed, ["content"] as const);
+
+		const updated = await db.$transaction(async (tx) => {
+			const updateData: any = {
+				updated_at: new Date(),
+			};
+
+			if (parsed.content !== undefined) {
+				updateData.content = parsed.content;
+			}
+
+			if (context?.techId) {
+				updateData.last_editor_tech_id = context.techId;
+				updateData.last_editor_dispatcher_id = null;
+			} else if (context?.dispatcherId) {
+				updateData.last_editor_dispatcher_id = context.dispatcherId;
+				updateData.last_editor_tech_id = null;
+			}
+
+			const note = await tx.quote_note.update({
+				where: { id: noteId },
+				data: updateData,
+				include: {
+					creator_tech: {
+						select: {
+							id: true,
+							name: true,
+							email: true,
+						},
+					},
+					creator_dispatcher: {
+						select: {
+							id: true,
+							name: true,
+							email: true,
+						},
+					},
+					last_editor_tech: {
+						select: {
+							id: true,
+							name: true,
+							email: true,
+						},
+					},
+					last_editor_dispatcher: {
+						select: {
+							id: true,
+							name: true,
+							email: true,
+						},
+					},
+				},
+			});
+
+			if (Object.keys(changes).length > 0) {
+				await logActivity({
+					event_type: "quote_note.updated",
+					action: "updated",
+					entity_type: "quote_note",
+					entity_id: noteId,
+					actor_type: context?.techId
+						? "technician"
+						: context?.dispatcherId
+						? "dispatcher"
+						: "system",
+					actor_id: context?.techId || context?.dispatcherId,
+					changes,
+					ip_address: context?.ipAddress,
+					user_agent: context?.userAgent,
+				});
+			}
+
+			return note;
+		});
+
+		return { err: "", item: updated };
+	} catch (e) {
+		if (e instanceof ZodError) {
+			return {
+				err: `Validation failed: ${e.issues
+					.map((err) => err.message)
+					.join(", ")}`,
+			};
+		}
+		console.error("Error updating quote note:", e);
+		return { err: "Internal server error" };
+	}
+};
+
+export const deleteQuoteNote = async (
+	quoteId: string,
+	noteId: string,
+	context?: UserContext
+) => {
+	try {
+		const existing = await db.quote_note.findFirst({
+			where: {
+				id: noteId,
+				quote_id: quoteId,
+			},
+		});
+
+		if (!existing) {
+			return { err: "Note not found" };
+		}
+
+		await db.$transaction(async (tx) => {
+			await logActivity({
+				event_type: "quote_note.deleted",
+				action: "deleted",
+				entity_type: "quote_note",
+				entity_id: noteId,
+				actor_type: context?.techId
+					? "technician"
+					: context?.dispatcherId
+					? "dispatcher"
+					: "system",
+				actor_id: context?.techId || context?.dispatcherId,
+				changes: {
+					content: { old: existing.content, new: null },
+					quote_id: { old: existing.quote_id, new: null },
+				},
+				ip_address: context?.ipAddress,
+				user_agent: context?.userAgent,
+			});
+
+			await tx.quote_note.delete({
+				where: { id: noteId },
+			});
+		});
+
+		return { err: "", message: "Note deleted successfully" };
+	} catch (error) {
+		console.error("Error deleting quote note:", error);
+		return { err: "Internal server error" };
+	}
+};

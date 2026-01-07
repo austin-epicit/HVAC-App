@@ -20,6 +20,7 @@ import {
 	updateRequestNote,
 	deleteRequestNote,
 } from "./controllers/requestsController.js";
+import * as requestNotesController from "./controllers/requestNotesController.js";
 import {
 	getAllQuotes,
 	getQuoteById,
@@ -32,12 +33,8 @@ import {
 	insertQuoteItem,
 	updateQuoteItem,
 	deleteQuoteItem,
-	getQuoteNotes,
-	getQuoteNoteById,
-	insertQuoteNote,
-	updateQuoteNote,
-	deleteQuoteNote,
 } from "./controllers/quotesController.js";
+import * as quoteNotesController from "./controllers/quoteNotesController.js";
 import {
 	getAllJobs,
 	getJobById,
@@ -307,11 +304,10 @@ app.delete("/requests/:id", async (req, res, next) => {
 // ============================================
 // REQUEST NOTE ROUTES
 // ============================================
-
 app.get("/requests/:requestId/notes", async (req, res, next) => {
 	try {
 		const { requestId } = req.params;
-		const notes = await getRequestNotes(requestId);
+		const notes = await requestNotesController.getRequestNotes(requestId);
 		res.json(createSuccessResponse(notes, { count: notes.length }));
 	} catch (err) {
 		next(err);
@@ -321,7 +317,10 @@ app.get("/requests/:requestId/notes", async (req, res, next) => {
 app.get("/requests/:requestId/notes/:noteId", async (req, res, next) => {
 	try {
 		const { requestId, noteId } = req.params;
-		const note = await getRequestNoteById(requestId, noteId);
+		const note = await requestNotesController.getNoteById(
+			requestId,
+			noteId
+		);
 
 		if (!note) {
 			return res
@@ -341,7 +340,11 @@ app.post("/requests/:requestId/notes", async (req, res, next) => {
 	try {
 		const { requestId } = req.params;
 		const context = getUserContext(req);
-		const result = await insertRequestNote(requestId, req.body, context);
+		const result = await requestNotesController.insertRequestNote(
+			requestId,
+			req.body,
+			context
+		);
 
 		if (result.err) {
 			const statusCode = result.err.includes("not found") ? 404 : 400;
@@ -362,7 +365,7 @@ app.put("/requests/:requestId/notes/:noteId", async (req, res, next) => {
 	try {
 		const { requestId, noteId } = req.params;
 		const context = getUserContext(req);
-		const result = await updateRequestNote(
+		const result = await requestNotesController.updateRequestNote(
 			requestId,
 			noteId,
 			req.body,
@@ -388,7 +391,11 @@ app.delete("/requests/:requestId/notes/:noteId", async (req, res, next) => {
 	try {
 		const { requestId, noteId } = req.params;
 		const context = getUserContext(req);
-		const result = await deleteRequestNote(requestId, noteId, context);
+		const result = await requestNotesController.deleteRequestNote(
+			requestId,
+			noteId,
+			context
+		);
 
 		if (result.err) {
 			const statusCode = result.err.includes("not found") ? 404 : 400;
@@ -616,7 +623,7 @@ app.delete("/quotes/:quoteId/line-items/:itemId", async (req, res, next) => {
 app.get("/quotes/:quoteId/notes", async (req, res, next) => {
 	try {
 		const { quoteId } = req.params;
-		const notes = await getQuoteNotes(quoteId);
+		const notes = await quoteNotesController.getQuoteNotes(quoteId);
 		res.json(createSuccessResponse(notes, { count: notes.length }));
 	} catch (err) {
 		next(err);
@@ -626,7 +633,7 @@ app.get("/quotes/:quoteId/notes", async (req, res, next) => {
 app.get("/quotes/:quoteId/notes/:noteId", async (req, res, next) => {
 	try {
 		const { quoteId, noteId } = req.params;
-		const note = await getQuoteNoteById(quoteId, noteId);
+		const note = await quoteNotesController.getNoteById(quoteId, noteId);
 
 		if (!note) {
 			return res
@@ -646,7 +653,11 @@ app.post("/quotes/:quoteId/notes", async (req, res, next) => {
 	try {
 		const { quoteId } = req.params;
 		const context = getUserContext(req);
-		const result = await insertQuoteNote(quoteId, req.body, context);
+		const result = await quoteNotesController.insertQuoteNote(
+			quoteId,
+			req.body,
+			context
+		);
 
 		if (result.err) {
 			const statusCode = result.err.includes("not found") ? 404 : 400;
@@ -667,7 +678,7 @@ app.put("/quotes/:quoteId/notes/:noteId", async (req, res, next) => {
 	try {
 		const { quoteId, noteId } = req.params;
 		const context = getUserContext(req);
-		const result = await updateQuoteNote(
+		const result = await quoteNotesController.updateQuoteNote(
 			quoteId,
 			noteId,
 			req.body,
@@ -693,7 +704,11 @@ app.delete("/quotes/:quoteId/notes/:noteId", async (req, res, next) => {
 	try {
 		const { quoteId, noteId } = req.params;
 		const context = getUserContext(req);
-		const result = await deleteQuoteNote(quoteId, noteId, context);
+		const result = await quoteNotesController.deleteQuoteNote(
+			quoteId,
+			noteId,
+			context
+		);
 
 		if (result.err) {
 			const statusCode = result.err.includes("not found") ? 404 : 400;

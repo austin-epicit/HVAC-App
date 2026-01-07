@@ -73,8 +73,13 @@ export const useUpdateClientMutation = (): UseMutationResult<
 		mutationFn: ({ id, data }: { id: string; data: UpdateClientInput }) =>
 			clientApi.updateClient(id, data),
 		onSuccess: (updatedClient: Client) => {
+			// Invalidate all clients
 			queryClient.invalidateQueries({ queryKey: ["clients"] });
 			queryClient.setQueryData(["clients", updatedClient.id], updatedClient);
+
+			queryClient.invalidateQueries({ queryKey: ["quotes"] });
+			queryClient.invalidateQueries({ queryKey: ["requests"] });
+			queryClient.invalidateQueries({ queryKey: ["jobs"] });
 		},
 		onError: (error: Error) => {
 			console.error("Failed to update client:", error);
@@ -94,6 +99,10 @@ export const useDeleteClientMutation = (): UseMutationResult<
 		onSuccess: (data, deletedId) => {
 			queryClient.invalidateQueries({ queryKey: ["clients"] });
 			queryClient.removeQueries({ queryKey: ["clients", deletedId] });
+
+			queryClient.invalidateQueries({ queryKey: ["quotes"] });
+			queryClient.invalidateQueries({ queryKey: ["requests"] });
+			queryClient.invalidateQueries({ queryKey: ["jobs"] });
 		},
 		onError: (error: Error) => {
 			console.error("Failed to delete client:", error);
@@ -167,7 +176,7 @@ export const useCreateContactMutation = (): UseMutationResult<
 			// Cache the new contact
 			queryClient.setQueryData(["contacts", newContact.id], newContact);
 
-			// If linked to a client, invalidate that client's contacts
+			// If linked to a client, invalidate that client's contacts and related entities
 			if (newContact.client_contacts.length > 0) {
 				newContact.client_contacts.forEach((link) => {
 					queryClient.invalidateQueries({
@@ -177,6 +186,10 @@ export const useCreateContactMutation = (): UseMutationResult<
 						queryKey: ["clients", link.client_id],
 					});
 				});
+
+				queryClient.invalidateQueries({ queryKey: ["quotes"] });
+				queryClient.invalidateQueries({ queryKey: ["requests"] });
+				queryClient.invalidateQueries({ queryKey: ["jobs"] });
 			}
 		},
 		onError: (error: Error) => {
@@ -216,6 +229,10 @@ export const useUpdateContactMutation = (): UseMutationResult<
 					queryKey: ["clients", link.client_id],
 				});
 			});
+
+			queryClient.invalidateQueries({ queryKey: ["quotes"] });
+			queryClient.invalidateQueries({ queryKey: ["requests"] });
+			queryClient.invalidateQueries({ queryKey: ["jobs"] });
 		},
 		onError: (error: Error) => {
 			console.error("Failed to update contact:", error);
@@ -235,6 +252,12 @@ export const useDeleteContactMutation = (): UseMutationResult<
 		onSuccess: (data, deletedContactId) => {
 			queryClient.invalidateQueries({ queryKey: ["contacts"] });
 			queryClient.removeQueries({ queryKey: ["contacts", deletedContactId] });
+
+			// Invalidate related entities as they might show this contact
+			queryClient.invalidateQueries({ queryKey: ["clients"] });
+			queryClient.invalidateQueries({ queryKey: ["quotes"] });
+			queryClient.invalidateQueries({ queryKey: ["requests"] });
+			queryClient.invalidateQueries({ queryKey: ["jobs"] });
 		},
 		onError: (error: Error) => {
 			console.error("Failed to delete contact:", error);
@@ -275,20 +298,24 @@ export const useLinkContactMutation = (): UseMutationResult<
 			};
 		}) => clientApi.linkContactToClient(clientId, data),
 		onSuccess: (_, variables) => {
-			// Invalidate client contacts to refresh the list
 			queryClient.invalidateQueries({
 				queryKey: ["clients", variables.clientId, "contacts"],
 			});
 			queryClient.invalidateQueries({
 				queryKey: ["clients", variables.clientId],
 			});
-			// Invalidate the contact
 			queryClient.invalidateQueries({
 				queryKey: ["contacts", variables.data.contact_id],
 			});
 			queryClient.invalidateQueries({
 				queryKey: ["contacts"],
 			});
+
+			if (variables.data.is_primary) {
+				queryClient.invalidateQueries({ queryKey: ["quotes"] });
+				queryClient.invalidateQueries({ queryKey: ["requests"] });
+				queryClient.invalidateQueries({ queryKey: ["jobs"] });
+			}
 		},
 		onError: (error: Error) => {
 			console.error("Failed to link contact:", error);
@@ -320,6 +347,12 @@ export const useUpdateClientContactMutation = (): UseMutationResult<
 			queryClient.invalidateQueries({
 				queryKey: ["clients", variables.clientId],
 			});
+
+			if (variables.data.is_primary !== undefined) {
+				queryClient.invalidateQueries({ queryKey: ["quotes"] });
+				queryClient.invalidateQueries({ queryKey: ["requests"] });
+				queryClient.invalidateQueries({ queryKey: ["jobs"] });
+			}
 		},
 		onError: (error: Error) => {
 			console.error("Failed to update client-contact relationship:", error);
@@ -347,6 +380,10 @@ export const useUnlinkContactFromClientMutation = (): UseMutationResult<
 			queryClient.invalidateQueries({
 				queryKey: ["contacts", variables.contactId],
 			});
+
+			queryClient.invalidateQueries({ queryKey: ["quotes"] });
+			queryClient.invalidateQueries({ queryKey: ["requests"] });
+			queryClient.invalidateQueries({ queryKey: ["jobs"] });
 		},
 		onError: (error: Error) => {
 			console.error("Failed to unlink contact from client:", error);

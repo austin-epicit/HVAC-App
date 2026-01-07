@@ -1,6 +1,7 @@
 import AdaptableTable from "../../components/AdaptableTable";
 import { useQuotesQuery, useCreateQuoteMutation } from "../../hooks/useQuotes";
 import { useClientByIdQuery } from "../../hooks/useClients";
+import { useRequestByIdQuery } from "../../hooks/useRequests";
 import { QuoteStatusValues, QuoteStatusLabels, type Quote } from "../../types/quotes";
 import { useState, useMemo, useEffect } from "react";
 import { Search, Plus, X, MoreHorizontal } from "lucide-react";
@@ -34,9 +35,11 @@ export default function QuotesPage() {
 
 	const queryParams = new URLSearchParams(location.search);
 	const clientFilter = queryParams.get("client");
+	const requestFilter = queryParams.get("request");
 	const searchFilter = queryParams.get("search");
 
 	const { data: filterClient } = useClientByIdQuery(clientFilter);
+	const { data: filterRequest } = useRequestByIdQuery(requestFilter);
 
 	useEffect(() => {
 		setSearchInput(searchFilter || "");
@@ -51,6 +54,10 @@ export default function QuotesPage() {
 
 		if (clientFilter) {
 			filtered = quotes.filter((q) => q.client_id === clientFilter);
+		}
+
+		if (requestFilter) {
+			filtered = filtered.filter((q) => q.request_id === requestFilter);
 		}
 
 		if (activeSearch) {
@@ -84,23 +91,21 @@ export default function QuotesPage() {
 					created: formatDate(q.created_at),
 					status: QuoteStatusLabels[q.status] || q.status,
 					total: formatCurrency(Number(q.total)),
-					_rawStatus: q.status, // Keep raw status for sorting
-					_rawTotal: Number(q.total), // Keep raw total for sorting
-					_createdDate: new Date(q.created_at), // Keep date object for sorting
+					_rawStatus: q.status,
+					_rawTotal: Number(q.total),
+					_createdDate: new Date(q.created_at),
 				};
 			})
 			.sort((a, b) => {
-				// First sort by status
 				const statusDiff =
 					QuoteStatusValues.indexOf(a._rawStatus as any) -
 					QuoteStatusValues.indexOf(b._rawStatus as any);
 				if (statusDiff !== 0) return statusDiff;
 
-				// Then by created date (newest first)
 				return b._createdDate.getTime() - a._createdDate.getTime();
 			})
 			.map(({ _rawStatus, _rawTotal, _createdDate, ...rest }) => rest);
-	}, [quotes, searchInput, searchFilter, clientFilter]);
+	}, [quotes, searchInput, searchFilter, clientFilter, requestFilter]);
 
 	const handleSearchSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
@@ -116,7 +121,7 @@ export default function QuotesPage() {
 		navigate(`/dispatch/quotes?${newParams.toString()}`);
 	};
 
-	const removeFilter = (filterType: "client" | "search") => {
+	const removeFilter = (filterType: "client" | "request" | "search") => {
 		const newParams = new URLSearchParams(location.search);
 		newParams.delete(filterType);
 
@@ -134,7 +139,7 @@ export default function QuotesPage() {
 		navigate("/dispatch/quotes");
 	};
 
-	const hasFilters = clientFilter || searchFilter;
+	const hasFilters = clientFilter || requestFilter || searchFilter;
 
 	return (
 		<div className="text-white">
@@ -204,6 +209,31 @@ export default function QuotesPage() {
 										}
 										className="text-blue-300 hover:text-white transition-colors"
 										aria-label="Remove client filter"
+									>
+										<X size={14} />
+									</button>
+								</div>
+							)}
+
+							{/* Request Filter Chip */}
+							{requestFilter && filterRequest && (
+								<div className="flex items-center gap-2 px-3 py-1.5 bg-green-600/20 border border-green-500/30 rounded-md">
+									<span className="text-sm text-green-300">
+										Request:{" "}
+										<span className="font-medium text-white">
+											{
+												filterRequest.title
+											}
+										</span>
+									</span>
+									<button
+										onClick={() =>
+											removeFilter(
+												"request"
+											)
+										}
+										className="text-green-300 hover:text-white transition-colors"
+										aria-label="Remove request filter"
 									>
 										<X size={14} />
 									</button>

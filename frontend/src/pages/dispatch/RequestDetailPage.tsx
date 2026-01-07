@@ -12,6 +12,7 @@ import {
 	Phone,
 	Mail,
 	Globe,
+	ArrowRight,
 } from "lucide-react";
 import { useRequestByIdQuery } from "../../hooks/useRequests";
 import { useCreateQuoteMutation } from "../../hooks/useQuotes";
@@ -20,6 +21,7 @@ import Card from "../../components/ui/Card";
 import EditRequest from "../../components/requests/EditRequest";
 import ConvertToQuote from "../../components/requests/ConvertToQuote";
 import ConvertToJob from "../../components/requests/ConvertToJob";
+import NoteManager from "../../components/requests/RequestNoteManager";
 import { useState, useRef, useEffect } from "react";
 
 export default function RequestDetailPage() {
@@ -66,6 +68,14 @@ export default function RequestDetailPage() {
 
 	const primaryContact = request.client?.contacts?.find((cc) => cc.is_primary)?.contact;
 
+	// Limit quotes and jobs to 5 entries
+	const displayedQuotes = request.quotes?.slice(0, 5) || [];
+	const hasMoreQuotes = (request.quotes?.length || 0) > 5;
+	const totalQuotes = request.quotes?.length || 0;
+
+	const displayedJobs = request.job ? [request.job] : [];
+	const totalJobs = request.job ? 1 : 0;
+
 	const getStatusColor = (status: string) => {
 		switch (status) {
 			case "New":
@@ -84,6 +94,14 @@ export default function RequestDetailPage() {
 				return "bg-green-500/20 text-green-400 border-green-500/30";
 			case "Cancelled":
 				return "bg-zinc-500/20 text-zinc-400 border-zinc-500/30";
+			case "Unscheduled":
+				return "bg-gray-500/20 text-gray-400 border-gray-500/30";
+			case "Scheduled":
+				return "bg-blue-500/20 text-blue-400 border-blue-500/30";
+			case "InProgress":
+				return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30";
+			case "Completed":
+				return "bg-green-500/20 text-green-400 border-green-500/30";
 			default:
 				return "bg-zinc-500/20 text-zinc-400 border-zinc-500/30";
 		}
@@ -201,7 +219,7 @@ export default function RequestDetailPage() {
 
 			{/* Request Information (2/3) and Client Details (1/3) */}
 			<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-				{/* Request Information - 2/3 width */}
+				{/* Request Information*/}
 				<div className="lg:col-span-2">
 					<Card title="Request Information" className="h-full">
 						<div className="space-y-4">
@@ -361,7 +379,7 @@ export default function RequestDetailPage() {
 					</Card>
 				</div>
 
-				{/* Client Details - 1/3 width */}
+				{/* Client Details */}
 				<div className="lg:col-span-1">
 					<Card
 						title="Client Details"
@@ -410,7 +428,6 @@ export default function RequestDetailPage() {
 								</div>
 							)}
 
-							{/* Primary Contact within Client Card */}
 							{primaryContact && (
 								<div className="pt-4 border-t border-zinc-700">
 									<div className="flex items-center justify-between mb-3">
@@ -441,10 +458,7 @@ export default function RequestDetailPage() {
 													}
 													className="text-zinc-400 flex-shrink-0"
 												/>
-												<a
-													href={`mailto:${primaryContact.email}`}
-													className="text-blue-400 hover:text-blue-300 transition-colors truncate"
-												>
+												<a className="text-white truncate">
 													{
 														primaryContact.email
 													}
@@ -460,10 +474,7 @@ export default function RequestDetailPage() {
 													}
 													className="text-zinc-400 flex-shrink-0"
 												/>
-												<a
-													href={`tel:${primaryContact.phone}`}
-													className="text-blue-400 hover:text-blue-300 transition-colors"
-												>
+												<a className="text-white">
 													{
 														primaryContact.phone
 													}
@@ -489,163 +500,212 @@ export default function RequestDetailPage() {
 				</div>
 			</div>
 
-			{/* Quotes - Full Width */}
-			<Card
-				title="Quotes"
-				headerAction={
-					request.quotes && request.quotes.length > 0 ? (
+			{/* Related Quotes and Jobs*/}
+			<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+				{/* Related Quotes*/}
+				<Card
+					title="Related Quotes"
+					headerAction={
 						<span className="text-sm text-zinc-400">
-							{request.quotes.length} quote(s)
+							{totalQuotes} quote
+							{totalQuotes !== 1 ? "s" : ""}
 						</span>
-					) : undefined
-				}
-			>
-				{!request.quotes || request.quotes.length === 0 ? (
-					<div className="text-center py-12">
-						<FileText
-							size={48}
-							className="mx-auto text-zinc-600 mb-3"
-						/>
-						<h3 className="text-zinc-400 text-lg font-medium mb-2">
-							No Quotes
-						</h3>
-						<p className="text-zinc-500 text-sm max-w-sm mx-auto mb-4">
-							No quotes have been created for this request
-							yet.
-						</p>
-						{request.requires_quote && (
-							<p className="text-amber-400 text-xs">
-								Quote required for this request
+					}
+				>
+					{displayedQuotes.length === 0 ? (
+						<div className="text-center py-8">
+							<FileText
+								size={40}
+								className="mx-auto text-zinc-600 mb-3"
+							/>
+							<h3 className="text-zinc-400 text-sm font-medium mb-1">
+								No Quotes
+							</h3>
+							<p className="text-zinc-500 text-xs">
+								No quotes have been created for this
+								request yet.
 							</p>
-						)}
-					</div>
-				) : (
-					<div className="flex flex-wrap gap-3">
-						{request.quotes.map((quote) => (
-							<button
-								key={quote.id}
-								onClick={() =>
-									navigate(
-										`/dispatch/quotes/${quote.id}`
-									)
-								}
-								className="min-w-[300px] max-w-md flex-grow p-4 bg-zinc-800 hover:bg-zinc-750 rounded-lg border border-zinc-700 hover:border-zinc-600 transition-all cursor-pointer text-left group"
-							>
-								<div className="flex items-start justify-between gap-3">
-									<div className="flex-1 min-w-0">
-										<h4 className="text-white font-medium text-sm mb-1 group-hover:text-blue-400 transition-colors">
-											{
-												quote.quote_number
-											}
-										</h4>
-										<p className="text-zinc-400 text-xs mb-2">
-											{quote.title ||
-												"Quote"}
-										</p>
-										<div className="flex items-center gap-2 text-xs text-zinc-500">
-											<Calendar
-												size={
-													12
-												}
-											/>
-											<span>
-												{new Date(
-													quote.created_at
-												).toLocaleDateString(
-													"en-US",
-													{
-														month: "short",
-														day: "numeric",
-														year: "numeric",
-													}
-												)}
-											</span>
-										</div>
-									</div>
-									<div className="flex flex-col items-end gap-2 flex-shrink-0">
-										<span className="text-green-400 font-semibold text-sm whitespace-nowrap">
-											$
-											{Number(
-												quote.total
-											).toLocaleString(
-												"en-US",
-												{
-													minimumFractionDigits: 2,
-													maximumFractionDigits: 2,
-												}
-											)}
-										</span>
-										<div className="flex flex-col items-end gap-1">
-											<span
-												className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(
-													quote.status
-												)}`}
-											>
-												{
-													quote.status
-												}
-											</span>
-											{!quote.is_active && (
-												<span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-zinc-700 text-zinc-400 border border-zinc-600">
-													Superseded
-												</span>
-											)}
-										</div>
-									</div>
-								</div>
-							</button>
-						))}
-					</div>
-				)}
-			</Card>
-
-			{/* Related Job */}
-			{request.job && (
-				<Card title="Related Job">
-					<button
-						onClick={() =>
-							navigate(
-								`/dispatch/jobs/${request.job?.id}`
-							)
-						}
-						className="min-w-[300px] max-w-md p-4 bg-zinc-800 hover:bg-zinc-750 rounded-lg border border-zinc-700 hover:border-zinc-600 transition-all cursor-pointer text-left group"
-					>
-						<div className="flex items-start justify-between gap-3">
-							<div className="flex-1 min-w-0">
-								<h4 className="text-white font-medium text-sm mb-1 group-hover:text-blue-400 transition-colors">
-									{request.job.job_number}
-								</h4>
-								<p className="text-zinc-400 text-xs mb-2">
-									{request.job.name}
-								</p>
-								<div className="flex items-center gap-2 text-xs text-zinc-500">
-									<Calendar size={12} />
-									<span>
-										{new Date(
-											request.job
-												.created_at
-										).toLocaleDateString(
-											"en-US",
-											{
-												month: "short",
-												day: "numeric",
-												year: "numeric",
-											}
-										)}
-									</span>
-								</div>
-							</div>
-							<span
-								className={`flex-shrink-0 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(
-									request.job.status
-								)}`}
-							>
-								{request.job.status}
-							</span>
 						</div>
-					</button>
+					) : (
+						<>
+							<div className="space-y-3">
+								{displayedQuotes.map((quote) => (
+									<button
+										key={quote.id}
+										onClick={() =>
+											navigate(
+												`/dispatch/quotes/${quote.id}`
+											)
+										}
+										className="w-full p-4 bg-zinc-800 hover:bg-zinc-750 rounded-lg border border-zinc-700 hover:border-zinc-600 transition-all cursor-pointer text-left group"
+									>
+										<div className="flex items-start justify-between gap-3">
+											<div className="flex-1 min-w-0">
+												<h4 className="text-white font-medium text-sm mb-1 group-hover:text-blue-400 transition-colors">
+													{
+														quote.quote_number
+													}
+												</h4>
+												<p className="text-zinc-400 text-xs mb-2">
+													{quote.title ||
+														"Quote"}
+												</p>
+												<div className="flex items-center gap-2 text-xs text-zinc-500">
+													<Calendar
+														size={
+															12
+														}
+													/>
+													<span>
+														{new Date(
+															quote.created_at
+														).toLocaleDateString(
+															"en-US",
+															{
+																month: "short",
+																day: "numeric",
+																year: "numeric",
+															}
+														)}
+													</span>
+												</div>
+											</div>
+											<div className="flex flex-col items-end gap-2 flex-shrink-0">
+												<span className="text-green-400 font-semibold text-sm whitespace-nowrap">
+													$
+													{Number(
+														quote.total
+													).toLocaleString(
+														"en-US",
+														{
+															minimumFractionDigits: 2,
+															maximumFractionDigits: 2,
+														}
+													)}
+												</span>
+												<div className="flex flex-col items-end gap-1">
+													<span
+														className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(
+															quote.status
+														)}`}
+													>
+														{
+															quote.status
+														}
+													</span>
+													{!quote.is_active && (
+														<span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-zinc-700 text-zinc-400 border border-zinc-600">
+															Superseded
+														</span>
+													)}
+												</div>
+											</div>
+										</div>
+									</button>
+								))}
+							</div>
+							{hasMoreQuotes && (
+								<button
+									onClick={() =>
+										navigate(
+											`/dispatch/quotes?request=${requestId}`
+										)
+									}
+									className="w-full mt-3 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2"
+								>
+									View All Quotes (
+									{totalQuotes})
+									<ArrowRight size={14} />
+								</button>
+							)}
+						</>
+					)}
 				</Card>
-			)}
+
+				{/* Related Jobs*/}
+				<Card
+					title="Related Jobs"
+					headerAction={
+						<span className="text-sm text-zinc-400">
+							{totalJobs} job{totalJobs !== 1 ? "s" : ""}
+						</span>
+					}
+				>
+					{displayedJobs.length === 0 ? (
+						<div className="text-center py-8">
+							<Briefcase
+								size={40}
+								className="mx-auto text-zinc-600 mb-3"
+							/>
+							<h3 className="text-zinc-400 text-sm font-medium mb-1">
+								No Jobs
+							</h3>
+							<p className="text-zinc-500 text-xs">
+								No jobs have been created for this
+								request yet.
+							</p>
+						</div>
+					) : (
+						<div className="space-y-3">
+							{displayedJobs.map((job) => (
+								<button
+									key={job.id}
+									onClick={() =>
+										navigate(
+											`/dispatch/jobs/${job.id}`
+										)
+									}
+									className="w-full p-4 bg-zinc-800 hover:bg-zinc-750 rounded-lg border border-zinc-700 hover:border-zinc-600 transition-all cursor-pointer text-left group"
+								>
+									<div className="flex items-start justify-between gap-3">
+										<div className="flex-1 min-w-0">
+											<h4 className="text-white font-medium text-sm mb-1 group-hover:text-blue-400 transition-colors">
+												{
+													job.job_number
+												}
+											</h4>
+											<p className="text-zinc-400 text-xs mb-2">
+												{
+													job.name
+												}
+											</p>
+											<div className="flex items-center gap-2 text-xs text-zinc-500">
+												<Calendar
+													size={
+														12
+													}
+												/>
+												<span>
+													{new Date(
+														job.created_at
+													).toLocaleDateString(
+														"en-US",
+														{
+															month: "short",
+															day: "numeric",
+															year: "numeric",
+														}
+													)}
+												</span>
+											</div>
+										</div>
+										<span
+											className={`flex-shrink-0 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(
+												job.status
+											)}`}
+										>
+											{job.status}
+										</span>
+									</div>
+								</button>
+							))}
+						</div>
+					)}
+				</Card>
+			</div>
+
+			{/* Notes*/}
+			<NoteManager requestId={requestId!} />
 
 			{request && (
 				<>
