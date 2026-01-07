@@ -3,7 +3,7 @@ import Button from "../ui/Button";
 import { useRef, useState, useEffect } from "react";
 import FullPopup from "../ui/FullPopup";
 import { JobPriorityValues, type CreateJobInput } from "../../types/jobs";
-import type { Request } from "../../types/requests";
+import type { Quote } from "../../types/quotes";
 import type { GeocodeResult } from "../../types/location";
 import Dropdown from "../ui/Dropdown";
 import AddressForm from "../ui/AddressForm";
@@ -11,40 +11,42 @@ import AddressForm from "../ui/AddressForm";
 interface ConvertToJobProps {
 	isModalOpen: boolean;
 	setIsModalOpen: (open: boolean) => void;
-	request: Request;
+	quote: Quote;
 	onConvert: (jobData: CreateJobInput) => Promise<string>;
 }
 
 export default function ConvertToJob({
 	isModalOpen,
 	setIsModalOpen,
-	request,
+	quote,
 	onConvert,
 }: ConvertToJobProps) {
 	const nameRef = useRef<HTMLInputElement>(null);
 	const descRef = useRef<HTMLTextAreaElement>(null);
 	const priorityRef = useRef<HTMLSelectElement>(null);
 	const [geoData, setGeoData] = useState<GeocodeResult | undefined>(
-		request.address || request.coords
+		quote.address || quote.coords
 			? {
-					address: request.address || "",
-					coords: request.coords,
+					address: quote.address || "",
+					coords: quote.coords || undefined,
 				}
 			: undefined
 	);
 	const [isLoading, setIsLoading] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+	// Set initial priority value when modal opens (match quote priority or default to Medium)
 	useEffect(() => {
 		if (isModalOpen && priorityRef.current) {
-			const requestPriority = request.priority;
-			if (JobPriorityValues.includes(requestPriority as any)) {
-				priorityRef.current.value = requestPriority;
+			// Map quote priority to job priority if possible, otherwise default to Medium
+			const quotePriority = quote.priority;
+			if (JobPriorityValues.includes(quotePriority as any)) {
+				priorityRef.current.value = quotePriority;
 			} else {
 				priorityRef.current.value = "Medium";
 			}
 		}
-	}, [isModalOpen, request.priority]);
+	}, [isModalOpen, quote.priority]);
 
 	const handleChangeAddress = (result: GeocodeResult) => {
 		setGeoData(() => ({
@@ -90,8 +92,9 @@ export default function ConvertToJob({
 			try {
 				const jobData: CreateJobInput = {
 					name: nameValue,
-					client_id: request.client_id,
-					request_id: request.id,
+					client_id: quote.client_id,
+					quote_id: quote.id,
+					request_id: quote.request_id || null,
 					address: geoData.address,
 					coords: geoData.coords || { lat: 0, lon: 0 },
 					description: descValue,
@@ -108,11 +111,11 @@ export default function ConvertToJob({
 
 				setIsModalOpen(false);
 			} catch (error) {
-				console.error("Failed to convert request to job:", error);
+				console.error("Failed to convert quote to job:", error);
 				setErrorMessage(
 					error instanceof Error
 						? error.message
-						: "Failed to convert request to job"
+						: "Failed to convert quote to job"
 				);
 			} finally {
 				setIsLoading(false);
@@ -137,7 +140,7 @@ export default function ConvertToJob({
 				className="border border-zinc-800 p-2 w-full rounded-sm"
 				disabled={isLoading}
 				ref={nameRef}
-				defaultValue={request.title}
+				defaultValue={quote.title}
 			/>
 
 			<p className="mb-1 mt-3 hover:color-accent">Description</p>
@@ -146,7 +149,7 @@ export default function ConvertToJob({
 				className="border border-zinc-800 p-2 w-full h-24 rounded-sm"
 				disabled={isLoading}
 				ref={descRef}
-				defaultValue={request.description}
+				defaultValue={quote.description}
 			/>
 
 			<p className="mb-1 mt-3 hover:color-accent">Job Address *</p>
@@ -164,8 +167,9 @@ export default function ConvertToJob({
 
 			<div className="p-3 mt-4 bg-amber-900/20 border border-amber-700/50 rounded-md">
 				<p className="text-xs text-amber-200">
-					Note: The job will be created in "Unscheduled" status. You
-					can create visits and assign technicians after creation.
+					Note: The job will be created in "Unscheduled" status and
+					line items will be copied from the quote. You can create
+					visits and assign technicians after creation.
 				</p>
 			</div>
 

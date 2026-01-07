@@ -9,10 +9,13 @@ import {
 	Phone,
 	Mail,
 	Package,
+	Briefcase,
 } from "lucide-react";
 import { useQuoteByIdQuery } from "../../hooks/useQuotes";
+import { useCreateJobMutation } from "../../hooks/useJobs";
 import Card from "../../components/ui/Card";
 import EditQuote from "../../components/quotes/EditQuote";
+import ConvertToJob from "../../components/quotes/ConvertToJob";
 import { useState, useRef, useEffect } from "react";
 import { QuoteStatusColors, QuotePriorityColors } from "../../types/quotes";
 
@@ -20,8 +23,10 @@ export default function QuoteDetailPage() {
 	const { quoteId } = useParams<{ quoteId: string }>();
 	const navigate = useNavigate();
 	const { data: quote, isLoading } = useQuoteByIdQuery(quoteId!);
+	const { mutateAsync: createJob } = useCreateJobMutation();
 	const [showActionsMenu, setShowActionsMenu] = useState(false);
 	const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+	const [isConvertToJobModalOpen, setIsConvertToJobModalOpen] = useState(false);
 	const menuRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
@@ -134,6 +139,20 @@ export default function QuoteDetailPage() {
 								<div className="py-1">
 									<button
 										onClick={() => {
+											setShowActionsMenu(
+												false
+											);
+											setIsEditModalOpen(
+												true
+											);
+										}}
+										className="w-full px-4 py-2 text-left text-sm hover:bg-zinc-800 transition-colors flex items-center gap-2"
+									>
+										<Edit2 size={16} />
+										Edit Quote
+									</button>
+									<button
+										onClick={() => {
 											console.log(
 												"Send quote"
 											);
@@ -164,16 +183,16 @@ export default function QuoteDetailPage() {
 									</button>
 									<button
 										onClick={() => {
-											console.log(
-												"Convert to job"
-											);
 											setShowActionsMenu(
 												false
+											);
+											setIsConvertToJobModalOpen(
+												true
 											);
 										}}
 										className="w-full px-4 py-2 text-left text-sm hover:bg-zinc-800 transition-colors flex items-center gap-2"
 									>
-										<Package
+										<Briefcase
 											size={16}
 										/>
 										Convert to Job
@@ -189,21 +208,7 @@ export default function QuoteDetailPage() {
 			<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 				{/* Quote Information - 2/3 width */}
 				<div className="lg:col-span-2">
-					<Card
-						title="Quote Information"
-						headerAction={
-							<button
-								onClick={() =>
-									setIsEditModalOpen(true)
-								}
-								className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-md text-sm font-medium transition-colors"
-							>
-								<Edit2 size={14} />
-								Edit
-							</button>
-						}
-						className="h-full"
-					>
+					<Card title="Quote Information" className="h-full">
 						<div className="space-y-4">
 							<div>
 								<h3 className="text-zinc-400 text-sm mb-1">
@@ -388,7 +393,10 @@ export default function QuoteDetailPage() {
 													}
 													className="text-zinc-400 flex-shrink-0"
 												/>
-												<a className="text-white truncate">
+												<a
+													href={`mailto:${primaryContact.email}`}
+													className="text-blue-400 hover:text-blue-300 transition-colors truncate"
+												>
 													{
 														primaryContact.email
 													}
@@ -404,7 +412,10 @@ export default function QuoteDetailPage() {
 													}
 													className="text-zinc-400 flex-shrink-0"
 												/>
-												<a className="text-white">
+												<a
+													href={`tel:${primaryContact.phone}`}
+													className="text-blue-400 hover:text-blue-300 transition-colors"
+												>
 													{
 														primaryContact.phone
 													}
@@ -685,11 +696,29 @@ export default function QuoteDetailPage() {
 			)}
 
 			{quote && (
-				<EditQuote
-					isModalOpen={isEditModalOpen}
-					setIsModalOpen={setIsEditModalOpen}
-					quote={quote}
-				/>
+				<>
+					<EditQuote
+						isModalOpen={isEditModalOpen}
+						setIsModalOpen={setIsEditModalOpen}
+						quote={quote}
+					/>
+
+					<ConvertToJob
+						isModalOpen={isConvertToJobModalOpen}
+						setIsModalOpen={setIsConvertToJobModalOpen}
+						quote={quote}
+						onConvert={async (jobData) => {
+							const newJob = await createJob(jobData);
+							if (!newJob?.id) {
+								throw new Error(
+									"Job creation failed: no ID returned"
+								);
+							}
+							navigate(`/dispatch/jobs/${newJob.id}`);
+							return newJob.id;
+						}}
+					/>
+				</>
 			)}
 		</div>
 	);

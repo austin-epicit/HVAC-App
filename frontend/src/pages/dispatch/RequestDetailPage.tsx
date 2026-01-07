@@ -64,7 +64,6 @@ export default function RequestDetailPage() {
 		);
 	}
 
-	// Get primary contact from client_contact join table
 	const primaryContact = request.client?.contacts?.find((cc) => cc.is_primary)?.contact;
 
 	const getStatusColor = (status: string) => {
@@ -73,13 +72,15 @@ export default function RequestDetailPage() {
 				return "bg-blue-500/20 text-blue-400 border-blue-500/30";
 			case "Reviewing":
 				return "bg-purple-500/20 text-purple-400 border-purple-500/30";
+			case "NeedsQuote":
+				return "bg-orange-500/20 text-orange-400 border-orange-500/30";
 			case "Quoted":
 				return "bg-amber-500/20 text-amber-400 border-amber-500/30";
-			case "Approved":
-				return "bg-green-500/20 text-green-400 border-green-500/30";
-			case "Rejected":
-				return "bg-red-500/20 text-red-400 border-red-500/30";
-			case "Converted":
+			case "QuoteApproved":
+				return "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
+			case "QuoteRejected":
+				return "bg-rose-500/20 text-rose-400 border-rose-500/30";
+			case "ConvertedToJob":
 				return "bg-green-500/20 text-green-400 border-green-500/30";
 			case "Cancelled":
 				return "bg-zinc-500/20 text-zinc-400 border-zinc-500/30";
@@ -90,6 +91,10 @@ export default function RequestDetailPage() {
 
 	const getPriorityColor = (priority: string) => {
 		switch (priority?.toLowerCase()) {
+			case "emergency":
+				return "text-red-500";
+			case "urgent":
+				return "text-orange-400";
 			case "high":
 				return "text-red-400";
 			case "medium":
@@ -112,6 +117,11 @@ export default function RequestDetailPage() {
 			default:
 				return <FileText size={14} />;
 		}
+	};
+
+	const handleEdit = () => {
+		setShowActionsMenu(false);
+		setIsEditModalOpen(true);
 	};
 
 	const handleConvertToQuote = () => {
@@ -154,6 +164,13 @@ export default function RequestDetailPage() {
 							<div className="absolute right-0 mt-2 w-56 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl z-50">
 								<div className="py-1">
 									<button
+										onClick={handleEdit}
+										className="w-full px-4 py-2 text-left text-sm hover:bg-zinc-800 transition-colors flex items-center gap-2"
+									>
+										<Edit2 size={16} />
+										Edit Request
+									</button>
+									<button
 										onClick={
 											handleConvertToQuote
 										}
@@ -186,21 +203,7 @@ export default function RequestDetailPage() {
 			<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 				{/* Request Information - 2/3 width */}
 				<div className="lg:col-span-2">
-					<Card
-						title="Request Information"
-						headerAction={
-							<button
-								onClick={() =>
-									setIsEditModalOpen(true)
-								}
-								className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-md text-sm font-medium transition-colors"
-							>
-								<Edit2 size={14} />
-								Edit
-							</button>
-						}
-						className="h-full"
-					>
+					<Card title="Request Information" className="h-full">
 						<div className="space-y-4">
 							<div>
 								<h3 className="text-zinc-400 text-sm mb-1">
@@ -438,7 +441,10 @@ export default function RequestDetailPage() {
 													}
 													className="text-zinc-400 flex-shrink-0"
 												/>
-												<a className="text-white truncate">
+												<a
+													href={`mailto:${primaryContact.email}`}
+													className="text-blue-400 hover:text-blue-300 transition-colors truncate"
+												>
 													{
 														primaryContact.email
 													}
@@ -454,7 +460,10 @@ export default function RequestDetailPage() {
 													}
 													className="text-zinc-400 flex-shrink-0"
 												/>
-												<a className="text-white">
+												<a
+													href={`tel:${primaryContact.phone}`}
+													className="text-blue-400 hover:text-blue-300 transition-colors"
+												>
 													{
 														primaryContact.phone
 													}
@@ -658,7 +667,6 @@ export default function RequestDetailPage() {
 									"Quote creation failed: no ID returned"
 								);
 							}
-							// Navigate to the new quote
 							navigate(`/dispatch/quotes/${newQuote.id}`);
 							return newQuote.id;
 						}}
@@ -675,7 +683,6 @@ export default function RequestDetailPage() {
 									"Job creation failed: no ID returned"
 								);
 							}
-							// Navigate to the new job
 							navigate(`/dispatch/jobs/${newJob.id}`);
 							return newJob.id;
 						}}

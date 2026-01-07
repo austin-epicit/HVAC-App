@@ -17,7 +17,7 @@ export type VisitStatus = (typeof VisitStatusValues)[number];
 export const ScheduleTypeValues = ["all_day", "exact", "window"] as const;
 export type ScheduleType = (typeof ScheduleTypeValues)[number];
 
-export const JobPriorityValues = ["Low", "Normal", "Medium", "High"] as const;
+export const JobPriorityValues = ["Low", "Medium", "High", "Urgent", "Emergency"] as const;
 export type JobPriority = (typeof JobPriorityValues)[number];
 
 export interface JobVisitTechnician {
@@ -127,6 +127,8 @@ export interface CreateJobInput {
 	description: string;
 	priority?: JobPriority;
 	status?: JobStatus;
+	request_id?: string | null;
+	quote_id?: string | null;
 }
 
 export interface CreateJobVisitInput {
@@ -176,8 +178,10 @@ export const CreateJobSchema = z.object({
 	client_id: z.string().min(1, "Please select a client"),
 	address: z.string().default(""),
 	description: z.string().default(""),
-	priority: z.enum(JobPriorityValues).default("Normal"),
+	priority: z.enum(JobPriorityValues).default("Medium"),
 	status: z.enum(JobStatusValues).default("Unscheduled"),
+	request_id: z.string().uuid().optional().nullable(),
+	quote_id: z.string().uuid().optional().nullable(),
 });
 
 export const CreateJobVisitSchema = z
