@@ -33,7 +33,7 @@ export const getAllRequests = async () => {
 					total: true,
 				},
 			},
-			job: {
+			jobs: {
 				select: {
 					id: true,
 					job_number: true,
@@ -88,7 +88,7 @@ export const getRequestById = async (requestId: string) => {
 				},
 				orderBy: { created_at: "desc" },
 			},
-			job: {
+			jobs: {
 				select: {
 					id: true,
 					job_number: true,
@@ -131,7 +131,7 @@ export const getRequestsByClientId = async (clientId: string) => {
 					total: true,
 				},
 			},
-			job: {
+			jobs: {
 				select: {
 					id: true,
 					job_number: true,
@@ -205,7 +205,7 @@ export const insertRequest = async (req: Request, context?: UserContext) => {
 				include: {
 					client: true,
 					quotes: true,
-					job: true,
+					jobs: true,
 				},
 			});
 		});
@@ -234,7 +234,7 @@ export const updateRequest = async (req: Request, context?: UserContext) => {
 
 		const existing = await db.request.findUnique({
 			where: { id: requestId },
-			include: { job: true },
+			include: { jobs: true },
 		});
 
 		if (!existing) {
@@ -242,7 +242,7 @@ export const updateRequest = async (req: Request, context?: UserContext) => {
 		}
 
 		// Check if request has been converted to job
-		if (existing.job) {
+		if (existing.jobs) {
 			return {
 				err: "Cannot modify request that has been converted to a job",
 			};
@@ -320,7 +320,7 @@ export const updateRequest = async (req: Request, context?: UserContext) => {
 				include: {
 					client: true,
 					quotes: true,
-					job: true,
+					jobs: true,
 				},
 			});
 
@@ -365,7 +365,7 @@ export const deleteRequest = async (id: string, context?: UserContext) => {
 			where: { id },
 			include: {
 				quotes: true,
-				job: true,
+				jobs: true,
 			},
 		});
 
@@ -381,7 +381,7 @@ export const deleteRequest = async (id: string, context?: UserContext) => {
 		}
 
 		// Check if request has been converted to job
-		if (existing.job) {
+		if (existing.jobs) {
 			return {
 				err: "Cannot delete request that has been converted to a job",
 			};

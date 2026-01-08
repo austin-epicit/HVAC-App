@@ -180,7 +180,7 @@ model request {
   cancellation_reason String?
 
   quotes       quote[]
-  job          job?
+  jobs         job[]
   notes        request_note[]
   dispatcher   dispatcher?    @relation(fields: [dispatcherId], references: [id])
   dispatcherId String?
@@ -269,7 +269,8 @@ model quote {
   @@index([is_active])
   @@index([quote_number])
   @@index([created_at])
-  @@index([client_id, is_active]) // Find active quotes for client
+  @@index([client_id, is_active])
+  @@index([request_id, is_active])
 }
 
 model quote_line_item {
@@ -332,7 +333,7 @@ model job {
   client_id String
   client    client @relation(fields: [client_id], references: [id])
 
-  request_id String?  @unique // One job per request
+  request_id String?  
   request    request? @relation(fields: [request_id], references: [id])
 
   quote_id String? @unique // One job per quote
@@ -352,7 +353,7 @@ model job {
   @@index([updated_at])
   @@index([request_id])
   @@index([quote_id])
-  @@index([client_id, status]) // Active jobs for client
+  @@index([client_id, status])
 }
 
 model job_line_item {
