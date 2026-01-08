@@ -96,8 +96,8 @@ model organization {
 
 model contact {
   id        String  @id @unique @default(uuid())
-  organization_id String
-  organization    organization @relation(fields: [organization_id], references: [id])
+  organization_id String?
+  organization    organization? @relation(fields: [organization_id], references: [id])
   name      String
   email     String?
   phone     String?
@@ -120,8 +120,8 @@ model contact {
 }
 
 model client_contact {
-  organization_id String
-  organization    organization @relation(fields: [organization_id], references: [id])
+  organization_id String?
+  organization    organization? @relation(fields: [organization_id], references: [id])
   client_id  String
   contact_id String
   client     client  @relation(fields: [client_id], references: [id], onDelete: Cascade)
@@ -142,8 +142,8 @@ model client_contact {
 
 model client {
   id            String   @id @unique @default(uuid())
-  organization_id String
-  organization    organization @relation(fields: [organization_id], references: [id])
+  organization_id String?
+  organization    organization? @relation(fields: [organization_id], references: [id])
   name          String
   address       String
   coords        Json
@@ -165,8 +165,8 @@ model client {
 
 model client_note {
   id        String @id @unique @default(uuid())
-  organization_id String
-  organization    organization @relation(fields: [organization_id], references: [id])
+  organization_id String?
+  organization    organization? @relation(fields: [organization_id], references: [id])
   client_id String
   client    client @relation(fields: [client_id], references: [id], onDelete: Cascade)
 
@@ -195,8 +195,8 @@ model client_note {
 
 model request {
   id        String @id @default(uuid())
-  organization_id String
-  organization    organization @relation(fields: [organization_id], references: [id])
+  organization_id String?
+  organization    organization? @relation(fields: [organization_id], references: [id])
   client_id String
   client    client @relation(fields: [client_id], references: [id])
 
@@ -235,8 +235,8 @@ model request {
 
 model request_note {
   id         String  @id @default(uuid())
-  organization_id String
-  organization    organization @relation(fields: [organization_id], references: [id])
+  organization_id String?
+  organization    organization? @relation(fields: [organization_id], references: [id])
   request_id String
   request    request @relation(fields: [request_id], references: [id], onDelete: Cascade)
 
@@ -260,8 +260,8 @@ model request_note {
 
 model quote {
   id           String   @id @default(uuid())
-  organization_id String
-  organization    organization @relation(fields: [organization_id], references: [id])
+  organization_id String?
+  organization    organization? @relation(fields: [organization_id], references: [id])
   quote_number String   @unique
   client_id    String
   client       client   @relation(fields: [client_id], references: [id])
@@ -320,8 +320,8 @@ model quote {
 
 model quote_line_item {
   id       String @id @default(uuid())
-  organization_id String
-  organization    organization @relation(fields: [organization_id], references: [id])
+  organization_id String?
+  organization    organization? @relation(fields: [organization_id], references: [id])
   quote_id String
   quote    quote  @relation(fields: [quote_id], references: [id], onDelete: Cascade)
 
@@ -341,8 +341,8 @@ model quote_line_item {
 
 model quote_note {
   id       String @id @default(uuid())
-  organization_id String
-  organization    organization @relation(fields: [organization_id], references: [id])
+  organization_id String?
+  organization    organization? @relation(fields: [organization_id], references: [id])
   quote_id String
   quote    quote  @relation(fields: [quote_id], references: [id], onDelete: Cascade)
 
@@ -366,8 +366,8 @@ model quote_note {
 
 model job {
   id          String   @id @unique @default(uuid())
-  organization_id String
-  organization    organization @relation(fields: [organization_id], references: [id])
+  organization_id String?
+  organization    organization? @relation(fields: [organization_id], references: [id])
   job_number  String   @unique
   name        String
   description String   @db.Text
@@ -412,8 +412,8 @@ model job {
 
 model job_line_item {
   id     String @id @default(uuid())
-  organization_id String
-  organization    organization @relation(fields: [organization_id], references: [id])
+  organization_id String?
+  organization    organization? @relation(fields: [organization_id], references: [id])
   job_id String
   job    job    @relation(fields: [job_id], references: [id], onDelete: Cascade)
 
@@ -434,8 +434,8 @@ model job_line_item {
 
 model job_visit {
   id     String @id @default(uuid())
-  organization_id String
-  organization    organization @relation(fields: [organization_id], references: [id])
+  organization_id String?
+  organization    organization? @relation(fields: [organization_id], references: [id])
   job_id String
   job    job    @relation(fields: [job_id], references: [id], onDelete: Cascade)
 
@@ -460,8 +460,8 @@ model job_visit {
 }
 
 model job_visit_technician {
-  organization_id String
-  organization    organization @relation(fields: [organization_id], references: [id])
+  organization_id String?
+  organization    organization? @relation(fields: [organization_id], references: [id])
   visit_id String
   tech_id  String
   visit    job_visit  @relation(fields: [visit_id], references: [id], onDelete: Cascade)
@@ -475,8 +475,8 @@ model job_visit_technician {
 
 model job_note {
   id     String @id @default(uuid())
-  organization_id String
-  organization    organization @relation(fields: [organization_id], references: [id])
+  organization_id String?
+  organization    organization? @relation(fields: [organization_id], references: [id])
   job_id String
   job    job    @relation(fields: [job_id], references: [id], onDelete: Cascade)
 
@@ -508,8 +508,8 @@ model job_note {
 
 model inventory_item {
   id          String @id @unique @default(uuid())
-  organization_id String
-  organization    organization @relation(fields: [organization_id], references: [id])
+  organization_id String?
+  organization    organization? @relation(fields: [organization_id], references: [id])
   name        String
   description String @db.Text
   location    String
@@ -531,8 +531,8 @@ model inventory_item {
 
 model technician {
   id          String            @id @unique @default(uuid())
-  organization_id String
-  organization    organization @relation(fields: [organization_id], references: [id])
+  organization_id String?
+  organization    organization? @relation(fields: [organization_id], references: [id])
   name        String
   email       String            @unique
   phone       String
@@ -562,8 +562,8 @@ model technician {
 
 model dispatcher {
   id          String   @id @unique @default(uuid())
-  organization_id String
-  organization    organization @relation(fields: [organization_id], references: [id])
+  organization_id String?
+  organization    organization? @relation(fields: [organization_id], references: [id])
   name        String
   email       String   @unique
   phone       String?
@@ -594,8 +594,8 @@ model dispatcher {
 
 model log {
   id String @id @default(uuid())
-  organization_id String
-  organization    organization @relation(fields: [organization_id], references: [id])
+  organization_id String?
+  organization    organization? @relation(fields: [organization_id], references: [id])
 
   event_type  String // "client_note.created", "job.status_changed", "quote.sent"
   action      String // "created", "updated", "deleted", "viewed", "sent"
