@@ -16,11 +16,13 @@ import { PriorityValues, PriorityLabels, PriorityColors } from "./common";
 
 export const QuoteStatusValues = [
 	"Draft",
-	"Pending",
 	"Sent",
+	"Viewed",
 	"Approved",
 	"Rejected",
+	"Revised",
 	"Expired",
+	"Cancelled",
 ] as const;
 
 export type QuoteStatus = (typeof QuoteStatusValues)[number];
@@ -32,20 +34,24 @@ export const QuotePriorityColors = PriorityColors;
 
 export const QuoteStatusLabels: Record<QuoteStatus, string> = {
 	Draft: "Draft",
-	Pending: "Pending",
 	Sent: "Sent",
+	Viewed: "Viewed",
 	Approved: "Approved",
 	Rejected: "Rejected",
+	Revised: "Revised",
 	Expired: "Expired",
+	Cancelled: "Cancelled",
 };
 
 export const QuoteStatusColors: Record<QuoteStatus, string> = {
 	Draft: "bg-zinc-500/20 text-zinc-400 border-zinc-500/30",
-	Pending: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-	Sent: "bg-purple-500/20 text-purple-400 border-purple-500/30",
+	Sent: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+	Viewed: "bg-purple-500/20 text-purple-400 border-purple-500/30",
 	Approved: "bg-green-500/20 text-green-400 border-green-500/30",
 	Rejected: "bg-red-500/20 text-red-400 border-red-500/30",
-	Expired: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+	Revised: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+	Expired: "bg-orange-500/20 text-orange-400 border-orange-500/30",
+	Cancelled: "bg-zinc-500/20 text-zinc-400 border-zinc-500/30",
 };
 
 export const LineItemTypeValues = ["labor", "material", "equipment"] as const;

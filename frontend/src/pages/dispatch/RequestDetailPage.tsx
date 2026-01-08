@@ -73,8 +73,9 @@ export default function RequestDetailPage() {
 	const hasMoreQuotes = (request.quotes?.length || 0) > 5;
 	const totalQuotes = request.quotes?.length || 0;
 
-	const displayedJobs = request.job ? [request.job] : [];
-	const totalJobs = request.job ? 1 : 0;
+	const displayedJobs = request.jobs?.slice(0, 5) || [];
+	const hasMoreJobs = (request.jobs?.length || 0) > 5;
+	const totalJobs = request.jobs?.length || 0;
 
 	const getStatusColor = (status: string) => {
 		switch (status) {
@@ -646,60 +647,77 @@ export default function RequestDetailPage() {
 							</p>
 						</div>
 					) : (
-						<div className="space-y-3">
-							{displayedJobs.map((job) => (
+						<>
+							<div className="space-y-3">
+								{displayedJobs.map((job) => (
+									<button
+										key={job.id}
+										onClick={() =>
+											navigate(
+												`/dispatch/jobs/${job.id}`
+											)
+										}
+										className="w-full p-4 bg-zinc-800 hover:bg-zinc-750 rounded-lg border border-zinc-700 hover:border-zinc-600 transition-all cursor-pointer text-left group"
+									>
+										<div className="flex items-start justify-between gap-3">
+											<div className="flex-1 min-w-0">
+												<h4 className="text-white font-medium text-sm mb-1 group-hover:text-blue-400 transition-colors">
+													{
+														job.job_number
+													}
+												</h4>
+												<p className="text-zinc-400 text-xs mb-2">
+													{
+														job.name
+													}
+												</p>
+												<div className="flex items-center gap-2 text-xs text-zinc-500">
+													<Calendar
+														size={
+															12
+														}
+													/>
+													<span>
+														{new Date(
+															job.created_at
+														).toLocaleDateString(
+															"en-US",
+															{
+																month: "short",
+																day: "numeric",
+																year: "numeric",
+															}
+														)}
+													</span>
+												</div>
+											</div>
+											<span
+												className={`flex-shrink-0 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(
+													job.status
+												)}`}
+											>
+												{
+													job.status
+												}
+											</span>
+										</div>
+									</button>
+								))}
+							</div>
+							{hasMoreJobs && (
 								<button
-									key={job.id}
 									onClick={() =>
 										navigate(
-											`/dispatch/jobs/${job.id}`
+											`/dispatch/jobs?request=${requestId}`
 										)
 									}
-									className="w-full p-4 bg-zinc-800 hover:bg-zinc-750 rounded-lg border border-zinc-700 hover:border-zinc-600 transition-all cursor-pointer text-left group"
+									className="w-full mt-3 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2"
 								>
-									<div className="flex items-start justify-between gap-3">
-										<div className="flex-1 min-w-0">
-											<h4 className="text-white font-medium text-sm mb-1 group-hover:text-blue-400 transition-colors">
-												{
-													job.job_number
-												}
-											</h4>
-											<p className="text-zinc-400 text-xs mb-2">
-												{
-													job.name
-												}
-											</p>
-											<div className="flex items-center gap-2 text-xs text-zinc-500">
-												<Calendar
-													size={
-														12
-													}
-												/>
-												<span>
-													{new Date(
-														job.created_at
-													).toLocaleDateString(
-														"en-US",
-														{
-															month: "short",
-															day: "numeric",
-															year: "numeric",
-														}
-													)}
-												</span>
-											</div>
-										</div>
-										<span
-											className={`flex-shrink-0 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(
-												job.status
-											)}`}
-										>
-											{job.status}
-										</span>
-									</div>
+									View All Jobs ({totalJobs})
+									<ArrowRight size={14} />
 								</button>
-							))}
-						</div>
+							)}
+						</>
 					)}
 				</Card>
 			</div>

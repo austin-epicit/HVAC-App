@@ -12,6 +12,8 @@ import {
 	Plus,
 	Mail,
 	Phone,
+	FileText,
+	Briefcase,
 } from "lucide-react";
 import {
 	useJobByIdQuery,
@@ -23,6 +25,17 @@ import Card from "../../components/ui/Card";
 import EditJob from "../../components/jobs/EditJob";
 import CreateJobVisit from "../../components/jobs/CreateJobVisit";
 import EditJobVisit from "../../components/jobs/EditJobVisit";
+import {
+	JobStatusColors,
+	JobPriorityColors,
+	VisitStatusColors,
+	ScheduleTypeLabels,
+	type VisitStatus,
+	type ScheduleType,
+} from "../../types/jobs";
+import { QuoteStatusColors } from "../../types/quotes";
+import { RequestStatusColors } from "../../types/requests";
+import { getGenericStatusColor } from "../../types/common";
 import { useState } from "react";
 
 export default function JobDetailPage() {
@@ -52,54 +65,6 @@ export default function JobDetailPage() {
 			</div>
 		);
 	}
-
-	const getStatusColor = (status: string) => {
-		switch (status) {
-			case "Completed":
-				return "bg-green-500/20 text-green-400 border-green-500/30";
-			case "InProgress":
-				return "bg-blue-500/20 text-blue-400 border-blue-500/30";
-			case "In Progress":
-				return "bg-blue-500/20 text-blue-400 border-blue-500/30";
-			case "Scheduled":
-				return "bg-purple-500/20 text-purple-400 border-purple-500/30";
-			case "Cancelled":
-				return "bg-red-500/20 text-red-400 border-red-500/30";
-			case "Unscheduled":
-				return "bg-zinc-500/20 text-zinc-400 border-zinc-500/30";
-			default:
-				return "bg-zinc-500/20 text-zinc-400 border-zinc-500/30";
-		}
-	};
-
-	const getVisitStatusColor = (status: string) => {
-		switch (status) {
-			case "Scheduled":
-				return "text-blue-400";
-			case "InProgress":
-				return "text-amber-400";
-			case "Completed":
-				return "text-green-400";
-			case "Cancelled":
-				return "text-red-400";
-			default:
-				return "text-gray-400";
-		}
-	};
-
-	const getPriorityColor = (priority: string) => {
-		switch (priority?.toLowerCase()) {
-			case "high":
-				return "text-red-400";
-			case "medium":
-				return "text-amber-400";
-			case "low":
-				return "text-green-400";
-			case "normal":
-			default:
-				return "text-blue-400";
-		}
-	};
 
 	const formatDateTime = (date: Date | string) => {
 		const d = typeof date === "string" ? new Date(date) : date;
@@ -157,9 +122,10 @@ export default function JobDetailPage() {
 				<h1 className="text-3xl font-bold text-white">{job.name}</h1>
 
 				<span
-					className={`justify-self-end inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium border ${getStatusColor(
-						job.status
-					)}`}
+					className={`justify-self-end inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium border ${
+						JobStatusColors[job.status] ||
+						"bg-zinc-500/20 text-zinc-400 border-zinc-500/30"
+					}`}
 				>
 					{job.status}
 				</span>
@@ -214,7 +180,18 @@ export default function JobDetailPage() {
 										Priority
 									</h3>
 									<p
-										className={`font-medium capitalize ${getPriorityColor(job.priority)}`}
+										className={`font-medium capitalize ${
+											JobPriorityColors[
+												job
+													.priority
+											]
+												?.replace(
+													/bg-\S+/,
+													""
+												)
+												.trim() ||
+											"text-blue-400"
+										}`}
 									>
 										{job.priority ||
 											"normal"}
@@ -361,6 +338,170 @@ export default function JobDetailPage() {
 				</div>
 			</div>
 
+			{/* Related Request and Quote - Half Width Layout */}
+			<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+				{/* Related Request - Half Width */}
+				<Card title="Related Request">
+					{!job.request ? (
+						<div className="text-center py-8">
+							<Briefcase
+								size={40}
+								className="mx-auto text-zinc-600 mb-3"
+							/>
+							<h3 className="text-zinc-400 text-sm font-medium mb-1">
+								No Request
+							</h3>
+							<p className="text-zinc-500 text-xs">
+								This job was not created from a
+								request.
+							</p>
+						</div>
+					) : (
+						<button
+							onClick={() =>
+								navigate(
+									`/dispatch/requests/${job.request!.id}`
+								)
+							}
+							className="w-full p-4 bg-zinc-800 hover:bg-zinc-750 rounded-lg border border-zinc-700 hover:border-zinc-600 transition-all cursor-pointer text-left group"
+						>
+							<div className="flex items-start justify-between gap-3">
+								<div className="flex-1 min-w-0">
+									<h4 className="text-white font-medium text-sm mb-1 group-hover:text-blue-400 transition-colors">
+										{job.request!.title}
+									</h4>
+									<div className="flex items-center gap-2 text-xs text-zinc-500 mt-2">
+										<Calendar
+											size={12}
+										/>
+										<span>
+											{new Date(
+												job
+													.request!
+													.created_at
+											).toLocaleDateString(
+												"en-US",
+												{
+													month: "short",
+													day: "numeric",
+													year: "numeric",
+												}
+											)}
+										</span>
+									</div>
+								</div>
+								<span
+									className={`flex-shrink-0 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${
+										RequestStatusColors[
+											job.request!
+												.status as keyof typeof RequestStatusColors
+										] ||
+										getGenericStatusColor(
+											job.request!
+												.status
+										)
+									}`}
+								>
+									{job.request!.status}
+								</span>
+							</div>
+						</button>
+					)}
+				</Card>
+
+				{/* Related Quote - Half Width */}
+				<Card title="Related Quote">
+					{!job.quote ? (
+						<div className="text-center py-8">
+							<FileText
+								size={40}
+								className="mx-auto text-zinc-600 mb-3"
+							/>
+							<h3 className="text-zinc-400 text-sm font-medium mb-1">
+								No Quote
+							</h3>
+							<p className="text-zinc-500 text-xs">
+								This job was not created from a
+								quote.
+							</p>
+						</div>
+					) : (
+						<button
+							onClick={() =>
+								navigate(
+									`/dispatch/quotes/${job.quote!.id}`
+								)
+							}
+							className="w-full p-4 bg-zinc-800 hover:bg-zinc-750 rounded-lg border border-zinc-700 hover:border-zinc-600 transition-all cursor-pointer text-left group"
+						>
+							<div className="flex items-start justify-between gap-3">
+								<div className="flex-1 min-w-0">
+									<h4 className="text-white font-medium text-sm mb-1 group-hover:text-blue-400 transition-colors">
+										{
+											job.quote!
+												.quote_number
+										}
+									</h4>
+									<p className="text-zinc-400 text-xs mb-2">
+										{job.quote!.title}
+									</p>
+									<div className="flex items-center gap-2 text-xs text-zinc-500">
+										<Calendar
+											size={12}
+										/>
+										<span>
+											{new Date(
+												job
+													.quote!
+													.created_at
+											).toLocaleDateString(
+												"en-US",
+												{
+													month: "short",
+													day: "numeric",
+													year: "numeric",
+												}
+											)}
+										</span>
+									</div>
+								</div>
+								<div className="flex flex-col items-end gap-2 flex-shrink-0">
+									<span className="text-green-400 font-semibold text-sm whitespace-nowrap">
+										$
+										{Number(
+											job.quote!
+												.total
+										).toLocaleString(
+											"en-US",
+											{
+												minimumFractionDigits: 2,
+												maximumFractionDigits: 2,
+											}
+										)}
+									</span>
+									<span
+										className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${
+											QuoteStatusColors[
+												job
+													.quote!
+													.status as keyof typeof QuoteStatusColors
+											] ||
+											getGenericStatusColor(
+												job
+													.quote!
+													.status
+											)
+										}`}
+									>
+										{job.quote!.status}
+									</span>
+								</div>
+							</div>
+						</button>
+					)}
+				</Card>
+			</div>
+
 			{/* Scheduled Visits - Full Width */}
 			<Card
 				title="Scheduled Visits"
@@ -410,7 +551,12 @@ export default function JobDetailPage() {
 								<div className="flex items-start justify-between mb-3">
 									<div className="flex items-center gap-3">
 										<div
-											className={`font-medium ${getVisitStatusColor(visit.status)}`}
+											className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${
+												VisitStatusColors[
+													visit.status as VisitStatus
+												] ||
+												"bg-zinc-500/20 text-zinc-400 border-zinc-500/30"
+											}`}
 										>
 											{
 												visit.status
@@ -419,11 +565,14 @@ export default function JobDetailPage() {
 										<span className="text-gray-500">
 											•
 										</span>
-										<span className="text-sm text-gray-400 capitalize">
-											{visit.schedule_type.replace(
-												"_",
-												" "
-											)}
+										<span className="text-sm text-gray-400">
+											{ScheduleTypeLabels[
+												visit.schedule_type as ScheduleType
+											] ||
+												visit.schedule_type.replace(
+													"_",
+													" "
+												)}
 										</span>
 									</div>
 									<button
@@ -696,17 +845,11 @@ export default function JobDetailPage() {
 												)}
 											</span>
 											<span
-												className={`ml-auto px-2 py-0.5 rounded ${
-													visit.status ===
-													"Scheduled"
-														? "bg-blue-500/20 text-blue-400"
-														: visit.status ===
-															  "InProgress"
-															? "bg-amber-500/20 text-amber-400"
-															: visit.status ===
-																  "Completed"
-																? "bg-green-500/20 text-green-400"
-																: "bg-zinc-500/20 text-zinc-400"
+												className={`ml-auto px-2 py-0.5 rounded text-xs font-medium border ${
+													VisitStatusColors[
+														visit.status as VisitStatus
+													] ||
+													"bg-zinc-500/20 text-zinc-400 border-zinc-500/30"
 												}`}
 											>
 												{

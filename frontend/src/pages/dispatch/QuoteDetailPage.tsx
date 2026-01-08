@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import { useQuoteByIdQuery } from "../../hooks/useQuotes";
 import { useCreateJobMutation } from "../../hooks/useJobs";
+import { QuoteStatusColors } from "../../types/quotes";
+import type { QuoteStatus } from "../../types/quotes";
 import Card from "../../components/ui/Card";
 import EditQuote from "../../components/quotes/EditQuote";
 import ConvertToJob from "../../components/quotes/ConvertToJob";
@@ -64,50 +66,10 @@ export default function QuoteDetailPage() {
 	const primaryContact = quote.client?.contacts?.find((cc) => cc.is_primary)?.contact;
 
 	const getStatusColor = (status: string) => {
-		switch (status) {
-			case "Draft":
-				return "bg-gray-500/20 text-gray-400 border-gray-500/30";
-			case "Sent":
-				return "bg-blue-500/20 text-blue-400 border-blue-500/30";
-			case "Viewed":
-				return "bg-purple-500/20 text-purple-400 border-purple-500/30";
-			case "Accepted":
-				return "bg-green-500/20 text-green-400 border-green-500/30";
-			case "Rejected":
-				return "bg-red-500/20 text-red-400 border-red-500/30";
-			case "Expired":
-				return "bg-orange-500/20 text-orange-400 border-orange-500/30";
-			case "Revised":
-				return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30";
-			case "Approved":
-				return "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
-			case "New":
-				return "bg-blue-500/20 text-blue-400 border-blue-500/30";
-			case "Reviewing":
-				return "bg-purple-500/20 text-purple-400 border-purple-500/30";
-			case "NeedsQuote":
-				return "bg-orange-500/20 text-orange-400 border-orange-500/30";
-			case "Quoted":
-				return "bg-amber-500/20 text-amber-400 border-amber-500/30";
-			case "QuoteApproved":
-				return "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
-			case "QuoteRejected":
-				return "bg-rose-500/20 text-rose-400 border-rose-500/30";
-			case "ConvertedToJob":
-				return "bg-green-500/20 text-green-400 border-green-500/30";
-			case "Cancelled":
-				return "bg-zinc-500/20 text-zinc-400 border-zinc-500/30";
-			case "Unscheduled":
-				return "bg-gray-500/20 text-gray-400 border-gray-500/30";
-			case "Scheduled":
-				return "bg-blue-500/20 text-blue-400 border-blue-500/30";
-			case "InProgress":
-				return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30";
-			case "Completed":
-				return "bg-green-500/20 text-green-400 border-green-500/30";
-			default:
-				return "bg-zinc-500/20 text-zinc-400 border-zinc-500/30";
-		}
+		return (
+			QuoteStatusColors[status as QuoteStatus] ||
+			"bg-zinc-500/20 text-zinc-400 border-zinc-500/30"
+		);
 	};
 
 	const handleEdit = () => {
@@ -645,7 +607,7 @@ export default function QuoteDetailPage() {
 						<button
 							onClick={() =>
 								navigate(
-									`/dispatch/jobs/${quote.job?.id}`
+									`/dispatch/jobs/${quote.job!.id}`
 								)
 							}
 							className="w-full p-4 bg-zinc-800 hover:bg-zinc-750 rounded-lg border border-zinc-700 hover:border-zinc-600 transition-all cursor-pointer text-left group"

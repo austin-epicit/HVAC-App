@@ -18,12 +18,6 @@ export const JobStatusValues = [
 
 export type JobStatus = (typeof JobStatusValues)[number];
 
-export const VisitStatusValues = ["Scheduled", "InProgress", "Completed", "Cancelled"] as const;
-export type VisitStatus = (typeof VisitStatusValues)[number];
-
-export const ScheduleTypeValues = ["all_day", "exact", "window"] as const;
-export type ScheduleType = (typeof ScheduleTypeValues)[number];
-
 export type JobPriority = Priority;
 export const JobPriorityValues = PriorityValues;
 export const JobPriorityLabels = PriorityLabels;
@@ -35,6 +29,61 @@ export const JobStatusLabels: Record<JobStatus, string> = {
 	InProgress: "In Progress",
 	Completed: "Completed",
 	Cancelled: "Cancelled",
+};
+
+export const JobStatusColors: Record<JobStatus, string> = {
+	Unscheduled: "bg-zinc-500/20 text-zinc-400 border-zinc-500/30",
+	Scheduled: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+	InProgress: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+	Completed: "bg-green-500/20 text-green-400 border-green-500/30",
+	Cancelled: "bg-red-500/20 text-red-400 border-red-500/30",
+};
+
+export const VisitStatusValues = [
+	"Scheduled",
+	"Driving",
+	"OnSite",
+	"InProgress",
+	"Delayed",
+	"Completed",
+	"Cancelled",
+] as const;
+
+export type VisitStatus = (typeof VisitStatusValues)[number];
+
+export const VisitStatusLabels: Record<VisitStatus, string> = {
+	Scheduled: "Scheduled",
+	Driving: "Driving",
+	OnSite: "On Site",
+	InProgress: "In Progress",
+	Delayed: "Delayed",
+	Completed: "Completed",
+	Cancelled: "Cancelled",
+};
+
+export const VisitStatusColors: Record<VisitStatus, string> = {
+	Scheduled: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+	Driving: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
+	OnSite: "bg-purple-500/20 text-purple-400 border-purple-500/30",
+	InProgress: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+	Delayed: "bg-orange-500/20 text-orange-400 border-orange-500/30",
+	Completed: "bg-green-500/20 text-green-400 border-green-500/30",
+	Cancelled: "bg-red-500/20 text-red-400 border-red-500/30",
+};
+
+export const ScheduleTypeValues = ["all_day", "exact", "window"] as const;
+export type ScheduleType = (typeof ScheduleTypeValues)[number];
+
+export const ScheduleTypeLabels: Record<ScheduleType, string> = {
+	all_day: "All Day",
+	exact: "Exact Time",
+	window: "Arrival Window",
+};
+
+export const ScheduleTypeColors: Record<ScheduleType, string> = {
+	all_day: "bg-zinc-500/20 text-zinc-400 border-zinc-500/30",
+	exact: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+	window: "bg-purple-500/20 text-purple-400 border-purple-500/30",
 };
 
 // ============================================================================

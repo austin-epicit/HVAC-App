@@ -72,7 +72,7 @@ export interface Request {
 
 	client?: ClientWithPrimaryContact;
 	quotes?: QuoteReference[];
-	job?: JobReference | null;
+	jobs?: JobReference[] | null;
 	notes?: RequestNote[];
 }
 
