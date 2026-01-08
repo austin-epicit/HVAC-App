@@ -70,8 +70,34 @@ enum technician_status {
   Break
 }
 
+model organization {
+  id   String @id @default(uuid())
+  name String
+
+  clients               client[]
+  contacts              contact[]
+  requests              request[]
+  quotes                quote[]
+  jobs                  job[]
+  job_visits            job_visit[]
+  technicians           technician[]
+  dispatchers           dispatcher[]
+  inventory_items       inventory_item[]
+  client_notes          client_note[]
+  request_notes         request_note[]
+  quote_notes           quote_note[]
+  job_notes             job_note[]
+  quote_line_items      quote_line_item[]
+  job_line_items        job_line_item[]
+  logs                  log[]
+  client_contacts       client_contact[]
+  job_visit_technicians job_visit_technician[]
+}
+
 model contact {
   id        String  @id @unique @default(uuid())
+  organization_id String
+  organization    organization @relation(fields: [organization_id], references: [id])
   name      String
   email     String?
   phone     String?
@@ -90,9 +116,12 @@ model contact {
   @@index([email])
   @@index([phone])
   @@index([is_active])
+  @@index([organization_id])
 }
 
 model client_contact {
+  organization_id String
+  organization    organization @relation(fields: [organization_id], references: [id])
   client_id  String
   contact_id String
   client     client  @relation(fields: [client_id], references: [id], onDelete: Cascade)
@@ -104,6 +133,7 @@ model client_contact {
 
   @@id([client_id, contact_id])
   @@index([contact_id])
+  @@index([organization_id])
 }
 
 // ============================================================================
@@ -112,6 +142,8 @@ model client_contact {
 
 model client {
   id            String   @id @unique @default(uuid())
+  organization_id String
+  organization    organization @relation(fields: [organization_id], references: [id])
   name          String
   address       String
   coords        Json
@@ -128,10 +160,13 @@ model client {
 
   @@index([is_active])
   @@index([created_at])
+  @@index([organization_id])
 }
 
 model client_note {
   id        String @id @unique @default(uuid())
+  organization_id String
+  organization    organization @relation(fields: [organization_id], references: [id])
   client_id String
   client    client @relation(fields: [client_id], references: [id], onDelete: Cascade)
 
@@ -151,6 +186,7 @@ model client_note {
 
   @@index([client_id])
   @@index([created_at])
+  @@index([organization_id])
 }
 
 // ============================================================================
@@ -159,6 +195,8 @@ model client_note {
 
 model request {
   id        String @id @default(uuid())
+  organization_id String
+  organization    organization @relation(fields: [organization_id], references: [id])
   client_id String
   client    client @relation(fields: [client_id], references: [id])
 
@@ -192,10 +230,13 @@ model request {
   @@index([updated_at])
   // @@index([assigned_dispatcher_id])
   @@index([status, priority]) // Composite for "urgent pending requests"
+  @@index([organization_id])
 }
 
 model request_note {
   id         String  @id @default(uuid())
+  organization_id String
+  organization    organization @relation(fields: [organization_id], references: [id])
   request_id String
   request    request @relation(fields: [request_id], references: [id], onDelete: Cascade)
 
@@ -214,10 +255,13 @@ model request_note {
   last_editor_dispatcher dispatcher? @relation("RequestNoteEditor", fields: [last_editor_dispatcher_id], references: [id])
 
   @@index([request_id])
+  @@index([organization_id])
 }
 
 model quote {
   id           String   @id @default(uuid())
+  organization_id String
+  organization    organization @relation(fields: [organization_id], references: [id])
   quote_number String   @unique
   client_id    String
   client       client   @relation(fields: [client_id], references: [id])
@@ -271,10 +315,13 @@ model quote {
   @@index([created_at])
   @@index([client_id, is_active])
   @@index([request_id, is_active])
+  @@index([organization_id])
 }
 
 model quote_line_item {
   id       String @id @default(uuid())
+  organization_id String
+  organization    organization @relation(fields: [organization_id], references: [id])
   quote_id String
   quote    quote  @relation(fields: [quote_id], references: [id], onDelete: Cascade)
 
@@ -289,10 +336,13 @@ model quote_line_item {
 
   @@index([quote_id])
   @@index([sort_order])
+  @@index([organization_id])
 }
 
 model quote_note {
   id       String @id @default(uuid())
+  organization_id String
+  organization    organization @relation(fields: [organization_id], references: [id])
   quote_id String
   quote    quote  @relation(fields: [quote_id], references: [id], onDelete: Cascade)
 
@@ -311,10 +361,13 @@ model quote_note {
   last_editor_dispatcher dispatcher? @relation("QuoteNoteEditor", fields: [last_editor_dispatcher_id], references: [id])
 
   @@index([quote_id])
+  @@index([organization_id])
 }
 
 model job {
   id          String   @id @unique @default(uuid())
+  organization_id String
+  organization    organization @relation(fields: [organization_id], references: [id])
   job_number  String   @unique
   name        String
   description String   @db.Text
@@ -354,10 +407,13 @@ model job {
   @@index([request_id])
   @@index([quote_id])
   @@index([client_id, status])
+  @@index([organization_id])
 }
 
 model job_line_item {
   id     String @id @default(uuid())
+  organization_id String
+  organization    organization @relation(fields: [organization_id], references: [id])
   job_id String
   job    job    @relation(fields: [job_id], references: [id], onDelete: Cascade)
 
@@ -373,10 +429,13 @@ model job_line_item {
   created_at DateTime @default(now())
 
   @@index([job_id])
+  @@index([organization_id])
 }
 
 model job_visit {
   id     String @id @default(uuid())
+  organization_id String
+  organization    organization @relation(fields: [organization_id], references: [id])
   job_id String
   job    job    @relation(fields: [job_id], references: [id], onDelete: Cascade)
 
@@ -397,9 +456,12 @@ model job_visit {
   @@index([status])
   @@index([scheduled_start_at])
   @@index([scheduled_end_at])
+  @@index([organization_id])
 }
 
 model job_visit_technician {
+  organization_id String
+  organization    organization @relation(fields: [organization_id], references: [id])
   visit_id String
   tech_id  String
   visit    job_visit  @relation(fields: [visit_id], references: [id], onDelete: Cascade)
@@ -408,10 +470,13 @@ model job_visit_technician {
   @@id([visit_id, tech_id])
   @@index([tech_id])
   @@index([visit_id])
+  @@index([organization_id])
 }
 
 model job_note {
   id     String @id @default(uuid())
+  organization_id String
+  organization    organization @relation(fields: [organization_id], references: [id])
   job_id String
   job    job    @relation(fields: [job_id], references: [id], onDelete: Cascade)
 
@@ -434,6 +499,7 @@ model job_note {
 
   @@index([job_id])
   @@index([visit_id])
+  @@index([organization_id])
 }
 
 // ============================================================================
@@ -442,6 +508,8 @@ model job_note {
 
 model inventory_item {
   id          String @id @unique @default(uuid())
+  organization_id String
+  organization    organization @relation(fields: [organization_id], references: [id])
   name        String
   description String @db.Text
   location    String
@@ -454,6 +522,7 @@ model inventory_item {
 
   @@index([sku])
   @@index([is_active])
+  @@index([organization_id])
 }
 
 // ============================================================================
@@ -462,6 +531,8 @@ model inventory_item {
 
 model technician {
   id          String            @id @unique @default(uuid())
+  organization_id String
+  organization    organization @relation(fields: [organization_id], references: [id])
   name        String
   email       String            @unique
   phone       String
@@ -486,10 +557,13 @@ model technician {
 
   @@index([email])
   @@index([status])
+  @@index([organization_id])
 }
 
 model dispatcher {
   id          String   @id @unique @default(uuid())
+  organization_id String
+  organization    organization @relation(fields: [organization_id], references: [id])
   name        String
   email       String   @unique
   phone       String?
@@ -511,6 +585,7 @@ model dispatcher {
   last_edited_quote_notes   quote_note[]   @relation("QuoteNoteEditor")
 
   @@index([email])
+  @@index([organization_id])
 }
 
 // ============================================================================
@@ -519,6 +594,8 @@ model dispatcher {
 
 model log {
   id String @id @default(uuid())
+  organization_id String
+  organization    organization @relation(fields: [organization_id], references: [id])
 
   event_type  String // "client_note.created", "job.status_changed", "quote.sent"
   action      String // "created", "updated", "deleted", "viewed", "sent"
@@ -543,4 +620,5 @@ model log {
   @@index([timestamp])
   @@index([actor_type, actor_id])
   @@index([actor_type])
+  @@index([organization_id])
 }
