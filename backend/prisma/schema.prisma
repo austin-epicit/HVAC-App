@@ -519,6 +519,7 @@ model inventory_item {
   cost       Decimal? @db.Decimal(10, 2)
   sku        String?  @unique
   is_active  Boolean  @default(true)
+  low_stock_threshold Int?
 
   @@index([sku])
   @@index([is_active])
