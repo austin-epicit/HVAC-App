@@ -94,6 +94,11 @@ import {
 	updateTechnician,
 	deleteTechnician,
 } from "./controllers/techniciansController.js";
+import{
+	getAllInventory,
+	getLowStockInventory,
+	updateInventoryThreshold,
+}from "./controllers/inventoryController.js";
 import http from "http";
 import { Server } from "socket.io";
 
@@ -1680,6 +1685,43 @@ app.delete("/technicians/:id", async (req, res, next) => {
 		next(err);
 	}
 });
+// ============================================
+// INVENTORY
+// ============================================
+
+app.get("/inventory", async (req, res, next) => {
+	try {
+		const { low_stock } = req.query;
+		const items = low_stock === "true" 
+			? await getLowStockInventory() 
+			: await getAllInventory();
+		res.json(createSuccessResponse(items, { count: items.length }));
+	} catch (err) {
+		next(err);
+	}
+});
+
+app.patch("/inventory/:id/threshold", async (req, res, next) => {
+	try {
+		const { id } = req.params;
+		const context = getUserContext(req);
+		const result = await updateInventoryThreshold(id, req.body, context);
+
+		if (result.err) {
+			const statusCode = result.err.includes("not found") ? 404 : 400;
+			return res
+				.status(statusCode)
+				.json(
+					createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+				);
+		}
+
+		res.json(createSuccessResponse(result.item));
+	} catch (err) {
+		next(err);
+	}
+});
+
 
 // ============================================
 // ERROR HANDLERS (Must be last)
