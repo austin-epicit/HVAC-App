@@ -1,8 +1,25 @@
 import z from "zod";
 import type { ClientSummary, ClientWithPrimaryContact } from "./clients";
 import type { Coordinates } from "./location";
-import type { Priority, BaseNote, RequestReference, QuoteReference } from "./common";
-import { PriorityValues, PriorityLabels, PriorityColors } from "./common";
+import type {
+	Priority,
+	BaseNote,
+	RequestReference,
+	QuoteReference,
+	LineItemType,
+	LineItemSource,
+	PricingBreakdown,
+	ExecutionTotals,
+	DiscountType,
+} from "./common";
+import {
+	PriorityValues,
+	PriorityLabels,
+	PriorityColors,
+	LineItemTypeValues,
+	LineItemSourceValues,
+	DiscountTypeValues,
+} from "./common";
 
 // ============================================================================
 // JOB-SPECIFIC TYPES
@@ -121,7 +138,7 @@ export interface VisitReference {
 	status: VisitStatus;
 }
 
-export interface Job {
+export interface Job extends PricingBreakdown, ExecutionTotals {
 	id: string;
 	name: string;
 	job_number: string;
@@ -131,7 +148,13 @@ export interface Job {
 	description: string;
 	priority: JobPriority;
 	status: JobStatus;
+
 	created_at: Date | string;
+	updated_at?: Date | string;
+	completed_at?: Date | string | null;
+	cancelled_at?: Date | string | null;
+	cancellation_reason?: string | null;
+
 	request_id: string | null;
 	quote_id: string | null;
 
@@ -140,8 +163,70 @@ export interface Job {
 	quote?: QuoteReference | null;
 	visits?: JobVisit[];
 	notes?: JobNote[];
+	line_items?: JobLineItem[];
 }
 
+export interface CreateJobInput extends PricingBreakdown, ExecutionTotals {
+	name: string;
+	client_id: string;
+	address: string;
+	coords: Coordinates;
+	description: string;
+	priority?: JobPriority;
+	status?: JobStatus;
+	request_id?: string;
+	quote_id?: string;
+	line_items?: CreateJobLineItemInput[];
+}
+
+export interface UpdateJobInput extends PricingBreakdown, ExecutionTotals {
+	name?: string;
+	address?: string;
+	coords?: Coordinates;
+	description?: string;
+	priority?: JobPriority;
+	status?: JobStatus;
+
+	cancellation_reason?: string; //unused
+	line_items?: UpdateJobLineItemInput[];
+}
+//Job Line Items
+export interface JobLineItem {
+	id?: string;
+	name: string;
+	description?: string | null;
+	quantity: number;
+	unit_price: number;
+	total: number;
+	item_type?: LineItemType | null;
+	source?: LineItemSource;
+	isNew?: boolean; // Frontend only - marks items created in form
+	isDeleted?: boolean; // Frontend only - soft delete marker
+}
+
+export interface CreateJobLineItemInput {
+	name: string;
+	description?: string;
+	quantity: number;
+	unit_price: number;
+	total?: number;
+
+	item_type?: LineItemType | null;
+	source?: LineItemSource;
+}
+export interface UpdateJobLineItemInput {
+	id?: string;
+	name: string;
+	description?: string | null;
+	quantity: number;
+	unit_price: number;
+	total: number;
+
+	item_type?: LineItemType | null;
+	source?: LineItemSource;
+}
+
+//Job Visit
 export interface JobVisit {
 	id: string;
 	job_id: string;
@@ -157,33 +242,6 @@ export interface JobVisit {
 	job?: JobSummary & { client: ClientSummary; coords: Coordinates };
 	visit_techs: JobVisitTechnician[];
 	notes?: JobNote[];
-}
-
-export interface JobNote extends BaseNote {
-	job_id: string;
-	visit_id?: string | null;
-	visit?: VisitReference | null;
-}
-
-export interface CreateJobInput {
-	name: string;
-	client_id: string;
-	address: string;
-	coords: Coordinates;
-	description: string;
-	priority?: JobPriority;
-	status?: JobStatus;
-	request_id?: string | null;
-	quote_id?: string | null;
-}
-
-export interface UpdateJobInput {
-	name?: string;
-	address?: string;
-	coords?: Coordinates;
-	description?: string;
-	priority?: JobPriority;
-	status?: JobStatus;
 }
 
 export interface CreateJobVisitInput {
@@ -206,6 +264,13 @@ export interface UpdateJobVisitInput {
 	actual_start_at?: Date | string | null;
 	actual_end_at?: Date | string | null;
 	status?: VisitStatus;
+}
+//Notes
+
+export interface JobNote extends BaseNote {
+	job_id: string;
+	visit_id?: string | null;
+	visit?: VisitReference | null;
 }
 
 export interface CreateJobNoteInput {
@@ -241,6 +306,27 @@ export const CreateJobSchema = z.object({
 	status: z.enum(JobStatusValues).default("Unscheduled"),
 	request_id: z.string().uuid().optional().nullable(),
 	quote_id: z.string().uuid().optional().nullable(),
+
+	estimated_total: z.number().nonnegative().optional().nullable(),
+	line_items: z
+		.array(
+			z.object({
+				name: z.string().min(1, "Item name is required"),
+				description: z.string().optional(),
+				quantity: z.number().positive("Quantity must be positive"),
+				unit_price: z
+					.number()
+					.nonnegative("Unit price must be non-negative"),
+			})
+		)
+		.optional(),
+
+	subtotal: z.number().nonnegative().optional(),
+	tax_rate: z.number().min(0).max(1).optional(),
+	tax_amount: z.number().nonnegative().optional(),
+	discount_type: z.enum(DiscountTypeValues).optional(), // Now used!
+	discount_value: z.number().nonnegative().optional(),
+	discount_amount: z.number().nonnegative().optional(),
 });
 
 export const UpdateJobSchema = z.object({
@@ -249,6 +335,24 @@ export const UpdateJobSchema = z.object({
 	description: z.string().optional(),
 	priority: z.enum(PriorityValues).optional(),
 	status: z.enum(JobStatusValues).optional(),
+	estimated_total: z.number().nonnegative().optional().nullable(),
+	actual_total: z.number().nonnegative().optional().nullable(),
+	line_items: z
+		.array(
+			z.object({
+				id: z.string().uuid().optional(), // undefined = create new
+				name: z.string().min(1, "Item name is required"),
+				description: z.string().optional(),
+				quantity: z.number().positive("Quantity must be positive"),
+				unit_price: z
+					.number()
+					.nonnegative("Unit price must be non-negative"),
+				total: z.number().nonnegative("Total must be non-negative"),
+				item_type: z.enum(LineItemTypeValues).optional(),
+				source: z.enum(LineItemSourceValues).optional(),
+			})
+		)
+		.optional(),
 });
 
 export const CreateJobVisitSchema = z

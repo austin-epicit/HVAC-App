@@ -94,6 +94,14 @@ export default function QuoteDetailPage() {
 		setIsConvertToJobModalOpen(true);
 	};
 
+	const formatCurrency = (amount: number | null | undefined) => {
+		if (amount === null || amount === undefined) return "$0.00";
+		return `$${Number(amount).toLocaleString("en-US", {
+			minimumFractionDigits: 2,
+			maximumFractionDigits: 2,
+		})}`;
+	};
+
 	return (
 		<div className="text-white space-y-6">
 			{/* Header */}
@@ -399,117 +407,234 @@ export default function QuoteDetailPage() {
 				</div>
 			</div>
 
-			{/* Line Items */}
-			<Card title="Line Items">
-				{!quote.line_items || quote.line_items.length === 0 ? (
-					<div className="text-center py-8">
-						<FileText
-							size={40}
-							className="mx-auto text-zinc-600 mb-3"
-						/>
-						<h3 className="text-zinc-400 text-sm font-medium mb-1">
-							No Line Items
+			<Card title="Financial Summary">
+				<div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+					{/* Left Column - Line Items Table */}
+					<div>
+						<h3 className="text-zinc-400 text-xs uppercase tracking-wide font-semibold mb-4">
+							Line Items
 						</h3>
-						<p className="text-zinc-500 text-xs">
-							No line items have been added to this quote
-							yet.
-						</p>
-					</div>
-				) : (
-					<div className="overflow-x-auto">
-						<table className="w-full">
-							<thead>
-								<tr className="border-b border-zinc-700">
-									<th className="text-left py-3 px-4 text-sm font-medium text-zinc-400">
+
+						{!quote.line_items ||
+						quote.line_items.length === 0 ? (
+							<div className="text-center py-8">
+								<FileText
+									size={40}
+									className="mx-auto text-zinc-600 mb-3"
+								/>
+								<h3 className="text-zinc-400 text-sm font-medium mb-1">
+									No Line Items
+								</h3>
+								<p className="text-zinc-500 text-xs">
+									No line items have been
+									added to this quote yet.
+								</p>
+							</div>
+						) : (
+							<div className="space-y-1">
+								{/* Table Header */}
+								<div className="grid grid-cols-12 gap-2 pb-2 border-b border-zinc-700 text-xs uppercase tracking-wide font-semibold text-zinc-400">
+									<div className="col-span-5">
 										Description
-									</th>
-									<th className="text-right py-3 px-4 text-sm font-medium text-zinc-400">
-										Quantity
-									</th>
-									<th className="text-right py-3 px-4 text-sm font-medium text-zinc-400">
+									</div>
+									<div className="col-span-1 text-center">
+										Type
+									</div>
+									<div className="col-span-2 text-right">
+										Qty
+									</div>
+									<div className="col-span-2 text-right">
 										Unit Price
-									</th>
-									<th className="text-right py-3 px-4 text-sm font-medium text-zinc-400">
-										Total
-									</th>
-								</tr>
-							</thead>
-							<tbody>
+									</div>
+									<div className="col-span-2 text-right">
+										Amount
+									</div>
+								</div>
+
+								{/* Line Items */}
 								{quote.line_items.map(
 									(item, index) => (
-										<tr
+										<div
 											key={
 												item.id ||
 												index
 											}
-											className="border-b border-zinc-800 last:border-0"
+											className="grid grid-cols-12 gap-2 py-3 border-b border-zinc-800 hover:bg-zinc-800/30 transition-colors"
 										>
-											<td className="py-3 px-4 text-sm text-white">
-												{
-													item.description
-												}
-											</td>
-											<td className="py-3 px-4 text-sm text-white text-right">
+											{/* Description */}
+											<div className="col-span-5 text-sm">
+												<p className="text-white font-medium">
+													{
+														item.name
+													}
+												</p>
+												{item.description && (
+													<p className="text-zinc-400 text-xs mt-0.5">
+														{
+															item.description
+														}
+													</p>
+												)}
+											</div>
+
+											{/* Type Badge */}
+											<div className="col-span-1 flex items-center justify-center">
+												{item.item_type && (
+													<span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-zinc-700 text-zinc-300 border border-zinc-600">
+														{
+															item.item_type
+														}
+													</span>
+												)}
+											</div>
+
+											{/* Quantity */}
+											<div className="col-span-2 text-right text-sm text-white tabular-nums flex items-center justify-end">
 												{
 													item.quantity
 												}
-											</td>
-											<td className="py-3 px-4 text-sm text-white text-right">
-												$
-												{Number(
-													item.unit_price
-												).toLocaleString(
-													"en-US",
-													{
-														minimumFractionDigits: 2,
-														maximumFractionDigits: 2,
-													}
-												)}
-											</td>
-											<td className="py-3 px-4 text-sm text-white text-right font-medium">
-												$
-												{(
-													Number(
-														item.quantity
-													) *
+											</div>
+
+											{/* Unit Price */}
+											<div className="col-span-2 text-right text-sm text-white tabular-nums flex items-center justify-end">
+												{formatCurrency(
 													Number(
 														item.unit_price
 													)
-												).toLocaleString(
-													"en-US",
-													{
-														minimumFractionDigits: 2,
-														maximumFractionDigits: 2,
-													}
 												)}
-											</td>
-										</tr>
+											</div>
+
+											{/* Amount */}
+											<div className="col-span-2 text-right text-sm text-white font-medium tabular-nums flex items-center justify-end">
+												{formatCurrency(
+													Number(
+														item.quantity
+													) *
+														Number(
+															item.unit_price
+														)
+												)}
+											</div>
+										</div>
 									)
 								)}
-								<tr className="border-t-2 border-zinc-700">
-									<td
-										colSpan={3}
-										className="py-3 px-4 text-sm font-semibold text-white text-right"
-									>
-										Total:
-									</td>
-									<td className="py-3 px-4 text-sm font-bold text-white text-right">
-										$
-										{Number(
-											quote.total
-										).toLocaleString(
-											"en-US",
-											{
-												minimumFractionDigits: 2,
-												maximumFractionDigits: 2,
-											}
-										)}
-									</td>
-								</tr>
-							</tbody>
-						</table>
+							</div>
+						)}
 					</div>
-				)}
+
+					{/* Right Column - Financial Breakdown */}
+					<div className="space-y-6">
+						{/* Quote Metadata */}
+						<div className="p-4 bg-zinc-800/50 rounded-lg border border-zinc-700 space-y-2">
+							<div className="flex justify-between text-sm">
+								<span className="text-zinc-400">
+									Total Items:
+								</span>
+								<span className="text-white font-medium tabular-nums">
+									{quote.line_items?.length ||
+										0}
+								</span>
+							</div>
+							<div className="flex justify-between text-sm">
+								<span className="text-zinc-400">
+									Quote Number:
+								</span>
+								<span className="text-white font-medium">
+									{quote.quote_number}
+								</span>
+							</div>
+						</div>
+
+						{/* Financial Breakdown */}
+						<div className="space-y-3">
+							{/* Subtotal */}
+							{quote.subtotal !== null &&
+								quote.subtotal !== undefined && (
+									<div className="flex items-center justify-between text-sm">
+										<span className="text-zinc-400">
+											Subtotal:
+										</span>
+										<span className="text-white font-medium tabular-nums">
+											{formatCurrency(
+												Number(
+													quote.subtotal
+												)
+											)}
+										</span>
+									</div>
+								)}
+
+							{/* Tax */}
+							{quote.tax_amount !== null &&
+								quote.tax_amount !== undefined &&
+								Number(quote.tax_amount) > 0 && (
+									<div className="flex items-center justify-between text-sm">
+										<span className="text-zinc-400">
+											Tax{" "}
+											{quote.tax_rate
+												? `(${(Number(quote.tax_rate) * 100).toFixed(2)}%)`
+												: ""}
+											:
+										</span>
+										<span className="text-white font-medium tabular-nums">
+											{formatCurrency(
+												Number(
+													quote.tax_amount
+												)
+											)}
+										</span>
+									</div>
+								)}
+
+							{/* Discount */}
+							{quote.discount_amount !== null &&
+								quote.discount_amount !==
+									undefined &&
+								Number(quote.discount_amount) >
+									0 && (
+									<div className="flex items-center justify-between text-sm">
+										<span className="text-zinc-400">
+											Discount{" "}
+											{quote.discount_type ===
+												"percent" &&
+											quote.discount_value
+												? `(${Number(quote.discount_value)}%)`
+												: ""}
+											:
+										</span>
+										<span className="text-green-400 font-medium tabular-nums">
+											-
+											{formatCurrency(
+												Number(
+													quote.discount_amount
+												)
+											)}
+										</span>
+									</div>
+								)}
+
+							{/* Divider */}
+							<div className="border-t border-zinc-700 my-2"></div>
+
+							{/* Quote Total */}
+							<div className="flex items-center justify-between px-4 py-3 bg-zinc-800 rounded-lg border border-zinc-700">
+								<div>
+									<p className="text-zinc-400 text-xs uppercase tracking-wide font-semibold mb-0.5">
+										Quote Total
+									</p>
+									<p className="text-xs text-zinc-500">
+										Final amount
+									</p>
+								</div>
+								<p className="text-2xl font-bold text-blue-400 tabular-nums">
+									{formatCurrency(
+										Number(quote.total)
+									)}
+								</p>
+							</div>
+						</div>
+					</div>
+				</div>
 			</Card>
 
 			{/* Related Request and Job - Half Width Layout */}

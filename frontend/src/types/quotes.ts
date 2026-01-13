@@ -7,8 +7,16 @@ import type {
 	RequestReference,
 	JobReference,
 	DispatcherReference,
+	LineItemType,
+	DiscountType,
 } from "./common";
-import { PriorityValues, PriorityLabels, PriorityColors } from "./common";
+import {
+	PriorityValues,
+	PriorityLabels,
+	PriorityColors,
+	LineItemTypeValues,
+	DiscountTypeValues,
+} from "./common";
 
 // ============================================================================
 // QUOTE-SPECIFIC TYPES
@@ -54,10 +62,6 @@ export const QuoteStatusColors: Record<QuoteStatus, string> = {
 	Cancelled: "bg-zinc-500/20 text-zinc-400 border-zinc-500/30",
 };
 
-export const LineItemTypeValues = ["labor", "material", "equipment"] as const;
-
-export type LineItemType = (typeof LineItemTypeValues)[number];
-
 // ============================================================================
 // QUOTE SUMMARY TYPES (for listings and references)
 // ============================================================================
@@ -97,10 +101,11 @@ export interface Quote {
 	version: number;
 	previous_quote_id: string | null;
 
-	// Financial fields
 	subtotal: number;
 	tax_rate: number;
 	tax_amount: number;
+	discount_type?: DiscountType | null;
+	discount_value?: number | null;
 	discount_amount: number;
 	total: number;
 
@@ -130,17 +135,19 @@ export interface Quote {
 export interface CreateQuoteInput {
 	client_id: string;
 	request_id?: string;
-	title: string;
-	description: string;
-	address: string;
+	title?: string;
+	description?: string;
+	address?: string;
 	coords?: Coordinates;
 	priority: QuotePriority;
 	status?: QuoteStatus;
-	subtotal: number;
+	subtotal?: number;
 	tax_rate?: number;
 	tax_amount?: number;
+	discount_type?: DiscountType;
+	discount_value?: number;
 	discount_amount?: number;
-	total: number;
+	total?: number;
 	valid_until?: Date | string;
 	expires_at?: Date | string;
 	created_by_dispatcher_id?: string;
@@ -157,6 +164,8 @@ export interface UpdateQuoteInput {
 	subtotal?: number;
 	tax_rate?: number;
 	tax_amount?: number;
+	discount_type?: DiscountType;
+	discount_value?: number;
 	discount_amount?: number;
 	total?: number;
 	valid_until?: Date | string | null;

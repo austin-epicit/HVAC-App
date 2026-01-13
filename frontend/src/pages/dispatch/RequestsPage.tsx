@@ -80,7 +80,7 @@ export default function RequestsPage() {
 					title: r.title,
 					address: r.address || "No address",
 					priority: RequestPriorityLabels[r.priority] || r.priority,
-					createdDate: formatDate(r.created_at),
+					requestedDate: formatDate(r.created_at),
 					status: RequestStatusLabels[r.status] || r.status,
 					_rawStatus: r.status, // Keep raw status for sorting
 					_rawPriority: r.priority, // Keep raw priority for additional sorting

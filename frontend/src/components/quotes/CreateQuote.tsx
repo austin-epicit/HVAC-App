@@ -5,15 +5,16 @@ import type { ZodError } from "zod";
 import FullPopup from "../ui/FullPopup";
 import {
 	QuotePriorityValues,
-	LineItemTypeValues,
+	CreateQuoteSchema,
 	type CreateQuoteInput,
 	type CreateQuoteLineItemInput,
 } from "../../types/quotes";
+import { LineItemTypeValues, type LineItemType } from "../../types/common";
 import { useAllClientsQuery } from "../../hooks/useClients";
 import type { GeocodeResult } from "../../types/location";
 import Dropdown from "../ui/Dropdown";
 import AddressForm from "../ui/AddressForm";
-import { z } from "zod";
+import DatePicker from "../ui/DatePicker";
 import { Plus, Trash2 } from "lucide-react";
 
 interface CreateQuoteProps {
@@ -22,34 +23,14 @@ interface CreateQuoteProps {
 	createQuote: (input: CreateQuoteInput) => Promise<string>;
 }
 
-// Validation schema
-const CreateQuoteSchema = z.object({
-	client_id: z.string().uuid("Invalid client ID"),
-	title: z.string().min(1, "Title is required"),
-	description: z.string().min(1, "Description is required"),
-	address: z.string().min(1, "Address is required"),
-	priority: z.enum(["Low", "Medium", "High"]),
-	subtotal: z.number().nonnegative("Subtotal must be positive"),
-	tax_rate: z.number().nonnegative().default(0),
-	total: z.number().nonnegative("Total must be positive"),
-	line_items: z
-		.array(
-			z.object({
-				name: z.string().min(1),
-				quantity: z.number().positive(),
-				unit_price: z.number().nonnegative(),
-			})
-		)
-		.min(1, "At least one line item is required"),
-});
-
+// Local UI-only interface for form state
 interface LineItem {
 	id: string;
 	name: string;
 	description: string;
 	quantity: number;
 	unit_price: number;
-	item_type: "labor" | "material" | "equipment" | "";
+	item_type: LineItemType | "";
 	total: number;
 }
 
@@ -58,19 +39,18 @@ const CreateQuote = ({ isModalOpen, setIsModalOpen, createQuote }: CreateQuotePr
 	const descRef = useRef<HTMLTextAreaElement>(null);
 	const clientRef = useRef<HTMLSelectElement>(null);
 	const priorityRef = useRef<HTMLSelectElement>(null);
-	const validUntilRef = useRef<HTMLInputElement>(null);
-	const expiresAtRef = useRef<HTMLInputElement>(null);
 	const [geoData, setGeoData] = useState<GeocodeResult>();
 	const [isLoading, setIsLoading] = useState(false);
 	const [errors, setErrors] = useState<ZodError | null>(null);
 	const { data: clients } = useAllClientsQuery();
 
-	// Financial state
+	const [validUntilDate, setValidUntilDate] = useState<Date | null>(null);
+	const [expiresAtDate, setExpiresAtDate] = useState<Date | null>(null);
+
 	const [taxRate, setTaxRate] = useState<number>(0);
 	const [discountType, setDiscountType] = useState<"percent" | "amount">("amount");
 	const [discountValue, setDiscountValue] = useState<number>(0);
 
-	// Line items state
 	const [lineItems, setLineItems] = useState<LineItem[]>([
 		{
 			id: crypto.randomUUID(),
@@ -90,7 +70,6 @@ const CreateQuote = ({ isModalOpen, setIsModalOpen, createQuote }: CreateQuotePr
 		}));
 	};
 
-	// Line item handlers
 	const addLineItem = () => {
 		setLineItems([
 			...lineItems,
@@ -117,7 +96,6 @@ const CreateQuote = ({ isModalOpen, setIsModalOpen, createQuote }: CreateQuotePr
 			lineItems.map((item) => {
 				if (item.id === id) {
 					const updated = { ...item, [field]: value };
-					// Recalculate total for this line item
 					if (field === "quantity" || field === "unit_price") {
 						updated.total =
 							Number(updated.quantity) *
@@ -130,7 +108,6 @@ const CreateQuote = ({ isModalOpen, setIsModalOpen, createQuote }: CreateQuotePr
 		);
 	};
 
-	// Calculate totals with reactive state
 	const subtotal = lineItems.reduce((sum, item) => sum + item.total, 0);
 	const taxAmount = subtotal * (taxRate / 100);
 	const discountAmount =
@@ -180,8 +157,6 @@ const CreateQuote = ({ isModalOpen, setIsModalOpen, createQuote }: CreateQuotePr
 			const clientValue = clientRef.current.value.trim();
 			const descValue = descRef.current.value.trim();
 			const priorityValue = priorityRef.current.value.trim();
-			const validUntilValue = validUntilRef.current?.value || undefined;
-			const expiresAtValue = expiresAtRef.current?.value || undefined;
 
 			if (!geoData?.address) {
 				setErrors({
@@ -195,7 +170,6 @@ const CreateQuote = ({ isModalOpen, setIsModalOpen, createQuote }: CreateQuotePr
 				return;
 			}
 
-			// Prepare line items
 			const preparedLineItems: CreateQuoteLineItemInput[] = lineItems.map(
 				(item, index) => ({
 					name: item.name,
@@ -203,7 +177,9 @@ const CreateQuote = ({ isModalOpen, setIsModalOpen, createQuote }: CreateQuotePr
 					quantity: Number(item.quantity),
 					unit_price: Number(item.unit_price),
 					total: item.total,
-					item_type: item.item_type || undefined,
+					item_type: (item.item_type || undefined) as
+						| LineItemType
+						| undefined,
 					sort_order: index,
 				})
 			);
@@ -212,16 +188,25 @@ const CreateQuote = ({ isModalOpen, setIsModalOpen, createQuote }: CreateQuotePr
 				title: titleValue,
 				client_id: clientValue,
 				address: geoData.address,
-				coords: geoData.coords,
+				coords: geoData.coords || undefined,
 				description: descValue,
-				priority: priorityValue as "Low" | "Medium" | "High",
+				priority: priorityValue as
+					| "Low"
+					| "Medium"
+					| "High"
+					| "Urgent"
+					| "Emergency",
 				subtotal,
-				tax_rate: taxRate / 100, // Store as decimal (e.g., 0.0825 for 8.25%)
+				tax_rate: taxRate / 100, // Store as decimal
 				tax_amount: taxAmount,
+				discount_type: discountType,
+				discount_value: discountValue,
 				discount_amount: discountAmount,
 				total,
-				valid_until: validUntilValue,
-				expires_at: expiresAtValue,
+				valid_until: validUntilDate
+					? validUntilDate.toISOString()
+					: undefined,
+				expires_at: expiresAtDate ? expiresAtDate.toISOString() : undefined,
 				line_items: preparedLineItems,
 			};
 
@@ -242,12 +227,12 @@ const CreateQuote = ({ isModalOpen, setIsModalOpen, createQuote }: CreateQuotePr
 			// Reset form values before closing
 			if (titleRef.current) titleRef.current.value = "";
 			if (descRef.current) descRef.current.value = "";
-			if (validUntilRef.current) validUntilRef.current.value = "";
-			if (expiresAtRef.current) expiresAtRef.current.value = "";
 			setGeoData(undefined);
 			setTaxRate(0);
 			setDiscountType("amount");
 			setDiscountValue(0);
+			setValidUntilDate(null);
+			setExpiresAtDate(null);
 			setLineItems([
 				{
 					id: crypto.randomUUID(),
@@ -776,16 +761,14 @@ const CreateQuote = ({ isModalOpen, setIsModalOpen, createQuote }: CreateQuotePr
 					</div>
 				</div>
 
-				<div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
+				<div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
 					<div>
 						<p className="mb-1 text-sm hover:color-accent">
 							Valid Until (Optional)
 						</p>
-						<input
-							type="date"
-							className="border border-zinc-800 p-2 w-full rounded-sm bg-zinc-900 text-white text-sm"
-							disabled={isLoading}
-							ref={validUntilRef}
+						<DatePicker
+							value={validUntilDate}
+							onChange={setValidUntilDate}
 						/>
 					</div>
 
@@ -793,11 +776,9 @@ const CreateQuote = ({ isModalOpen, setIsModalOpen, createQuote }: CreateQuotePr
 						<p className="mb-1 text-sm hover:color-accent">
 							Expires At (Optional)
 						</p>
-						<input
-							type="date"
-							className="border border-zinc-800 p-2 w-full rounded-sm bg-zinc-900 text-white text-sm"
-							disabled={isLoading}
-							ref={expiresAtRef}
+						<DatePicker
+							value={expiresAtDate}
+							onChange={setExpiresAtDate}
 						/>
 					</div>
 				</div>

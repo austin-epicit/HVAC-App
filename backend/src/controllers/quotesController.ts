@@ -234,31 +234,57 @@ export const insertQuote = async (req: Request, context?: UserContext) => {
 
 			const quoteNumber = await generateQuoteNumber();
 
+			const quoteData: any = {
+				quote_number: quoteNumber,
+				client_id: parsed.client_id,
+				request_id: parsed.request_id || null,
+				title: title,
+				description: description,
+				address: address,
+				coords: coords || undefined,
+				priority: priority,
+				status: parsed.status,
+				created_by_dispatcher_id: context?.dispatcherId || null,
+				valid_until: parsed.valid_until
+					? new Date(parsed.valid_until)
+					: null,
+				expires_at: parsed.expires_at
+					? new Date(parsed.expires_at)
+					: null,
+			};
+
+			if (parsed.subtotal !== undefined)
+				quoteData.subtotal = parsed.subtotal;
+			if (parsed.tax_rate !== undefined)
+				quoteData.tax_rate = parsed.tax_rate;
+			if (parsed.tax_amount !== undefined)
+				quoteData.tax_amount = parsed.tax_amount;
+			if (parsed.discount_type !== undefined)
+				quoteData.discount_type = parsed.discount_type;
+			if (parsed.discount_value !== undefined)
+				quoteData.discount_value = parsed.discount_value;
+			if (parsed.discount_amount !== undefined)
+				quoteData.discount_amount = parsed.discount_amount;
+			if (parsed.total !== undefined) quoteData.total = parsed.total;
+
 			const quote = await tx.quote.create({
-				data: {
-					quote_number: quoteNumber,
-					client_id: parsed.client_id,
-					request_id: parsed.request_id || null,
-					title: title,
-					description: description,
-					address: address,
-					coords: coords || undefined,
-					priority: priority,
-					subtotal: parsed.subtotal,
-					tax_rate: parsed.tax_rate,
-					tax_amount: parsed.tax_amount,
-					discount_amount: parsed.discount_amount,
-					total: parsed.total,
-					valid_until: parsed.valid_until
-						? new Date(parsed.valid_until)
-						: null,
-					expires_at: parsed.expires_at
-						? new Date(parsed.expires_at)
-						: null,
-					status: parsed.status,
-					created_by_dispatcher_id: context?.dispatcherId || null,
-				},
+				data: quoteData,
 			});
+
+			if (parsed.line_items && parsed.line_items.length > 0) {
+				await tx.quote_line_item.createMany({
+					data: parsed.line_items.map((item, index) => ({
+						quote_id: quote.id,
+						name: item.name,
+						description: item.description || null,
+						quantity: item.quantity,
+						unit_price: item.unit_price,
+						total: item.total,
+						item_type: item.item_type || null,
+						sort_order: item.sort_order ?? index,
+					})),
+				});
+			}
 
 			await tx.client.update({
 				where: { id: parsed.client_id },
@@ -322,7 +348,10 @@ export const updateQuote = async (req: Request, context?: UserContext) => {
 
 		const existing = await db.quote.findUnique({
 			where: { id: quoteId },
-			include: { job: true },
+			include: {
+				job: true,
+				line_items: true,
+			},
 		});
 
 		if (!existing) {
@@ -405,6 +434,178 @@ export const updateQuote = async (req: Request, context?: UserContext) => {
 		}
 
 		const updated = await db.$transaction(async (tx) => {
+			if (parsed.line_items !== undefined) {
+				const incomingItems = parsed.line_items || [];
+				const existingItemIds = new Set(
+					existing.line_items.map((item) => item.id)
+				);
+				const incomingItemIds = new Set(
+					incomingItems
+						.filter((item) => item.id)
+						.map((item) => item.id!)
+				);
+
+				// Delete items not in incoming list
+				const itemsToDelete = existing.line_items.filter(
+					(item) => !incomingItemIds.has(item.id)
+				);
+
+				for (const item of itemsToDelete) {
+					await tx.quote_line_item.delete({
+						where: { id: item.id },
+					});
+
+					await logActivity({
+						event_type: "quote_line_item.deleted",
+						action: "deleted",
+						entity_type: "quote_line_item",
+						entity_id: item.id,
+						actor_type: context?.techId
+							? "technician"
+							: context?.dispatcherId
+							? "dispatcher"
+							: "system",
+						actor_id: context?.techId || context?.dispatcherId,
+						changes: {
+							name: { old: item.name, new: null },
+							quote_id: { old: item.quote_id, new: null },
+						},
+						ip_address: context?.ipAddress,
+						user_agent: context?.userAgent,
+					});
+				}
+
+				// Create or update items
+				for (const [index, item] of incomingItems.entries()) {
+					if (item.id && existingItemIds.has(item.id)) {
+						// Update existing item
+						const existingItem = existing.line_items.find(
+							(i) => i.id === item.id
+						);
+
+						if (existingItem) {
+							const itemChanges: any = {};
+
+							if (item.name !== existingItem.name) {
+								itemChanges.name = {
+									old: existingItem.name,
+									new: item.name,
+								};
+							}
+							if (item.description !== existingItem.description) {
+								itemChanges.description = {
+									old: existingItem.description,
+									new: item.description,
+								};
+							}
+							if (
+								Number(item.quantity) !==
+								Number(existingItem.quantity)
+							) {
+								itemChanges.quantity = {
+									old: existingItem.quantity,
+									new: item.quantity,
+								};
+							}
+							if (
+								Number(item.unit_price) !==
+								Number(existingItem.unit_price)
+							) {
+								itemChanges.unit_price = {
+									old: existingItem.unit_price,
+									new: item.unit_price,
+								};
+							}
+							if (
+								Number(item.total) !==
+								Number(existingItem.total)
+							) {
+								itemChanges.total = {
+									old: existingItem.total,
+									new: item.total,
+								};
+							}
+							if (item.item_type !== existingItem.item_type) {
+								itemChanges.item_type = {
+									old: existingItem.item_type,
+									new: item.item_type,
+								};
+							}
+
+							await tx.quote_line_item.update({
+								where: { id: item.id },
+								data: {
+									name: item.name,
+									description: item.description || null,
+									quantity: item.quantity,
+									unit_price: item.unit_price,
+									total: item.total,
+									item_type: item.item_type || null,
+									sort_order: item.sort_order ?? index,
+								},
+							});
+
+							if (Object.keys(itemChanges).length > 0) {
+								await logActivity({
+									event_type: "quote_line_item.updated",
+									action: "updated",
+									entity_type: "quote_line_item",
+									entity_id: item.id,
+									actor_type: context?.techId
+										? "technician"
+										: context?.dispatcherId
+										? "dispatcher"
+										: "system",
+									actor_id:
+										context?.techId ||
+										context?.dispatcherId,
+									changes: itemChanges,
+									ip_address: context?.ipAddress,
+									user_agent: context?.userAgent,
+								});
+							}
+						}
+					} else {
+						// Create new item
+						const newItem = await tx.quote_line_item.create({
+							data: {
+								quote_id: quoteId,
+								name: item.name,
+								description: item.description || null,
+								quantity: item.quantity,
+								unit_price: item.unit_price,
+								total: item.total,
+								item_type: item.item_type || null,
+								sort_order: item.sort_order ?? index,
+							},
+						});
+
+						await logActivity({
+							event_type: "quote_line_item.created",
+							action: "created",
+							entity_type: "quote_line_item",
+							entity_id: newItem.id,
+							actor_type: context?.techId
+								? "technician"
+								: context?.dispatcherId
+								? "dispatcher"
+								: "system",
+							actor_id: context?.techId || context?.dispatcherId,
+							changes: {
+								name: { old: null, new: item.name },
+								quote_id: { old: null, new: quoteId },
+								total: { old: null, new: item.total },
+							},
+							ip_address: context?.ipAddress,
+							user_agent: context?.userAgent,
+						});
+					}
+				}
+			}
+			// ============================================
+			// END BULK LINE ITEMS UPDATE
+			// ============================================
+
 			// Track status changes for auto-timestamps
 			const isFirstSent =
 				parsed.status === "Sent" && existing.status !== "Sent";
@@ -439,6 +640,12 @@ export const updateQuote = async (req: Request, context?: UserContext) => {
 					}),
 					...(parsed.tax_amount !== undefined && {
 						tax_amount: parsed.tax_amount,
+					}),
+					...(parsed.discount_type !== undefined && {
+						discount_type: parsed.discount_type,
+					}),
+					...(parsed.discount_value !== undefined && {
+						discount_value: parsed.discount_value,
 					}),
 					...(parsed.discount_amount !== undefined && {
 						discount_amount: parsed.discount_amount,

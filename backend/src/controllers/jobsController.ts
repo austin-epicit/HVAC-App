@@ -240,7 +240,13 @@ export const insertJob = async (req: Request, context?: UserContext) => {
 				parsed.coords;
 			let priority = parsed.priority;
 			let estimatedTotal = parsed.estimated_total;
-			let quoteLineItems: any[] = [];
+			let subtotal = parsed.subtotal;
+			let taxRate = parsed.tax_rate;
+			let taxAmount = parsed.tax_amount;
+			let discountType = parsed.discount_type;
+			let discountValue = parsed.discount_value;
+			let discountAmount = parsed.discount_amount;
+			let lineItemsToCreate: any[] = [];
 
 			// If linked to quote, inherit fields and prepare line items
 			if (parsed.quote_id) {
@@ -266,8 +272,40 @@ export const insertJob = async (req: Request, context?: UserContext) => {
 				if (!priority) priority = quote.priority;
 				if (!estimatedTotal) estimatedTotal = Number(quote.total);
 
-				// Store line items for later creation
-				quoteLineItems = quote.line_items;
+				// Copy financial fields from quote if not provided
+				if (subtotal === undefined)
+					subtotal = quote.subtotal
+						? Number(quote.subtotal)
+						: undefined;
+				if (taxRate === undefined)
+					taxRate = quote.tax_rate
+						? Number(quote.tax_rate)
+						: undefined;
+				if (taxAmount === undefined)
+					taxAmount = quote.tax_amount
+						? Number(quote.tax_amount)
+						: undefined;
+				if (discountType === undefined)
+					discountType =
+						(quote.discount_type as "percent" | "amount" | null) ||
+						undefined;
+				if (discountValue === undefined && quote.discount_value)
+					discountValue = Number(quote.discount_value);
+				if (discountAmount === undefined)
+					discountAmount = quote.discount_amount
+						? Number(quote.discount_amount)
+						: undefined;
+
+				// Store line items from quote for later creation
+				lineItemsToCreate = quote.line_items.map((item) => ({
+					name: item.name,
+					description: item.description,
+					quantity: item.quantity,
+					unit_price: item.unit_price,
+					total: item.total,
+					source: "quote" as const,
+					item_type: item.item_type,
+				}));
 
 				await tx.quote.update({
 					where: { id: parsed.quote_id },
@@ -308,6 +346,19 @@ export const insertJob = async (req: Request, context?: UserContext) => {
 				});
 			}
 
+			// If line_items provided directly in request, use those
+			if (parsed.line_items && parsed.line_items.length > 0) {
+				lineItemsToCreate = parsed.line_items.map((item) => ({
+					name: item.name,
+					description: item.description || null,
+					quantity: item.quantity,
+					unit_price: item.unit_price,
+					total: item.total,
+					source: "job" as const,
+					item_type: item.item_type || null,
+				}));
+			}
+
 			if (!address) {
 				throw new Error("Address is required for job");
 			}
@@ -336,21 +387,35 @@ export const insertJob = async (req: Request, context?: UserContext) => {
 					status: parsed.status || "Unscheduled",
 					request_id: parsed.request_id || null,
 					quote_id: parsed.quote_id || null,
-					estimated_total: estimatedTotal || null,
+					...(subtotal !== undefined && { subtotal }),
+					...(taxRate !== undefined && { tax_rate: taxRate }),
+					...(taxAmount !== undefined && { tax_amount: taxAmount }),
+					...(discountType !== undefined && {
+						discount_type: discountType,
+					}),
+					...(discountValue !== undefined && {
+						discount_value: discountValue,
+					}),
+					...(discountAmount !== undefined && {
+						discount_amount: discountAmount,
+					}),
+					...(estimatedTotal !== undefined && {
+						estimated_total: estimatedTotal,
+					}),
 				},
 			});
 
-			// Copy line items from quote if available
-			if (quoteLineItems.length > 0) {
+			//Create line items (from quote OR from request body)
+			if (lineItemsToCreate.length > 0) {
 				await tx.job_line_item.createMany({
-					data: quoteLineItems.map((item) => ({
+					data: lineItemsToCreate.map((item) => ({
 						job_id: job.id,
 						name: item.name,
 						description: item.description,
 						quantity: item.quantity,
 						unit_price: item.unit_price,
 						total: item.total,
-						source: "quote" as const,
+						source: item.source,
 						item_type: item.item_type,
 					})),
 				});
@@ -428,7 +493,11 @@ export const updateJob = async (req: Request, context?: UserContext) => {
 		const id = (req as any).params.id;
 		const parsed = updateJobSchema.parse(req.body);
 
-		const existing = await db.job.findUnique({ where: { id } });
+		const existing = await db.job.findUnique({
+			where: { id },
+			include: { line_items: true },
+		});
+
 		if (!existing) {
 			return { err: "Job not found" };
 		}
@@ -470,6 +539,180 @@ export const updateJob = async (req: Request, context?: UserContext) => {
 		}
 
 		const updated = await db.$transaction(async (tx) => {
+			// ============================================
+			// BULK LINE ITEMS UPDATE (NEW)
+			// ============================================
+			if (parsed.line_items !== undefined) {
+				const incomingItems = parsed.line_items || [];
+				const existingItemIds = new Set(
+					existing.line_items.map((item) => item.id)
+				);
+				const incomingItemIds = new Set(
+					incomingItems
+						.filter((item) => item.id)
+						.map((item) => item.id!)
+				);
+
+				// Delete items not in incoming list
+				const itemsToDelete = existing.line_items.filter(
+					(item) => !incomingItemIds.has(item.id)
+				);
+
+				for (const item of itemsToDelete) {
+					await tx.job_line_item.delete({
+						where: { id: item.id },
+					});
+
+					await logActivity({
+						event_type: "job_line_item.deleted",
+						action: "deleted",
+						entity_type: "job_line_item",
+						entity_id: item.id,
+						actor_type: context?.techId
+							? "technician"
+							: context?.dispatcherId
+							? "dispatcher"
+							: "system",
+						actor_id: context?.techId || context?.dispatcherId,
+						changes: {
+							name: { old: item.name, new: null },
+							job_id: { old: item.job_id, new: null },
+						},
+						ip_address: context?.ipAddress,
+						user_agent: context?.userAgent,
+					});
+				}
+
+				// Create or update items
+				for (const item of incomingItems) {
+					if (item.id && existingItemIds.has(item.id)) {
+						// Update existing item
+						const existingItem = existing.line_items.find(
+							(i) => i.id === item.id
+						);
+
+						if (existingItem) {
+							const itemChanges: any = {};
+
+							if (item.name !== existingItem.name) {
+								itemChanges.name = {
+									old: existingItem.name,
+									new: item.name,
+								};
+							}
+							if (item.description !== existingItem.description) {
+								itemChanges.description = {
+									old: existingItem.description,
+									new: item.description,
+								};
+							}
+							if (
+								Number(item.quantity) !==
+								Number(existingItem.quantity)
+							) {
+								itemChanges.quantity = {
+									old: existingItem.quantity,
+									new: item.quantity,
+								};
+							}
+							if (
+								Number(item.unit_price) !==
+								Number(existingItem.unit_price)
+							) {
+								itemChanges.unit_price = {
+									old: existingItem.unit_price,
+									new: item.unit_price,
+								};
+							}
+							if (
+								Number(item.total) !==
+								Number(existingItem.total)
+							) {
+								itemChanges.total = {
+									old: existingItem.total,
+									new: item.total,
+								};
+							}
+							if (item.item_type !== existingItem.item_type) {
+								itemChanges.item_type = {
+									old: existingItem.item_type,
+									new: item.item_type,
+								};
+							}
+
+							await tx.job_line_item.update({
+								where: { id: item.id },
+								data: {
+									name: item.name,
+									description: item.description || null,
+									quantity: item.quantity,
+									unit_price: item.unit_price,
+									total: item.total,
+									item_type: item.item_type || null,
+								},
+							});
+
+							if (Object.keys(itemChanges).length > 0) {
+								await logActivity({
+									event_type: "job_line_item.updated",
+									action: "updated",
+									entity_type: "job_line_item",
+									entity_id: item.id,
+									actor_type: context?.techId
+										? "technician"
+										: context?.dispatcherId
+										? "dispatcher"
+										: "system",
+									actor_id:
+										context?.techId ||
+										context?.dispatcherId,
+									changes: itemChanges,
+									ip_address: context?.ipAddress,
+									user_agent: context?.userAgent,
+								});
+							}
+						}
+					} else {
+						// Create new item
+						const newItem = await tx.job_line_item.create({
+							data: {
+								job_id: id,
+								name: item.name,
+								description: item.description || null,
+								quantity: item.quantity,
+								unit_price: item.unit_price,
+								total: item.total,
+								source: "job",
+								item_type: item.item_type || null,
+							},
+						});
+
+						await logActivity({
+							event_type: "job_line_item.created",
+							action: "created",
+							entity_type: "job_line_item",
+							entity_id: newItem.id,
+							actor_type: context?.techId
+								? "technician"
+								: context?.dispatcherId
+								? "dispatcher"
+								: "system",
+							actor_id: context?.techId || context?.dispatcherId,
+							changes: {
+								name: { old: null, new: item.name },
+								job_id: { old: null, new: id },
+								total: { old: null, new: item.total },
+							},
+							ip_address: context?.ipAddress,
+							user_agent: context?.userAgent,
+						});
+					}
+				}
+			}
+			// ============================================
+			// END BULK LINE ITEMS UPDATE
+			// ============================================
+
 			const job = await tx.job.update({
 				where: { id },
 				data: {

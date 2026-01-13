@@ -1,17 +1,23 @@
 import { useState, useRef, useEffect } from "react";
 import { DayPicker } from "react-day-picker";
-import { Calendar } from "lucide-react";
+import { Calendar, X } from "lucide-react";
 import { format } from "date-fns";
 
 import "react-day-picker/dist/style.css";
 
 type DatePickerProps = {
-	value: Date;
-	onChange: (date: Date) => void;
+	value: Date | null;
+	onChange: (date: Date | null) => void;
 	disabled?: boolean;
+	optional?: boolean;
 };
 
-export default function DatePicker({ value, onChange, disabled }: DatePickerProps) {
+export default function DatePicker({
+	value,
+	onChange,
+	disabled,
+	optional = false,
+}: DatePickerProps) {
 	const [open, setOpen] = useState(false);
 	const [alignRight, setAlignRight] = useState(false);
 	const [showAbove, setShowAbove] = useState(false);
@@ -19,17 +25,18 @@ export default function DatePicker({ value, onChange, disabled }: DatePickerProp
 	const buttonRef = useRef<HTMLButtonElement>(null);
 	const calendarRef = useRef<HTMLDivElement>(null);
 
+	// Provide default date for non-optional mode
+	const displayValue = value || new Date();
+
 	useEffect(() => {
 		if (open && buttonRef.current) {
 			const rect = buttonRef.current.getBoundingClientRect();
 			const shouldAlignRight = rect.left > window.innerWidth / 2;
 
-			// Estimate calendar height (~350px is typical for DayPicker)
 			const calendarHeight = 350;
 			const spaceBelow = window.innerHeight - rect.bottom;
 			const spaceAbove = rect.top;
 
-			// Show above if there's not enough space below but there is space above
 			const shouldShowAbove =
 				spaceBelow < calendarHeight && spaceAbove > calendarHeight;
 
@@ -140,8 +147,30 @@ export default function DatePicker({ value, onChange, disabled }: DatePickerProp
           disabled:opacity-50 disabled:cursor-not-allowed
         "
 			>
-				<span>{format(value, "MMMM dd, yyyy")}</span>
-				<Calendar className="h-4 w-4 opacity-50" />
+				<span
+					className={
+						optional && !value ? "text-zinc-500" : "text-white"
+					}
+				>
+					{optional && !value
+						? "Select date..."
+						: format(displayValue, "MMMM dd, yyyy")}
+				</span>
+				<div className="flex items-center gap-1">
+					{optional && value && !disabled && (
+						<button
+							type="button"
+							onClick={(e) => {
+								e.stopPropagation();
+								onChange(null);
+							}}
+							className="hover:bg-zinc-800 rounded p-0.5 transition-colors"
+						>
+							<X className="h-3 w-3 text-zinc-400 hover:text-white" />
+						</button>
+					)}
+					<Calendar className="h-4 w-4 opacity-50" />
+				</div>
 			</button>
 
 			{open && (
@@ -157,7 +186,7 @@ export default function DatePicker({ value, onChange, disabled }: DatePickerProp
 				>
 					<DayPicker
 						mode="single"
-						selected={value}
+						selected={displayValue}
 						onSelect={(date) => {
 							if (date) {
 								onChange(date);

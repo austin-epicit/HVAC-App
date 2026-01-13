@@ -124,6 +124,61 @@ export interface JobSummary extends JobReference {
 }
 
 // ============================================================================
+// FINANCIAL / PRICING TYPES
+// ============================================================================
+
+export const LineItemTypeValues = ["labor", "material", "equipment", "other"] as const;
+export type LineItemType = (typeof LineItemTypeValues)[number];
+
+export const LineItemTypeLabels: Record<LineItemType, string> = {
+	labor: "Labor",
+	material: "Material",
+	equipment: "Equipment",
+	other: "Other",
+};
+
+export const LineItemSourceValues = ["quote", "job", "visit"] as const;
+export type LineItemSource = (typeof LineItemSourceValues)[number];
+
+export const LineItemSourceLabels: Record<LineItemSource, string> = {
+	quote: "Quote",
+	job: "Job",
+	visit: "Visit",
+};
+
+export const DiscountTypeValues = ["percent", "amount"] as const;
+export type DiscountType = (typeof DiscountTypeValues)[number];
+
+export interface PricingBreakdown {
+	subtotal?: number | null;
+	tax_rate?: number | null; // 0..1
+	tax_amount?: number | null;
+	discount_type?: DiscountType | null;
+	discount_value?: number | null;
+	discount_amount?: number | null;
+
+	// for quote - ExecutionTotals also used for jobs
+	total?: number | null;
+}
+
+export interface ExecutionTotals {
+	estimated_total?: number | null;
+	actual_total?: number | null;
+}
+
+export type HeadlineTotal = number | null | undefined;
+
+export function getHeadlineTotal(
+	entity: PricingBreakdown & Partial<ExecutionTotals>
+): HeadlineTotal {
+	if (entity.actual_total !== undefined && entity.actual_total !== null)
+		return entity.actual_total;
+	if (entity.estimated_total !== undefined && entity.estimated_total !== null)
+		return entity.estimated_total;
+	return entity.total ?? null;
+}
+
+// ============================================================================
 // (REQUEST/QUOTE/JOB) CHECKERS
 // ============================================================================
 

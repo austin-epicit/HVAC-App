@@ -86,7 +86,7 @@ export default function QuotesPage() {
 				return {
 					id: q.id,
 					client: q.client?.name || "Unknown Client",
-					quoteNumber: q.quote_number,
+					quoteNumber: `${q.quote_number}\n${q.title}`,
 					property: q.address || "No address",
 					created: formatDate(q.created_at),
 					status: QuoteStatusLabels[q.status] || q.status,
@@ -94,6 +94,7 @@ export default function QuotesPage() {
 					_rawStatus: q.status,
 					_rawTotal: Number(q.total),
 					_createdDate: new Date(q.created_at),
+					_rawQuoteNumber: q.quote_number, // For sorting if needed
 				};
 			})
 			.sort((a, b) => {
@@ -104,7 +105,15 @@ export default function QuotesPage() {
 
 				return b._createdDate.getTime() - a._createdDate.getTime();
 			})
-			.map(({ _rawStatus, _rawTotal, _createdDate, ...rest }) => rest);
+			.map(
+				({
+					_rawStatus,
+					_rawTotal,
+					_createdDate,
+					_rawQuoteNumber,
+					...rest
+				}) => rest
+			);
 	}, [quotes, searchInput, searchFilter, clientFilter, requestFilter]);
 
 	const handleSearchSubmit = (e: React.FormEvent) => {
@@ -289,6 +298,11 @@ export default function QuotesPage() {
 			)}
 
 			<div className="shadow-sm border border-zinc-800 p-3 bg-zinc-900 rounded-lg overflow-hidden text-left">
+				<style>{`
+					table td {
+						white-space: pre-line;
+					}
+				`}</style>
 				<AdaptableTable
 					data={display}
 					loadListener={isFetchLoading}

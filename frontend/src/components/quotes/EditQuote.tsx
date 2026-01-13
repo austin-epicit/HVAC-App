@@ -3,14 +3,16 @@ import type { ZodError } from "zod";
 import FullPopup from "../ui/FullPopup";
 import {
 	QuotePriorityValues,
-	LineItemTypeValues,
+	UpdateQuoteSchema,
 	type Quote,
 	type UpdateQuoteInput,
+	type UpdateQuoteLineItemInput,
 } from "../../types/quotes";
+import { LineItemTypeValues, type LineItemType } from "../../types/common";
 import type { GeocodeResult } from "../../types/location";
 import Dropdown from "../ui/Dropdown";
 import AddressForm from "../ui/AddressForm";
-import { z } from "zod";
+import DatePicker from "../ui/DatePicker";
 import { Plus, Trash2 } from "lucide-react";
 import {
 	useUpdateQuoteMutation,
@@ -27,22 +29,15 @@ interface EditQuoteProps {
 	quote: Quote;
 }
 
-// Validation schema
-const UpdateQuoteSchema = z.object({
-	title: z.string().min(1, "Title is required").optional(),
-	description: z.string().min(1, "Description is required").optional(),
-	address: z.string().min(1, "Address is required").optional(),
-	priority: z.enum(["Low", "Medium", "High"]).optional(),
-});
-
+// Local UI-only interface for form state
 interface LineItem {
-	id?: string; // Optional for new items
-	quote_line_item_id?: string; // Existing line item ID
+	id: string; // For React key
+	quote_line_item_id?: string;
 	name: string;
 	description: string;
 	quantity: number;
 	unit_price: number;
-	item_type: "labor" | "material" | "equipment" | "";
+	item_type: LineItemType | "";
 	total: number;
 	isNew?: boolean; // Flag for newly added items
 	isDeleted?: boolean; // Flag for items to delete
@@ -59,38 +54,31 @@ const EditQuote = ({ isModalOpen, setIsModalOpen, quote }: EditQuoteProps) => {
 	const titleRef = useRef<HTMLInputElement>(null);
 	const descRef = useRef<HTMLTextAreaElement>(null);
 	const priorityRef = useRef<HTMLSelectElement>(null);
-	const validUntilRef = useRef<HTMLInputElement>(null);
-	const expiresAtRef = useRef<HTMLInputElement>(null);
 	const [geoData, setGeoData] = useState<GeocodeResult>();
 	const [isLoading, setIsLoading] = useState(false);
 	const [errors, setErrors] = useState<ZodError | null>(null);
 	const [deleteConfirm, setDeleteConfirm] = useState(false);
 
-	// Financial state
+	const [validUntilDate, setValidUntilDate] = useState<Date | null>(null);
+	const [expiresAtDate, setExpiresAtDate] = useState<Date | null>(null);
+
 	const [taxRate, setTaxRate] = useState<number>(0);
 	const [discountType, setDiscountType] = useState<"percent" | "amount">("amount");
 	const [discountValue, setDiscountValue] = useState<number>(0);
-
-	// Line items state
 	const [lineItems, setLineItems] = useState<LineItem[]>([]);
 
 	// Initialize form data when modal opens
 	useEffect(() => {
 		if (isModalOpen && quote) {
-			// Initialize line items from quote
 			const initialLineItems: LineItem[] =
 				quote.line_items?.map((item) => ({
-					id: crypto.randomUUID(),
-					quote_line_item_id: item.id,
+					id: crypto.randomUUID(), // Client-side ID for React
+					quote_line_item_id: item.id, // Server ID for updates
 					name: item.name,
 					description: item.description || "",
 					quantity: Number(item.quantity),
 					unit_price: Number(item.unit_price),
-					item_type:
-						(item.item_type as
-							| "labor"
-							| "material"
-							| "equipment") || "",
+					item_type: (item.item_type as LineItemType) || "",
 					total: Number(item.total),
 					isNew: false,
 					isDeleted: false,
@@ -98,12 +86,13 @@ const EditQuote = ({ isModalOpen, setIsModalOpen, quote }: EditQuoteProps) => {
 
 			setLineItems(initialLineItems);
 
-			// Initialize financial values
 			setTaxRate(Number(quote.tax_rate) * 100); // Convert decimal to percentage
 
-			// Determine discount type and value
-			if (quote.discount_amount && quote.discount_amount > 0) {
-				// Try to infer if it was a percentage
+			if (quote.discount_type && quote.discount_value) {
+				setDiscountType(quote.discount_type);
+				setDiscountValue(Number(quote.discount_value));
+			} else if (quote.discount_amount && quote.discount_amount > 0) {
+				// Fallback: try to infer if it was a percentage
 				const subtotal = quote.subtotal ? Number(quote.subtotal) : 0;
 				const discountAmount = Number(quote.discount_amount);
 				const possiblePercent = (discountAmount / subtotal) * 100;
@@ -121,12 +110,14 @@ const EditQuote = ({ isModalOpen, setIsModalOpen, quote }: EditQuoteProps) => {
 				setDiscountValue(0);
 			}
 
-			// Initialize address
+			setValidUntilDate(quote.valid_until ? new Date(quote.valid_until) : null);
+			setExpiresAtDate(quote.expires_at ? new Date(quote.expires_at) : null);
+
 			if (quote.address) {
 				setGeoData({
 					address: quote.address,
 					coords: quote.coords || undefined,
-				});
+				} as GeocodeResult);
 			}
 
 			setDeleteConfirm(false);
@@ -140,7 +131,6 @@ const EditQuote = ({ isModalOpen, setIsModalOpen, quote }: EditQuoteProps) => {
 		}));
 	};
 
-	// Line item handlers
 	const addNewLineItem = () => {
 		setLineItems([
 			...lineItems,
@@ -215,8 +205,6 @@ const EditQuote = ({ isModalOpen, setIsModalOpen, quote }: EditQuoteProps) => {
 			const titleValue = titleRef.current.value.trim();
 			const descValue = descRef.current.value.trim();
 			const priorityValue = priorityRef.current.value.trim();
-			const validUntilValue = validUntilRef.current?.value || undefined;
-			const expiresAtValue = expiresAtRef.current?.value || undefined;
 
 			const updates: UpdateQuoteInput = {
 				title: titleValue !== quote.title ? titleValue : undefined,
@@ -230,14 +218,21 @@ const EditQuote = ({ isModalOpen, setIsModalOpen, quote }: EditQuoteProps) => {
 					geoData?.coords !== quote.coords
 						? geoData?.coords
 						: undefined,
-				priority: priorityValue as "Low" | "Medium" | "High",
+				priority: priorityValue as
+					| "Low"
+					| "Medium"
+					| "High"
+					| "Urgent"
+					| "Emergency",
 				subtotal,
 				tax_rate: taxRate / 100,
 				tax_amount: taxAmount,
+				discount_type: discountType,
+				discount_value: discountValue,
 				discount_amount: discountAmount,
 				total,
-				valid_until: validUntilValue || null,
-				expires_at: expiresAtValue || null,
+				valid_until: validUntilDate ? validUntilDate.toISOString() : null,
+				expires_at: expiresAtDate ? expiresAtDate.toISOString() : null,
 			};
 
 			const parseResult = UpdateQuoteSchema.safeParse(updates);
@@ -251,7 +246,6 @@ const EditQuote = ({ isModalOpen, setIsModalOpen, quote }: EditQuoteProps) => {
 			setIsLoading(true);
 
 			try {
-				// Update quote
 				await updateQuote.mutateAsync({
 					id: quote.id,
 					data: updates,
@@ -260,13 +254,12 @@ const EditQuote = ({ isModalOpen, setIsModalOpen, quote }: EditQuoteProps) => {
 				// Handle line items
 				for (const item of lineItems) {
 					if (item.isDeleted && item.quote_line_item_id) {
-						// Delete existing line item
 						await deleteLineItem.mutateAsync({
 							quoteId: quote.id,
 							lineItemId: item.quote_line_item_id,
 						});
 					} else if (item.isNew) {
-						// Add new line item
+						// Add new line item - convert to API format
 						await addLineItem.mutateAsync({
 							quoteId: quote.id,
 							data: {
@@ -277,26 +270,28 @@ const EditQuote = ({ isModalOpen, setIsModalOpen, quote }: EditQuoteProps) => {
 								quantity: Number(item.quantity),
 								unit_price: Number(item.unit_price),
 								total: item.total,
-								item_type:
-									item.item_type || undefined,
+								item_type: (item.item_type ||
+									undefined) as
+									| LineItemType
+									| undefined,
 							},
 						});
 					} else if (item.quote_line_item_id) {
 						// Update existing line item
+						const updateData: UpdateQuoteLineItemInput = {
+							name: item.name,
+							description: item.description || undefined,
+							quantity: Number(item.quantity),
+							unit_price: Number(item.unit_price),
+							total: item.total,
+							item_type: (item.item_type ||
+								undefined) as LineItemType | null,
+						};
+
 						await updateLineItem.mutateAsync({
 							quoteId: quote.id,
 							lineItemId: item.quote_line_item_id,
-							data: {
-								name: item.name,
-								description:
-									item.description ||
-									undefined,
-								quantity: Number(item.quantity),
-								unit_price: Number(item.unit_price),
-								total: item.total,
-								item_type:
-									item.item_type || undefined,
-							},
+							data: updateData,
 						});
 					}
 				}
@@ -481,7 +476,7 @@ const EditQuote = ({ isModalOpen, setIsModalOpen, quote }: EditQuoteProps) => {
 										type="button"
 										onClick={() =>
 											removeLineItem(
-												item.id!
+												item.id
 											)
 										}
 										disabled={
@@ -507,7 +502,7 @@ const EditQuote = ({ isModalOpen, setIsModalOpen, quote }: EditQuoteProps) => {
 												e
 											) =>
 												updateLineItemField(
-													item.id!,
+													item.id,
 													"name",
 													e
 														.target
@@ -530,7 +525,7 @@ const EditQuote = ({ isModalOpen, setIsModalOpen, quote }: EditQuoteProps) => {
 												e
 											) =>
 												updateLineItemField(
-													item.id!,
+													item.id,
 													"item_type",
 													e
 														.target
@@ -583,7 +578,7 @@ const EditQuote = ({ isModalOpen, setIsModalOpen, quote }: EditQuoteProps) => {
 												e
 											) =>
 												updateLineItemField(
-													item.id!,
+													item.id,
 													"description",
 													e
 														.target
@@ -612,7 +607,7 @@ const EditQuote = ({ isModalOpen, setIsModalOpen, quote }: EditQuoteProps) => {
 												e
 											) =>
 												updateLineItemField(
-													item.id!,
+													item.id,
 													"quantity",
 													parseFloat(
 														e
@@ -648,7 +643,7 @@ const EditQuote = ({ isModalOpen, setIsModalOpen, quote }: EditQuoteProps) => {
 													e
 												) =>
 													updateLineItemField(
-														item.id!,
+														item.id,
 														"unit_price",
 														parseFloat(
 															e
@@ -820,27 +815,14 @@ const EditQuote = ({ isModalOpen, setIsModalOpen, quote }: EditQuoteProps) => {
 					</div>
 				</div>
 
-				<div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
+				<div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
 					<div>
 						<p className="mb-1 text-sm hover:color-accent">
 							Valid Until (Optional)
 						</p>
-						<input
-							type="date"
-							defaultValue={
-								quote.valid_until
-									? new Date(
-											quote.valid_until
-										)
-											.toISOString()
-											.split(
-												"T"
-											)[0]
-									: ""
-							}
-							className="border border-zinc-800 p-2 w-full rounded-sm bg-zinc-900 text-white text-sm"
-							disabled={isLoading}
-							ref={validUntilRef}
+						<DatePicker
+							value={validUntilDate}
+							onChange={setValidUntilDate}
 						/>
 					</div>
 
@@ -848,20 +830,9 @@ const EditQuote = ({ isModalOpen, setIsModalOpen, quote }: EditQuoteProps) => {
 						<p className="mb-1 text-sm hover:color-accent">
 							Expires At (Optional)
 						</p>
-						<input
-							type="date"
-							defaultValue={
-								quote.expires_at
-									? new Date(quote.expires_at)
-											.toISOString()
-											.split(
-												"T"
-											)[0]
-									: ""
-							}
-							className="border border-zinc-800 p-2 w-full rounded-sm bg-zinc-900 text-white text-sm"
-							disabled={isLoading}
-							ref={expiresAtRef}
+						<DatePicker
+							value={expiresAtDate}
+							onChange={setExpiresAtDate}
 						/>
 					</div>
 				</div>

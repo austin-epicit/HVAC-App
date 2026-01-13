@@ -20,6 +20,8 @@ export const createQuoteSchema = z
 		subtotal: z.number().min(0).optional().default(0),
 		tax_rate: z.number().min(0).max(1).optional().default(0),
 		tax_amount: z.number().min(0).optional().default(0),
+		discount_type: z.enum(["percent", "amount"]).optional().nullable(),
+		discount_value: z.number().min(0).optional().nullable(),
 		discount_amount: z.number().min(0).optional().default(0),
 		total: z.number().min(0).optional().default(0),
 		valid_until: z
@@ -47,6 +49,24 @@ export const createQuoteSchema = z
 			])
 			.optional()
 			.default("Draft"),
+		line_items: z
+			.array(
+				z.object({
+					name: z.string().min(1, "Item name is required"),
+					description: z.string().optional().nullable(),
+					quantity: z.number().positive("Quantity must be positive"),
+					unit_price: z
+						.number()
+						.min(0, "Unit price must be non-negative"),
+					total: z.number().min(0, "Total must be non-negative"),
+					item_type: z
+						.enum(["labor", "material", "equipment", "other"])
+						.optional()
+						.nullable(),
+					sort_order: z.number().int().optional().default(0),
+				})
+			)
+			.optional(),
 	})
 	.transform((data) => ({
 		...data,
@@ -55,7 +75,10 @@ export const createQuoteSchema = z
 		address: data.address || undefined,
 		coords: data.coords || undefined,
 		valid_until: data.valid_until || undefined,
+		discount_type: data.discount_type || undefined,
+		discount_value: data.discount_value || undefined,
 		expires_at: data.expires_at || undefined,
+		line_items: data.line_items || undefined,
 	}));
 
 export const updateQuoteSchema = z
@@ -75,6 +98,8 @@ export const updateQuoteSchema = z
 		subtotal: z.number().min(0).optional(),
 		tax_rate: z.number().min(0).max(1).optional(),
 		tax_amount: z.number().min(0).optional(),
+		discount_type: z.enum(["percent", "amount"]).optional().nullable(),
+		discount_value: z.number().min(0).optional().nullable(),
 		discount_amount: z.number().min(0).optional(),
 		total: z.number().min(0).optional(),
 		valid_until: z
@@ -102,6 +127,25 @@ export const updateQuoteSchema = z
 			])
 			.optional(),
 		rejection_reason: z.string().optional().nullable(),
+		line_items: z
+			.array(
+				z.object({
+					id: z.string().uuid().optional(), // undefined = create new
+					name: z.string().min(1, "Item name is required"),
+					description: z.string().optional().nullable(),
+					quantity: z.number().positive("Quantity must be positive"),
+					unit_price: z
+						.number()
+						.min(0, "Unit price must be non-negative"),
+					total: z.number().min(0, "Total must be non-negative"),
+					item_type: z
+						.enum(["labor", "material", "equipment", "other"])
+						.optional()
+						.nullable(),
+					sort_order: z.number().int().optional(),
+				})
+			)
+			.optional(),
 	})
 	.transform((data) => ({
 		...data,
@@ -109,9 +153,12 @@ export const updateQuoteSchema = z
 		description: data.description || undefined,
 		address: data.address || undefined,
 		coords: data.coords || undefined,
+		discount_type: data.discount_type || undefined,
+		discount_value: data.discount_value || undefined,
 		valid_until: data.valid_until || undefined,
 		expires_at: data.expires_at || undefined,
 		rejection_reason: data.rejection_reason || undefined,
+		line_items: data.line_items || undefined,
 	}));
 
 export const createQuoteItemSchema = z

@@ -24,14 +24,15 @@ export default function ConvertToJob({
 	const nameRef = useRef<HTMLInputElement>(null);
 	const descRef = useRef<HTMLTextAreaElement>(null);
 	const priorityRef = useRef<HTMLSelectElement>(null);
-	const [geoData, setGeoData] = useState<GeocodeResult | undefined>(
-		quote.address || quote.coords
-			? {
-					address: quote.address || "",
-					coords: quote.coords || undefined,
-				}
-			: undefined
-	);
+	const [geoData, setGeoData] = useState<GeocodeResult | undefined>(() => {
+		if (quote.address && quote.coords) {
+			return {
+				address: quote.address,
+				coords: quote.coords,
+			};
+		}
+		return undefined;
+	});
 	const [isLoading, setIsLoading] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -94,12 +95,32 @@ export default function ConvertToJob({
 					name: nameValue,
 					client_id: quote.client_id,
 					quote_id: quote.id,
-					request_id: quote.request_id || null,
+					request_id: quote.request_id || undefined,
 					address: geoData.address,
 					coords: geoData.coords || { lat: 0, lon: 0 },
 					description: descValue,
 					priority: priorityValue,
 					status: "Unscheduled",
+
+					subtotal: quote.subtotal
+						? Number(quote.subtotal)
+						: undefined,
+					tax_rate: quote.tax_rate
+						? Number(quote.tax_rate)
+						: undefined,
+					tax_amount: quote.tax_amount
+						? Number(quote.tax_amount)
+						: undefined,
+					discount_type: quote.discount_type || undefined,
+					discount_value: quote.discount_value
+						? Number(quote.discount_value)
+						: undefined,
+					discount_amount: quote.discount_amount
+						? Number(quote.discount_amount)
+						: undefined,
+					estimated_total: quote.total
+						? Number(quote.total)
+						: undefined,
 				};
 
 				await onConvert(jobData);

@@ -14,6 +14,8 @@ import {
 	Phone,
 	FileText,
 	Briefcase,
+	DollarSign,
+	Package,
 } from "lucide-react";
 import {
 	useJobByIdQuery,
@@ -66,6 +68,15 @@ export default function JobDetailPage() {
 		);
 	}
 
+	const formatCurrency = (amount: number) => {
+		return new Intl.NumberFormat("en-US", {
+			style: "currency",
+			currency: "USD",
+			minimumFractionDigits: 2,
+			maximumFractionDigits: 2,
+		}).format(amount);
+	};
+
 	const formatDateTime = (date: Date | string) => {
 		const d = typeof date === "string" ? new Date(date) : date;
 		return (
@@ -90,23 +101,6 @@ export default function JobDetailPage() {
 		});
 	};
 
-	const formatDateTimeRange = (visit: any) => {
-		const start = new Date(visit.scheduled_start_at);
-		const end = new Date(visit.scheduled_end_at);
-
-		if (visit.schedule_type === "all_day") {
-			return "All Day";
-		} else if (
-			visit.schedule_type === "window" &&
-			visit.arrival_window_start &&
-			visit.arrival_window_end
-		) {
-			return `${formatTime(visit.arrival_window_start)} - ${formatTime(visit.arrival_window_end)} (window)`;
-		} else {
-			return `${formatTime(start)} - ${formatTime(end)}`;
-		}
-	};
-
 	const primaryContact = job.client?.contacts?.find((cc: any) => cc.is_primary)?.contact;
 
 	const sortedVisits = [...visits].sort(
@@ -114,6 +108,10 @@ export default function JobDetailPage() {
 			new Date(a.scheduled_start_at).getTime() -
 			new Date(b.scheduled_start_at).getTime()
 	);
+
+	// Line items from job (backend supported)
+	const lineItems = (job as any).line_items || [];
+	const hasLineItems = lineItems.length > 0;
 
 	return (
 		<div className="text-white space-y-6">
@@ -337,6 +335,359 @@ export default function JobDetailPage() {
 					</Card>
 				</div>
 			</div>
+
+			{/* Financial Summary Card - Full Width */}
+			<Card title="Financial Summary">
+				{!job.estimated_total && !job.actual_total && !hasLineItems ? (
+					<div className="text-center py-8">
+						<DollarSign
+							size={40}
+							className="mx-auto text-zinc-600 mb-3"
+						/>
+						<h3 className="text-zinc-400 text-sm font-medium mb-1">
+							No Financial Data
+						</h3>
+						<p className="text-zinc-500 text-xs">
+							Edit this job to add estimated costs and
+							line items.
+						</p>
+					</div>
+				) : (
+					<div className="space-y-6">
+						{/* Line Items Table */}
+						{hasLineItems && (
+							<div>
+								<h3 className="text-zinc-300 text-sm font-semibold mb-4 uppercase tracking-wide">
+									Line Items
+								</h3>
+
+								{/* Table Header */}
+								<div className="grid grid-cols-12 gap-4 px-4 py-3 bg-zinc-800 rounded-t-lg border-b-2 border-zinc-700 text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+									<div className="col-span-5">
+										Description
+									</div>
+									<div className="col-span-1 text-center">
+										Type
+									</div>
+									<div className="col-span-2 text-right">
+										Quantity
+									</div>
+									<div className="col-span-2 text-right">
+										Unit Price
+									</div>
+									<div className="col-span-2 text-right">
+										Amount
+									</div>
+								</div>
+
+								{/* Table Body */}
+								<div className="bg-zinc-800/50 rounded-b-lg border border-zinc-700 border-t-0">
+									{lineItems.map(
+										(
+											item: any,
+											index: number
+										) => (
+											<div
+												key={
+													index
+												}
+												className={`grid grid-cols-12 gap-4 px-4 py-4 ${
+													index !==
+													lineItems.length -
+														1
+														? "border-b border-zinc-700/50"
+														: ""
+												} hover:bg-zinc-800/70 transition-colors`}
+											>
+												{/* Description Column */}
+												<div className="col-span-5">
+													<p className="text-white font-medium text-sm mb-1">
+														{
+															item.name
+														}
+													</p>
+													{item.description && (
+														<p className="text-zinc-400 text-xs leading-relaxed">
+															{
+																item.description
+															}
+														</p>
+													)}
+												</div>
+
+												{/* Type Column */}
+												<div className="col-span-1 flex items-start justify-center pt-1">
+													{item.item_type && (
+														<span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-zinc-700 text-zinc-300 border border-zinc-600 capitalize">
+															{
+																item.item_type
+															}
+														</span>
+													)}
+												</div>
+
+												{/* Quantity Column */}
+												<div className="col-span-2 text-right">
+													<p className="text-white text-sm font-medium pt-1">
+														{Number(
+															item.quantity
+														).toLocaleString(
+															"en-US",
+															{
+																minimumFractionDigits: 0,
+																maximumFractionDigits: 2,
+															}
+														)}
+													</p>
+												</div>
+
+												{/* Unit Price Column */}
+												<div className="col-span-2 text-right">
+													<p className="text-white text-sm font-medium pt-1">
+														{formatCurrency(
+															Number(
+																item.unit_price
+															)
+														)}
+													</p>
+												</div>
+
+												{/* Amount Column */}
+												<div className="col-span-2 text-right">
+													<p className="text-white text-sm font-semibold pt-1">
+														{formatCurrency(
+															Number(
+																item.total
+															)
+														)}
+													</p>
+												</div>
+											</div>
+										)
+									)}
+								</div>
+							</div>
+						)}
+
+						{/* Financial Summary Section */}
+						<div
+							className={`${hasLineItems ? "pt-6 border-t-2 border-zinc-700" : ""}`}
+						>
+							<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+								{/* Left Column - Additional Info (if needed) */}
+								<div className="space-y-3">
+									{hasLineItems && (
+										<div className="text-xs text-zinc-400">
+											<p className="mb-1">
+												<span className="font-semibold text-zinc-300">
+													Total
+													Items:
+												</span>{" "}
+												{
+													lineItems.length
+												}
+											</p>
+											<p>
+												<span className="font-semibold text-zinc-300">
+													Job
+													Number:
+												</span>{" "}
+												{
+													job.job_number
+												}
+											</p>
+										</div>
+									)}
+								</div>
+
+								{/* Right Column - Totals */}
+								<div className="space-y-3">
+									{/* Estimated Total */}
+									{job.estimated_total && (
+										<div className="flex items-center justify-between px-4 py-3 bg-zinc-800 rounded-lg border border-zinc-700">
+											<div>
+												<p className="text-zinc-400 text-xs uppercase tracking-wide font-semibold mb-0.5">
+													Estimated
+													Total
+												</p>
+												<p className="text-xs text-zinc-500">
+													Initial
+													project
+													estimate
+												</p>
+											</div>
+											<p className="text-2xl font-bold text-blue-400 tabular-nums">
+												{formatCurrency(
+													Number(
+														job.estimated_total
+													)
+												)}
+											</p>
+										</div>
+									)}
+
+									{/* Actual Total */}
+									{job.actual_total && (
+										<>
+											<div className="flex items-center justify-between px-4 py-3 bg-zinc-800 rounded-lg border border-zinc-700">
+												<div>
+													<p className="text-zinc-400 text-xs uppercase tracking-wide font-semibold mb-0.5">
+														Actual
+														Total
+													</p>
+													<p className="text-xs text-zinc-500">
+														Final
+														project
+														cost
+													</p>
+												</div>
+												<p className="text-2xl font-bold text-green-400 tabular-nums">
+													{formatCurrency(
+														Number(
+															job.actual_total
+														)
+													)}
+												</p>
+											</div>
+
+											{/* Variance */}
+											{job.estimated_total && (
+												<div
+													className={`px-4 py-3 rounded-lg border-2 ${
+														Number(
+															job.actual_total
+														) >
+														Number(
+															job.estimated_total
+														)
+															? "bg-red-500/10 border-red-500/30"
+															: "bg-green-500/10 border-green-500/30"
+													}`}
+												>
+													<div className="flex items-center justify-between">
+														<div>
+															<p className="text-zinc-300 text-xs uppercase tracking-wide font-semibold mb-0.5">
+																Budget
+																Variance
+															</p>
+															<p
+																className={`text-xs ${
+																	Number(
+																		job.actual_total
+																	) >
+																	Number(
+																		job.estimated_total
+																	)
+																		? "text-red-300"
+																		: "text-green-300"
+																}`}
+															>
+																{Number(
+																	job.actual_total
+																) >
+																Number(
+																	job.estimated_total
+																)
+																	? "Over Budget"
+																	: "Under Budget"}
+															</p>
+														</div>
+														<div className="text-right">
+															<p
+																className={`text-xl font-bold tabular-nums ${
+																	Number(
+																		job.actual_total
+																	) >
+																	Number(
+																		job.estimated_total
+																	)
+																		? "text-red-400"
+																		: "text-green-400"
+																}`}
+															>
+																{Number(
+																	job.actual_total
+																) >
+																Number(
+																	job.estimated_total
+																)
+																	? "+"
+																	: ""}
+																{formatCurrency(
+																	Number(
+																		job.actual_total
+																	) -
+																		Number(
+																			job.estimated_total
+																		)
+																)}
+															</p>
+															<p
+																className={`text-sm font-semibold tabular-nums ${
+																	Number(
+																		job.actual_total
+																	) >
+																	Number(
+																		job.estimated_total
+																	)
+																		? "text-red-300"
+																		: "text-green-300"
+																}`}
+															>
+																{(
+																	((Number(
+																		job.actual_total
+																	) -
+																		Number(
+																			job.estimated_total
+																		)) /
+																		Number(
+																			job.estimated_total
+																		)) *
+																	100
+																).toFixed(
+																	1
+																)}
+
+																%
+															</p>
+														</div>
+													</div>
+												</div>
+											)}
+										</>
+									)}
+
+									{/* Status Message */}
+									{!job.actual_total &&
+										job.estimated_total &&
+										job.status !==
+											"Completed" && (
+											<div className="px-4 py-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+												<p className="text-xs text-blue-300 italic">
+													<span className="font-semibold">
+														Note:
+													</span>{" "}
+													Actual
+													total
+													will
+													be
+													recorded
+													when
+													job
+													is
+													marked
+													as
+													completed
+												</p>
+											</div>
+										)}
+								</div>
+							</div>
+						</div>
+					</div>
+				)}
+			</Card>
 
 			{/* Related Request and Quote - Half Width Layout */}
 			<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

@@ -23,6 +23,11 @@ enum schedule_type {
   window
 }
 
+enum discount_type {
+  percent
+  amount
+}
+
 enum visit_status {
   Scheduled
   Driving
@@ -256,11 +261,13 @@ model quote {
   previous_quote    quote?  @relation("QuoteRevisions", fields: [previous_quote_id], references: [id])
   revised_quote     quote?  @relation("QuoteRevisions")
 
-  subtotal        Decimal @db.Decimal(10, 2)
-  tax_rate        Decimal @default(0) @db.Decimal(5, 4)
-  tax_amount      Decimal @default(0) @db.Decimal(10, 2)
-  discount_amount Decimal @default(0) @db.Decimal(10, 2)
-  total           Decimal @db.Decimal(10, 2)
+  subtotal            Decimal @db.Decimal(10, 2)
+  tax_rate            Decimal @default(0) @db.Decimal(5, 4)
+  tax_amount          Decimal @default(0) @db.Decimal(10, 2)
+  discount_type        discount_type?
+  discount_value       Decimal?  @db.Decimal(10, 2)  // User input value
+  discount_amount      Decimal?  @db.Decimal(10, 2)  // Calculated discount $
+  total               Decimal @db.Decimal(10, 2)
 
   created_at  DateTime  @default(now())
   updated_at  DateTime  @updatedAt
@@ -341,7 +348,6 @@ model job {
   coords      Json
 
   status job_status @default(Unscheduled)
-
   created_at          DateTime  @default(now())
   updated_at          DateTime  @updatedAt
   completed_at        DateTime?
@@ -350,13 +356,17 @@ model job {
 
   client_id String
   client    client @relation(fields: [client_id], references: [id])
-
   request_id String?  
   request    request? @relation(fields: [request_id], references: [id])
-
   quote_id String? @unique // One job per quote
   quote    quote?  @relation(fields: [quote_id], references: [id])
 
+  subtotal        Decimal  @default(0) @db.Decimal(10, 2)
+  tax_rate        Decimal  @default(0) @db.Decimal(5, 4)
+  tax_amount      Decimal  @default(0) @db.Decimal(10, 2)
+  discount_type   discount_type?
+  discount_value  Decimal? @db.Decimal(10, 2)
+  discount_amount Decimal? @db.Decimal(10, 2)
   estimated_total Decimal? @db.Decimal(10, 2)
   actual_total    Decimal? @db.Decimal(10, 2)
 

@@ -3,7 +3,12 @@ import Button from "../ui/Button";
 import { useState, useEffect } from "react";
 import type { ZodError } from "zod";
 import FullPopup from "../ui/FullPopup";
-import { CreateJobVisitSchema, type CreateJobVisitInput, type ScheduleType, type JobVisit } from "../../types/jobs";
+import {
+	CreateJobVisitSchema,
+	type CreateJobVisitInput,
+	type ScheduleType,
+	type JobVisit,
+} from "../../types/jobs";
 import { useAllTechniciansQuery } from "../../hooks/useTechnicians";
 import DatePicker from "../ui/DatePicker";
 import TimePicker from "../ui/TimePicker";
@@ -18,13 +23,13 @@ interface CreateJobVisitProps {
 	onSuccess?: (visit: JobVisit) => void;
 }
 
-const CreateJobVisit = ({ 
-	isModalOpen, 
-	setIsModalOpen, 
+const CreateJobVisit = ({
+	isModalOpen,
+	setIsModalOpen,
 	jobId,
 	createVisit,
 	preselectedTechId,
-	onSuccess
+	onSuccess,
 }: CreateJobVisitProps) => {
 	const [isLoading, setIsLoading] = useState(false);
 	const [errors, setErrors] = useState<ZodError | null>(null);
@@ -41,9 +46,7 @@ const CreateJobVisit = ({
 	const [windowEnd, setWindowEnd] = useState<Date | null>(null);
 	const [selectedTechIds, setSelectedTechIds] = useState<string[]>([]);
 
-	const {
-		data: technicians,
-	} = useAllTechniciansQuery();
+	const { data: technicians } = useAllTechniciansQuery();
 
 	useEffect(() => {
 		if (isModalOpen && preselectedTechId) {
@@ -69,9 +72,9 @@ const CreateJobVisit = ({
 	}, [isModalOpen]);
 
 	const handleTechSelection = (techId: string) => {
-		setSelectedTechIds(prev => 
-			prev.includes(techId) 
-				? prev.filter(id => id !== techId)
+		setSelectedTechIds((prev) =>
+			prev.includes(techId)
+				? prev.filter((id) => id !== techId)
 				: [...prev, techId]
 		);
 	};
@@ -88,11 +91,28 @@ const CreateJobVisit = ({
 				combinedStartDate.setHours(6, 0, 0, 0);
 				combinedEndDate.setHours(18, 0, 0, 0);
 			} else if (scheduleType === "exact" && startTime && endTime) {
-				combinedStartDate.setHours(startTime.getHours(), startTime.getMinutes(), 0, 0);
-				combinedEndDate.setHours(endTime.getHours(), endTime.getMinutes(), 0, 0);
+				combinedStartDate.setHours(
+					startTime.getHours(),
+					startTime.getMinutes(),
+					0,
+					0
+				);
+				combinedEndDate.setHours(
+					endTime.getHours(),
+					endTime.getMinutes(),
+					0,
+					0
+				);
 			} else if (scheduleType === "window" && windowStart && windowEnd) {
-				combinedStartDate.setHours(windowStart.getHours(), windowStart.getMinutes(), 0, 0);
-				combinedEndDate = new Date(combinedStartDate.getTime() + duration * 60000);
+				combinedStartDate.setHours(
+					windowStart.getHours(),
+					windowStart.getMinutes(),
+					0,
+					0
+				);
+				combinedEndDate = new Date(
+					combinedStartDate.getTime() + duration * 60000
+				);
 			}
 
 			const newVisit: CreateJobVisitInput = {
@@ -100,20 +120,36 @@ const CreateJobVisit = ({
 				schedule_type: scheduleType,
 				scheduled_start_at: combinedStartDate.toISOString(),
 				scheduled_end_at: combinedEndDate.toISOString(),
-				arrival_window_start: scheduleType === "window" && windowStart 
-					? (() => {
-						const windowStartDate = new Date(startDate);
-						windowStartDate.setHours(windowStart.getHours(), windowStart.getMinutes(), 0, 0);
-						return windowStartDate.toISOString();
-					})()
-					: null,
-				arrival_window_end: scheduleType === "window" && windowEnd 
-					? (() => {
-						const windowEndDate = new Date(startDate);
-						windowEndDate.setHours(windowEnd.getHours(), windowEnd.getMinutes(), 0, 0);
-						return windowEndDate.toISOString();
-					})()
-					: null,
+				arrival_window_start:
+					scheduleType === "window" && windowStart
+						? (() => {
+								const windowStartDate = new Date(
+									startDate
+								);
+								windowStartDate.setHours(
+									windowStart.getHours(),
+									windowStart.getMinutes(),
+									0,
+									0
+								);
+								return windowStartDate.toISOString();
+							})()
+						: null,
+				arrival_window_end:
+					scheduleType === "window" && windowEnd
+						? (() => {
+								const windowEndDate = new Date(
+									startDate
+								);
+								windowEndDate.setHours(
+									windowEnd.getHours(),
+									windowEnd.getMinutes(),
+									0,
+									0
+								);
+								return windowEndDate.toISOString();
+							})()
+						: null,
 				status: "Scheduled",
 				tech_ids: selectedTechIds,
 			};
@@ -150,17 +186,21 @@ const CreateJobVisit = ({
 
 	if (errors) {
 		scheduleTypeErrors = errors.issues.filter((err) => err.path[0] === "schedule_type");
-		startTimeErrors = errors.issues.filter((err) => err.path[0] === "scheduled_start_at");
+		startTimeErrors = errors.issues.filter(
+			(err) => err.path[0] === "scheduled_start_at"
+		);
 		endTimeErrors = errors.issues.filter((err) => err.path[0] === "scheduled_end_at");
-		windowErrors = errors.issues.filter((err) => 
-			err.path[0] === "arrival_window_start" || err.path[0] === "arrival_window_end"
+		windowErrors = errors.issues.filter(
+			(err) =>
+				err.path[0] === "arrival_window_start" ||
+				err.path[0] === "arrival_window_end"
 		);
 	}
 
 	const content = (
 		<>
 			<h2 className="text-2xl font-bold mb-4">Create Visit</h2>
-			
+
 			{preselectedTechId && (
 				<div className="mb-4 p-3 bg-blue-900/20 border border-blue-500/30 rounded-md">
 					<p className="text-sm text-blue-300">
@@ -170,9 +210,9 @@ const CreateJobVisit = ({
 			)}
 
 			<p className="mb-1 mt-4 hover:color-accent">Visit Date</p>
-			<DatePicker 
-				value={startDate} 
-				onChange={setStartDate} 
+			<DatePicker
+				value={startDate}
+				onChange={(date) => setStartDate(date || new Date())}
 			/>
 
 			<p className="mb-1 mt-4 hover:color-accent">Schedule Type</p>
@@ -231,17 +271,14 @@ const CreateJobVisit = ({
 				<div className="mt-4 grid grid-cols-2 gap-4">
 					<div>
 						<p className="mb-1">Start Time</p>
-						<TimePicker  
-							value={startTime} 
-							onChange={setStartTime} 
+						<TimePicker
+							value={startTime}
+							onChange={setStartTime}
 						/>
 					</div>
 					<div>
 						<p className="mb-1">End Time</p>
-						<TimePicker 
-							value={endTime} 
-							onChange={setEndTime} 
-						/>
+						<TimePicker value={endTime} onChange={setEndTime} />
 					</div>
 				</div>
 			)}
@@ -251,23 +288,23 @@ const CreateJobVisit = ({
 					<div className="grid grid-cols-2 gap-4">
 						<div>
 							<p className="mb-1">Window Start</p>
-							<TimePicker 
-								value={windowStart} 
-								onChange={setWindowStart} 
+							<TimePicker
+								value={windowStart}
+								onChange={setWindowStart}
 							/>
 						</div>
 						<div>
 							<p className="mb-1">Window End</p>
-							<TimePicker 
-								value={windowEnd} 
-								onChange={setWindowEnd} 
+							<TimePicker
+								value={windowEnd}
+								onChange={setWindowEnd}
 							/>
 						</div>
 					</div>
 					<div className="grid grid-cols-2 gap-4">
 						<div>
 							<p className="mb-1">Estimated Duration</p>
-							<DurationPicker 
+							<DurationPicker
 								value={duration}
 								onChange={setDuration}
 							/>
@@ -312,34 +349,47 @@ const CreateJobVisit = ({
 							>
 								<input
 									type="checkbox"
-									checked={selectedTechIds.includes(tech.id)}
-									onChange={() => handleTechSelection(tech.id)}
+									checked={selectedTechIds.includes(
+										tech.id
+									)}
+									onChange={() =>
+										handleTechSelection(
+											tech.id
+										)
+									}
 									disabled={isLoading}
 									className="w-4 h-4 accent-blue-600"
 								/>
 								<span className="text-white text-sm">
 									{tech.name} - {tech.title}
 								</span>
-								<span className={`ml-auto text-xs px-2 py-0.5 rounded ${
-									tech.status === "Available" 
-										? "bg-green-500/20 text-green-400"
-										: tech.status === "Busy"
-										? "bg-red-500/20 text-red-400"
-										: "bg-zinc-500/20 text-zinc-400"
-								}`}>
+								<span
+									className={`ml-auto text-xs px-2 py-0.5 rounded ${
+										tech.status ===
+										"Available"
+											? "bg-green-500/20 text-green-400"
+											: tech.status ===
+												  "Busy"
+												? "bg-red-500/20 text-red-400"
+												: "bg-zinc-500/20 text-zinc-400"
+									}`}
+								>
 									{tech.status}
 								</span>
 							</label>
 						))}
 					</div>
 				) : (
-					<p className="text-zinc-400 text-sm">No technicians available</p>
+					<p className="text-zinc-400 text-sm">
+						No technicians available
+					</p>
 				)}
 			</div>
 
 			{selectedTechIds.length > 0 && (
 				<p className="text-sm text-zinc-400 mt-2">
-					{selectedTechIds.length} technician{selectedTechIds.length > 1 ? 's' : ''} selected
+					{selectedTechIds.length} technician
+					{selectedTechIds.length > 1 ? "s" : ""} selected
 				</p>
 			)}
 
