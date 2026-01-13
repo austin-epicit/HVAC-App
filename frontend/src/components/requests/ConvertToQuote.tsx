@@ -95,8 +95,12 @@ export default function ConvertToQuote({
 					tax_amount: 0,
 					discount_amount: 0,
 					total: 0,
-					valid_until: validUntilValue,
-					expires_at: expiresAtValue,
+					valid_until: validUntilValue
+						? new Date(validUntilValue).toISOString()
+						: undefined,
+					expires_at: expiresAtValue
+						? new Date(expiresAtValue).toISOString()
+						: undefined,
 					line_items: [],
 				};
 
