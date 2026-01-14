@@ -8,6 +8,7 @@ import {
 } from "../lib/validate/requests.js";
 import { Request } from "express";
 import { logActivity, buildChanges } from "../services/logger.js";
+import { Prisma } from "../../generated/prisma/client.js";
 
 export interface UserContext {
 	techId?: string;
@@ -157,21 +158,30 @@ export const insertRequest = async (req: Request, context?: UserContext) => {
 				throw new Error("Client not found");
 			}
 
-			const request = await tx.request.create({
-				data: {
-					client_id: parsed.client_id,
-					title: parsed.title,
-					description: parsed.description,
-					priority: parsed.priority,
-					address: parsed.address,
-					coords: parsed.coords,
-					requires_quote: parsed.requires_quote,
-					estimated_value: parsed.estimated_value,
-					source: parsed.source,
-					source_reference: parsed.source_reference,
+			const requestData: Prisma.requestCreateInput = {
+				client: { connect: { id: parsed.client_id } },
+				title: parsed.title,
+				description: parsed.description,
+				priority: parsed.priority,
+				address: parsed.address,
+				status: "New",
 
-					status: "New",
-				},
+				...(parsed.coords && { coords: parsed.coords }),
+				...(parsed.requires_quote !== undefined && {
+					requires_quote: parsed.requires_quote,
+				}),
+				...(parsed.source && { source: parsed.source }),
+				...(parsed.source_reference && {
+					source_reference: parsed.source_reference,
+				}),
+			};
+
+			if (parsed.estimated_value !== undefined) {
+				requestData.estimated_value = parsed.estimated_value;
+			}
+
+			const request = await tx.request.create({
+				data: requestData,
 			});
 
 			await tx.client.update({
@@ -229,7 +239,7 @@ export const insertRequest = async (req: Request, context?: UserContext) => {
 
 export const updateRequest = async (req: Request, context?: UserContext) => {
 	try {
-		const requestId = (req as any).params.id;
+		const requestId = req.params.id as string;
 		const parsed = updateRequestSchema.parse(req.body);
 
 		const existing = await db.request.findUnique({
@@ -241,42 +251,25 @@ export const updateRequest = async (req: Request, context?: UserContext) => {
 			return { err: "Request not found" };
 		}
 
-		// Check if request has been converted to job
-		if (existing.jobs) {
+		if (existing.jobs && existing.jobs.length > 0) {
 			return {
 				err: "Cannot modify request that has been converted to a job",
 			};
 		}
 
-		const changes = buildChanges(
-			existing,
-			parsed as any,
-			[
-				"title",
-				"description",
-				"priority",
-				"address",
-				"status",
-				"requires_quote",
-				"source",
-				"source_reference",
-				"cancellation_reason",
-			] as const
-		);
-
-		// Manually track Json and Decimal fields
-		if (parsed.coords !== undefined) {
-			changes.coords = { old: existing.coords, new: parsed.coords };
-		}
-		if (
-			parsed.estimated_value !== undefined &&
-			Number(existing.estimated_value) !== parsed.estimated_value
-		) {
-			changes.estimated_value = {
-				old: existing.estimated_value,
-				new: parsed.estimated_value,
-			};
-		}
+		const changes = buildChanges(existing, parsed, [
+			"title",
+			"description",
+			"priority",
+			"address",
+			"status",
+			"requires_quote",
+			"source",
+			"source_reference",
+			"cancellation_reason",
+			"estimated_value",
+			"coords",
+		] as const);
 
 		const updated = await db.$transaction(async (tx) => {
 			const request = await tx.request.update({
@@ -381,7 +374,7 @@ export const deleteRequest = async (id: string, context?: UserContext) => {
 		}
 
 		// Check if request has been converted to job
-		if (existing.jobs) {
+		if (existing.jobs && existing.jobs.length > 0) {
 			return {
 				err: "Cannot delete request that has been converted to a job",
 			};
@@ -488,13 +481,21 @@ export const insertRequestNote = async (
 		}
 
 		const created = await db.$transaction(async (tx) => {
+			const noteData: Prisma.request_noteCreateInput = {
+				request: { connect: { id: requestId } },
+				content: parsed.content,
+				...(context?.techId && {
+					creator_tech: { connect: { id: context.techId } },
+				}),
+				...(context?.dispatcherId && {
+					creator_dispatcher: {
+						connect: { id: context.dispatcherId },
+					},
+				}),
+			};
+
 			const note = await tx.request_note.create({
-				data: {
-					request_id: requestId,
-					content: parsed.content,
-					creator_tech_id: context?.techId || null,
-					creator_dispatcher_id: context?.dispatcherId || null,
-				},
+				data: noteData,
 				include: {
 					creator_tech: {
 						select: { id: true, name: true, email: true },
@@ -561,24 +562,27 @@ export const updateRequestNote = async (
 			return { err: "Note not found" };
 		}
 
-		const changes = buildChanges(
-			existing,
-			parsed as any,
-			["content"] as const
-		);
+		const changes = buildChanges(existing, parsed, ["content"] as const);
 
 		const updated = await db.$transaction(async (tx) => {
-			const updateData: any = {
-				content: parsed.content,
+			const updateData: Prisma.request_noteUpdateInput = {
 				updated_at: new Date(),
 			};
 
+			if (parsed.content !== undefined) {
+				updateData.content = parsed.content;
+			}
+
 			if (context?.techId) {
-				updateData.last_editor_tech_id = context.techId;
-				updateData.last_editor_dispatcher_id = null;
+				updateData.last_editor_tech = {
+					connect: { id: context.techId },
+				};
+				updateData.last_editor_dispatcher = { disconnect: true };
 			} else if (context?.dispatcherId) {
-				updateData.last_editor_dispatcher_id = context.dispatcherId;
-				updateData.last_editor_tech_id = null;
+				updateData.last_editor_dispatcher = {
+					connect: { id: context.dispatcherId },
+				};
+				updateData.last_editor_tech = { disconnect: true };
 			}
 
 			const note = await tx.request_note.update({

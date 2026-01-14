@@ -5,6 +5,7 @@ import {
 	updateQuoteNoteSchema,
 } from "../lib/validate/quotes.js";
 import { logActivity, buildChanges } from "../services/logger.js";
+import { Prisma } from "../../generated/prisma/client.js";
 
 export interface UserContext {
 	techId?: string;
@@ -103,11 +104,17 @@ export const insertQuoteNote = async (
 		}
 
 		const created = await db.$transaction(async (tx) => {
-			const noteData: any = {
-				quote_id: quoteId,
+			const noteData: Prisma.quote_noteCreateInput = {
+				quote: { connect: { id: quoteId } },
 				content: parsed.content,
-				creator_tech_id: context?.techId || null,
-				creator_dispatcher_id: context?.dispatcherId || null,
+				...(context?.techId && {
+					creator_tech: { connect: { id: context.techId } },
+				}),
+				...(context?.dispatcherId && {
+					creator_dispatcher: {
+						connect: { id: context.dispatcherId },
+					},
+				}),
 			};
 
 			const note = await tx.quote_note.create({
@@ -189,7 +196,7 @@ export const updateQuoteNote = async (
 		const changes = buildChanges(existing, parsed, ["content"] as const);
 
 		const updated = await db.$transaction(async (tx) => {
-			const updateData: any = {
+			const updateData: Prisma.quote_noteUpdateInput = {
 				updated_at: new Date(),
 			};
 
@@ -198,11 +205,15 @@ export const updateQuoteNote = async (
 			}
 
 			if (context?.techId) {
-				updateData.last_editor_tech_id = context.techId;
-				updateData.last_editor_dispatcher_id = null;
+				updateData.last_editor_tech = {
+					connect: { id: context.techId },
+				};
+				updateData.last_editor_dispatcher = { disconnect: true };
 			} else if (context?.dispatcherId) {
-				updateData.last_editor_dispatcher_id = context.dispatcherId;
-				updateData.last_editor_tech_id = null;
+				updateData.last_editor_dispatcher = {
+					connect: { id: context.dispatcherId },
+				};
+				updateData.last_editor_tech = { disconnect: true };
 			}
 
 			const note = await tx.quote_note.update({

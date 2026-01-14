@@ -4,7 +4,6 @@ import {
 	Users,
 	Clock,
 	MapPin,
-	Phone,
 	CheckCircle2,
 	AlertCircle,
 	Calendar,
@@ -17,7 +16,8 @@ import Card from "../../components/ui/Card";
 import SmartCalendar from "../../components/ui/SmartCalendar";
 import { useAllJobsQuery } from "../../hooks/useJobs";
 import { useAllTechniciansQuery } from "../../hooks/useTechnicians";
-import type { Technician } from "../../types/technicians";
+import type { Technician, TechnicianWithVisits } from "../../types/technicians";
+import type { JobVisit } from "../../types/jobs";
 
 export default function DashboardPage() {
 	const navigate = useNavigate();
@@ -34,36 +34,40 @@ export default function DashboardPage() {
 		(tech) => tech.status === "Available" || tech.status === "Busy"
 	);
 
-	// Calculate stats
 	const availableCount = allTechnicians.filter((t) => t.status === "Available").length;
 	const busyCount = allTechnicians.filter((t) => t.status === "Busy").length;
 	const totalOnline = availableCount + busyCount;
 
-	// Get technicians with active visits
-	const techniciansWithActiveVisits = onlineTechnicians.map((tech) => {
-		const activeVisits = jobs
-			.flatMap((job) => job.visits || [])
-			.filter(
-				(visit) =>
-					visit.status === "InProgress" &&
-					visit.visit_techs?.some((vt) => vt.tech_id === tech.id)
-			);
+	const techniciansWithActiveVisits: TechnicianWithVisits[] = onlineTechnicians.map(
+		(tech) => {
+			const activeVisits = jobs
+				.flatMap((job) => job.visits || [])
+				.filter(
+					(visit) =>
+						visit.status === "InProgress" &&
+						visit.visit_techs?.some(
+							(vt) => vt.tech_id === tech.id
+						)
+				) as JobVisit[];
 
-		const scheduledVisits = jobs
-			.flatMap((job) => job.visits || [])
-			.filter(
-				(visit) =>
-					visit.status === "Scheduled" &&
-					visit.visit_techs?.some((vt) => vt.tech_id === tech.id)
-			);
+			const scheduledVisits = jobs
+				.flatMap((job) => job.visits || [])
+				.filter(
+					(visit) =>
+						visit.status === "Scheduled" &&
+						visit.visit_techs?.some(
+							(vt) => vt.tech_id === tech.id
+						)
+				) as JobVisit[];
 
-		return {
-			...tech,
-			activeVisits,
-			scheduledVisits,
-			totalVisitsToday: activeVisits.length + scheduledVisits.length,
-		};
-	});
+			return {
+				...tech,
+				activeVisits,
+				scheduledVisits,
+				totalVisitsToday: activeVisits.length + scheduledVisits.length,
+			};
+		}
+	);
 
 	const handleRefresh = async () => {
 		setRefreshing(true);

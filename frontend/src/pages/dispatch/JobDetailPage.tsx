@@ -34,10 +34,13 @@ import {
 	ScheduleTypeLabels,
 	type VisitStatus,
 	type ScheduleType,
+	type JobLineItem,
 } from "../../types/jobs";
 import { QuoteStatusColors } from "../../types/quotes";
 import { RequestStatusColors } from "../../types/requests";
 import { getGenericStatusColor } from "../../types/common";
+import type { ClientContact } from "../../types/clients";
+import type { VisitTech } from "../../types/technicians";
 import { useState } from "react";
 
 export default function JobDetailPage() {
@@ -68,7 +71,8 @@ export default function JobDetailPage() {
 		);
 	}
 
-	const formatCurrency = (amount: number) => {
+	const formatCurrency = (amount: number | null | undefined) => {
+		if (amount === null || amount === undefined) return "$0.00";
 		return new Intl.NumberFormat("en-US", {
 			style: "currency",
 			currency: "USD",
@@ -101,7 +105,9 @@ export default function JobDetailPage() {
 		});
 	};
 
-	const primaryContact = job.client?.contacts?.find((cc: any) => cc.is_primary)?.contact;
+	const primaryContact = job.client?.contacts?.find(
+		(cc: ClientContact) => cc.is_primary
+	)?.contact;
 
 	const sortedVisits = [...visits].sort(
 		(a, b) =>
@@ -109,8 +115,7 @@ export default function JobDetailPage() {
 			new Date(b.scheduled_start_at).getTime()
 	);
 
-	// Line items from job (backend supported)
-	const lineItems = (job as any).line_items || [];
+	const lineItems: JobLineItem[] = job.line_items || [];
 	const hasLineItems = lineItems.length > 0;
 
 	return (
@@ -384,11 +389,12 @@ export default function JobDetailPage() {
 								<div className="bg-zinc-800/50 rounded-b-lg border border-zinc-700 border-t-0">
 									{lineItems.map(
 										(
-											item: any,
+											item: JobLineItem,
 											index: number
 										) => (
 											<div
 												key={
+													item.id ||
 													index
 												}
 												className={`grid grid-cols-12 gap-4 px-4 py-4 ${
@@ -1010,7 +1016,7 @@ export default function JobDetailPage() {
 													{visit.visit_techs
 														.map(
 															(
-																vt: any
+																vt
 															) =>
 																vt
 																	.tech

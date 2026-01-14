@@ -1,9 +1,25 @@
 import z from "zod";
 import type { JobPriority, JobStatus, ScheduleType, VisitStatus } from "./jobs";
 import type { Coordinates } from "./location";
+import type { JobVisit } from "./jobs";
 
 export const TechnicianStatusValues = ["Offline", "Available", "Busy", "Break"] as const;
 export type TechnicianStatus = (typeof TechnicianStatusValues)[number];
+
+export interface VisitTechInfo {
+	id: string;
+	name: string;
+	email: string;
+	phone: string | null;
+	title: string;
+	status: TechnicianStatus;
+}
+
+export interface VisitTech {
+	tech_id: string;
+	visit_id: string;
+	tech: VisitTechInfo;
+}
 
 export interface VisitTechnician {
 	visit_id: string;
@@ -37,6 +53,12 @@ export interface VisitTechnician {
 	};
 }
 
+export interface TechnicianWithVisits extends Technician {
+	activeVisits: JobVisit[];
+	scheduledVisits: JobVisit[];
+	totalVisitsToday: number;
+}
+
 export interface Technician {
 	id: string;
 	name: string;
@@ -50,7 +72,6 @@ export interface Technician {
 	last_login: Date;
 	visit_techs?: VisitTechnician[];
 	logs?: any[];
-	audit_logs?: any[];
 	created_client_notes?: any[];
 	last_edited_client_notes?: any[];
 	created_job_notes?: any[];

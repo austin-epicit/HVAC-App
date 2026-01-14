@@ -263,25 +263,90 @@ export const getActivitySummary = async (startDate: Date, endDate: Date) => {
 		activityByActorType: eventsByActor,
 	};
 };
+// ============================================================================
+// BuildChanges
+// ============================================================================
 
+export type ChangeSet = Record<string, { old: any; new: any }>;
+
+//handles number/decimal mismatches, date objects, nested objects/arrays
 export const buildChanges = <T extends Record<string, any>>(
 	oldRecord: T,
-	newData: Partial<T>,
+	newData: Record<string, any>,
 	fields: readonly (keyof T)[]
-): Record<string, { old: any; new: any }> => {
-	const changes: Record<string, { old: any; new: any }> = {};
+): ChangeSet => {
+	const changes: ChangeSet = {};
 
 	for (const field of fields) {
-		if (
-			newData[field] !== undefined &&
-			oldRecord[field] !== newData[field]
-		) {
+		const newValue = newData[field as string];
+		const oldValue = oldRecord[field];
+
+		if (newValue === undefined) continue;
+
+		const normalizedOld = normalizeValue(oldValue);
+		const normalizedNew = normalizeValue(newValue);
+
+		if (!deepEqual(normalizedOld, normalizedNew)) {
 			changes[field as string] = {
-				old: oldRecord[field],
-				new: newData[field],
+				old: oldValue,
+				new: newValue,
 			};
 		}
 	}
 
 	return changes;
 };
+
+function normalizeValue(value: any): any {
+	if (value === null || value === undefined) return value;
+	// Prisma Decimal → number
+	if (value?.toNumber && typeof value.toNumber === "function") {
+		return value.toNumber();
+	}
+	// Date → timestamp
+	if (value instanceof Date) {
+		return value.getTime();
+	}
+	// Array
+	if (Array.isArray(value)) {
+		return value.map(normalizeValue);
+	}
+	// Plain object
+	if (isPlainObject(value)) {
+		const normalized: any = {};
+		for (const key in value) {
+			normalized[key] = normalizeValue(value[key]);
+		}
+		return normalized;
+	}
+
+	return value;
+}
+
+function isPlainObject(value: any): boolean {
+	if (value === null || typeof value !== "object") return false;
+	if (Array.isArray(value)) return false;
+	if (value instanceof Date) return false;
+	return value.constructor === Object || value.constructor === undefined;
+}
+
+function deepEqual(a: any, b: any): boolean {
+	if (a === b) return true;
+	if (a == null || b == null) return false;
+	if (typeof a !== typeof b) return false;
+
+	if (typeof a !== "object") return a === b;
+
+	if (Array.isArray(a) && Array.isArray(b)) {
+		if (a.length !== b.length) return false;
+		return a.every((item, index) => deepEqual(item, b[index]));
+	}
+
+	if (Array.isArray(a) !== Array.isArray(b)) return false;
+
+	const keysA = Object.keys(a);
+	const keysB = Object.keys(b);
+	if (keysA.length !== keysB.length) return false;
+
+	return keysA.every((key) => deepEqual(a[key], b[key]));
+}

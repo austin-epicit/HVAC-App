@@ -25,21 +25,26 @@ export interface ClientSummary {
 	address: string;
 	is_active: boolean;
 }
+
+export interface ClientContactInfo {
+	id: string;
+	name: string;
+	email: string | null;
+	phone: string | null;
+	title: string | null;
+}
+
+export interface ClientContact {
+	is_primary: boolean;
+	contact: ClientContactInfo;
+}
+
 export interface ClientWithPrimaryContact {
 	id: string;
 	name: string;
 	address: string;
 	is_active: boolean;
-	contacts?: Array<{
-		is_primary: boolean;
-		contact: {
-			id: string;
-			name: string;
-			email: string | null;
-			phone: string | null;
-			title: string | null;
-		};
-	}>;
+	contacts?: ClientContact[];
 }
 
 export interface CreateClientInput {

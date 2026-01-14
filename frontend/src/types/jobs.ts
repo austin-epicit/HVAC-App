@@ -324,7 +324,7 @@ export const CreateJobSchema = z.object({
 	subtotal: z.number().nonnegative().optional(),
 	tax_rate: z.number().min(0).max(1).optional(),
 	tax_amount: z.number().nonnegative().optional(),
-	discount_type: z.enum(DiscountTypeValues).optional(), // Now used!
+	discount_type: z.enum(DiscountTypeValues).optional(),
 	discount_value: z.number().nonnegative().optional(),
 	discount_amount: z.number().nonnegative().optional(),
 });

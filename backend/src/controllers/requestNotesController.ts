@@ -5,7 +5,7 @@ import {
 	updateRequestNoteSchema,
 } from "../lib/validate/requests.js";
 import { logActivity, buildChanges } from "../services/logger.js";
-
+import { Prisma } from "../../generated/prisma/client.js";
 export interface UserContext {
 	techId?: string;
 	dispatcherId?: string;
@@ -105,29 +105,27 @@ export const insertRequestNote = async (
 		}
 
 		const created = await db.$transaction(async (tx) => {
-			const noteData: any = {
-				request_id: requestId,
+			const noteData: Prisma.request_noteCreateInput = {
+				request: { connect: { id: requestId } },
 				content: parsed.content,
-				creator_tech_id: context?.techId || null,
-				creator_dispatcher_id: context?.dispatcherId || null,
+				...(context?.techId && {
+					creator_tech: { connect: { id: context.techId } },
+				}),
+				...(context?.dispatcherId && {
+					creator_dispatcher: {
+						connect: { id: context.dispatcherId },
+					},
+				}),
 			};
 
 			const note = await tx.request_note.create({
 				data: noteData,
 				include: {
 					creator_tech: {
-						select: {
-							id: true,
-							name: true,
-							email: true,
-						},
+						select: { id: true, name: true, email: true },
 					},
 					creator_dispatcher: {
-						select: {
-							id: true,
-							name: true,
-							email: true,
-						},
+						select: { id: true, name: true, email: true },
 					},
 				},
 			});
@@ -191,7 +189,7 @@ export const updateRequestNote = async (
 		const changes = buildChanges(existing, parsed, ["content"] as const);
 
 		const updated = await db.$transaction(async (tx) => {
-			const updateData: any = {
+			const updateData: Prisma.request_noteUpdateInput = {
 				updated_at: new Date(),
 			};
 
@@ -200,11 +198,15 @@ export const updateRequestNote = async (
 			}
 
 			if (context?.techId) {
-				updateData.last_editor_tech_id = context.techId;
-				updateData.last_editor_dispatcher_id = null;
+				updateData.last_editor_tech = {
+					connect: { id: context.techId },
+				};
+				updateData.last_editor_dispatcher = { disconnect: true };
 			} else if (context?.dispatcherId) {
-				updateData.last_editor_dispatcher_id = context.dispatcherId;
-				updateData.last_editor_tech_id = null;
+				updateData.last_editor_dispatcher = {
+					connect: { id: context.dispatcherId },
+				};
+				updateData.last_editor_tech = { disconnect: true };
 			}
 
 			const note = await tx.request_note.update({
@@ -212,32 +214,16 @@ export const updateRequestNote = async (
 				data: updateData,
 				include: {
 					creator_tech: {
-						select: {
-							id: true,
-							name: true,
-							email: true,
-						},
+						select: { id: true, name: true, email: true },
 					},
 					creator_dispatcher: {
-						select: {
-							id: true,
-							name: true,
-							email: true,
-						},
+						select: { id: true, name: true, email: true },
 					},
 					last_editor_tech: {
-						select: {
-							id: true,
-							name: true,
-							email: true,
-						},
+						select: { id: true, name: true, email: true },
 					},
 					last_editor_dispatcher: {
-						select: {
-							id: true,
-							name: true,
-							email: true,
-						},
+						select: { id: true, name: true, email: true },
 					},
 				},
 			});

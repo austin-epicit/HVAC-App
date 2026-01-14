@@ -8,6 +8,7 @@ import {
 } from "../lib/validate/quotes.js";
 import { Request } from "express";
 import { logActivity, buildChanges } from "../services/logger.js";
+import { Prisma } from "../../generated/prisma/client.js";
 
 export interface UserContext {
 	techId?: string;
@@ -234,43 +235,62 @@ export const insertQuote = async (req: Request, context?: UserContext) => {
 
 			const quoteNumber = await generateQuoteNumber();
 
-			const quoteData: any = {
+			const quoteData: Prisma.quoteCreateInput = {
 				quote_number: quoteNumber,
-				client_id: parsed.client_id,
-				request_id: parsed.request_id || null,
+
+				client: { connect: { id: parsed.client_id } },
+
+				...(parsed.request_id && {
+					request: { connect: { id: parsed.request_id } },
+				}),
+				...(context?.dispatcherId && {
+					created_by_dispatcher: {
+						connect: { id: context.dispatcherId },
+					},
+				}),
+
 				title: title,
 				description: description,
 				address: address,
-				coords: coords || undefined,
 				priority: priority,
 				status: parsed.status,
-				created_by_dispatcher_id: context?.dispatcherId || null,
-				valid_until: parsed.valid_until
-					? new Date(parsed.valid_until)
-					: null,
-				expires_at: parsed.expires_at
-					? new Date(parsed.expires_at)
-					: null,
+				subtotal: parsed.subtotal ?? 0,
+				total: parsed.total ?? 0,
+
+				...(coords && { coords: coords }),
+				...(parsed.valid_until && {
+					valid_until: new Date(parsed.valid_until),
+				}),
+				...(parsed.expires_at && {
+					expires_at: new Date(parsed.expires_at),
+				}),
 			};
 
-			if (parsed.subtotal !== undefined)
+			if (parsed.subtotal !== undefined) {
 				quoteData.subtotal = parsed.subtotal;
-			if (parsed.tax_rate !== undefined)
+			}
+			if (parsed.tax_rate !== undefined) {
 				quoteData.tax_rate = parsed.tax_rate;
-			if (parsed.tax_amount !== undefined)
+			}
+			if (parsed.tax_amount !== undefined) {
 				quoteData.tax_amount = parsed.tax_amount;
-			if (parsed.discount_type !== undefined)
+			}
+			if (parsed.discount_type !== undefined) {
 				quoteData.discount_type = parsed.discount_type;
-			if (parsed.discount_value !== undefined)
+			}
+			if (parsed.discount_value !== undefined) {
 				quoteData.discount_value = parsed.discount_value;
-			if (parsed.discount_amount !== undefined)
+			}
+			if (parsed.discount_amount !== undefined) {
 				quoteData.discount_amount = parsed.discount_amount;
-			if (parsed.total !== undefined) quoteData.total = parsed.total;
+			}
+			if (parsed.total !== undefined) {
+				quoteData.total = parsed.total;
+			}
 
 			const quote = await tx.quote.create({
 				data: quoteData,
 			});
-
 			if (parsed.line_items && parsed.line_items.length > 0) {
 				await tx.quote_line_item.createMany({
 					data: parsed.line_items.map((item, index) => ({
@@ -343,95 +363,44 @@ export const insertQuote = async (req: Request, context?: UserContext) => {
 
 export const updateQuote = async (req: Request, context?: UserContext) => {
 	try {
-		const quoteId = (req as any).params.id;
+		const quoteId = req.params.id as string;
 		const parsed = updateQuoteSchema.parse(req.body);
 
 		const existing = await db.quote.findUnique({
 			where: { id: quoteId },
-			include: {
-				job: true,
-				line_items: true,
-			},
+			include: { job: true, line_items: true },
 		});
 
 		if (!existing) {
 			return { err: "Quote not found" };
 		}
 
-		// Check if quote has been converted to job
 		if (existing.job) {
 			return {
 				err: "Cannot modify quote that has been converted to a job",
 			};
 		}
 
-		const changes = buildChanges(
-			existing,
-			parsed as any,
-			[
-				"title",
-				"description",
-				"priority",
-				"address",
-				"status",
-				"rejection_reason",
-			] as const
-		);
+		const { line_items: _lineItems, ...parsedWithoutLineItems } = parsed;
 
-		// Manually track Decimal fields
-		if (
-			parsed.subtotal !== undefined &&
-			Number(existing.subtotal) !== parsed.subtotal
-		) {
-			changes.subtotal = { old: existing.subtotal, new: parsed.subtotal };
-		}
-		if (
-			parsed.tax_rate !== undefined &&
-			Number(existing.tax_rate) !== parsed.tax_rate
-		) {
-			changes.tax_rate = { old: existing.tax_rate, new: parsed.tax_rate };
-		}
-		if (
-			parsed.tax_amount !== undefined &&
-			Number(existing.tax_amount) !== parsed.tax_amount
-		) {
-			changes.tax_amount = {
-				old: existing.tax_amount,
-				new: parsed.tax_amount,
-			};
-		}
-		if (
-			parsed.discount_amount !== undefined &&
-			Number(existing.discount_amount) !== parsed.discount_amount
-		) {
-			changes.discount_amount = {
-				old: existing.discount_amount,
-				new: parsed.discount_amount,
-			};
-		}
-		if (
-			parsed.total !== undefined &&
-			Number(existing.total) !== parsed.total
-		) {
-			changes.total = { old: existing.total, new: parsed.total };
-		}
-
-		// Manually track datetime and Json fields
-		if (parsed.valid_until !== undefined) {
-			changes.valid_until = {
-				old: existing.valid_until,
-				new: parsed.valid_until,
-			};
-		}
-		if (parsed.expires_at !== undefined) {
-			changes.expires_at = {
-				old: existing.expires_at,
-				new: parsed.expires_at,
-			};
-		}
-		if (parsed.coords !== undefined) {
-			changes.coords = { old: existing.coords, new: parsed.coords };
-		}
+		const changes = buildChanges(existing, parsedWithoutLineItems, [
+			"title",
+			"description",
+			"priority",
+			"address",
+			"status",
+			"rejection_reason",
+			"discount_type",
+			"subtotal",
+			"tax_rate",
+			"tax_amount",
+			"discount_value",
+			"discount_amount",
+			"total",
+			"valid_until",
+			"expires_at",
+			"coords",
+		] as const);
 
 		const updated = await db.$transaction(async (tx) => {
 			if (parsed.line_items !== undefined) {
@@ -602,9 +571,6 @@ export const updateQuote = async (req: Request, context?: UserContext) => {
 					}
 				}
 			}
-			// ============================================
-			// END BULK LINE ITEMS UPDATE
-			// ============================================
 
 			// Track status changes for auto-timestamps
 			const isFirstSent =
@@ -893,44 +859,22 @@ export const updateQuoteItem = async (
 		const parsed = updateQuoteItemSchema.parse(data);
 
 		const existing = await db.quote_line_item.findFirst({
-			where: {
-				id: itemId,
-				quote_id: quoteId,
-			},
+			where: { id: itemId, quote_id: quoteId },
 		});
 
 		if (!existing) {
 			return { err: "Item not found" };
 		}
 
-		const changes = buildChanges(
-			existing,
-			parsed as any,
-			["name", "description", "item_type", "sort_order"] as const
-		);
-
-		// Manually track numeric fields (Decimal type)
-		if (
-			parsed.quantity !== undefined &&
-			Number(existing.quantity) !== parsed.quantity
-		) {
-			changes.quantity = { old: existing.quantity, new: parsed.quantity };
-		}
-		if (
-			parsed.unit_price !== undefined &&
-			Number(existing.unit_price) !== parsed.unit_price
-		) {
-			changes.unit_price = {
-				old: existing.unit_price,
-				new: parsed.unit_price,
-			};
-		}
-		if (
-			parsed.total !== undefined &&
-			Number(existing.total) !== parsed.total
-		) {
-			changes.total = { old: existing.total, new: parsed.total };
-		}
+		const changes = buildChanges(existing, parsed, [
+			"name",
+			"description",
+			"item_type",
+			"sort_order",
+			"quantity",
+			"unit_price",
+			"total",
+		] as const);
 
 		const updated = await db.$transaction(async (tx) => {
 			// Recalculate total if quantity or unit_price changed

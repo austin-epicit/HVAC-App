@@ -7,6 +7,7 @@ import {
 	updateClientContactSchema,
 } from "../lib/validate/contacts.js";
 import { logActivity, buildChanges } from "../services/logger.js";
+import { Prisma } from "../../generated/prisma/client.js";
 
 export interface UserContext {
 	techId?: string;
@@ -603,7 +604,7 @@ export const searchContacts = async (
 			return { err: "", items: [] };
 		}
 
-		const where: any = {
+		const where: Prisma.contactWhereInput = {
 			is_active: true,
 			OR: [
 				{ name: { contains: query.trim(), mode: "insensitive" } },

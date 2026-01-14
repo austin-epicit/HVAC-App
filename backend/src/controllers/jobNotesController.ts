@@ -5,6 +5,7 @@ import {
 	updateJobNoteSchema,
 } from "../lib/validate/jobs.js";
 import { logActivity, buildChanges } from "../services/logger.js";
+import { Prisma } from "../../generated/prisma/client.js";
 
 export interface UserContext {
 	techId?: string;
@@ -181,12 +182,20 @@ export const insertJobNote = async (
 		}
 
 		const created = await db.$transaction(async (tx) => {
-			const noteData: any = {
-				job_id: jobId,
+			const noteData: Prisma.job_noteCreateInput = {
+				job: { connect: { id: jobId } },
 				content: parsed.content,
-				visit_id: parsed.visit_id || null,
-				creator_tech_id: context?.techId || null,
-				creator_dispatcher_id: context?.dispatcherId || null,
+				...(parsed.visit_id && {
+					visit: { connect: { id: parsed.visit_id } },
+				}),
+				...(context?.techId && {
+					creator_tech: { connect: { id: context.techId } },
+				}),
+				...(context?.dispatcherId && {
+					creator_dispatcher: {
+						connect: { id: context.dispatcherId },
+					},
+				}),
 			};
 
 			const note = await tx.job_note.create({
@@ -294,7 +303,7 @@ export const updateJobNote = async (
 		] as const);
 
 		const updated = await db.$transaction(async (tx) => {
-			const updateData: any = {
+			const updateData: Prisma.job_noteUpdateInput = {
 				updated_at: new Date(),
 			};
 
@@ -303,15 +312,23 @@ export const updateJobNote = async (
 			}
 
 			if (parsed.visit_id !== undefined) {
-				updateData.visit_id = parsed.visit_id;
+				if (parsed.visit_id === null) {
+					updateData.visit = { disconnect: true };
+				} else {
+					updateData.visit = { connect: { id: parsed.visit_id } };
+				}
 			}
 
 			if (context?.techId) {
-				updateData.last_editor_tech_id = context.techId;
-				updateData.last_editor_dispatcher_id = null;
+				updateData.last_editor_tech = {
+					connect: { id: context.techId },
+				};
+				updateData.last_editor_dispatcher = { disconnect: true };
 			} else if (context?.dispatcherId) {
-				updateData.last_editor_dispatcher_id = context.dispatcherId;
-				updateData.last_editor_tech_id = null;
+				updateData.last_editor_dispatcher = {
+					connect: { id: context.dispatcherId },
+				};
+				updateData.last_editor_tech = { disconnect: true };
 			}
 
 			const note = await tx.job_note.update({

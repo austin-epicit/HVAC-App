@@ -8,6 +8,8 @@ import {
 } from "../lib/validate/jobs.js";
 import { Request } from "express";
 import { logActivity, buildChanges } from "../services/logger.js";
+import { Prisma } from "../../generated/prisma/client.js";
+import { LineItemToCreate, ChangeSet } from "../types/common.js";
 
 export interface UserContext {
 	techId?: string;
@@ -246,7 +248,7 @@ export const insertJob = async (req: Request, context?: UserContext) => {
 			let discountType = parsed.discount_type;
 			let discountValue = parsed.discount_value;
 			let discountAmount = parsed.discount_amount;
-			let lineItemsToCreate: any[] = [];
+			let lineItemsToCreate: LineItemToCreate[] = [];
 
 			// If linked to quote, inherit fields and prepare line items
 			if (parsed.quote_id) {
@@ -300,9 +302,9 @@ export const insertJob = async (req: Request, context?: UserContext) => {
 				lineItemsToCreate = quote.line_items.map((item) => ({
 					name: item.name,
 					description: item.description,
-					quantity: item.quantity,
-					unit_price: item.unit_price,
-					total: item.total,
+					quantity: Number(item.quantity),
+					unit_price: Number(item.unit_price),
+					total: Number(item.total),
 					source: "quote" as const,
 					item_type: item.item_type,
 				}));
@@ -490,7 +492,7 @@ export const insertJob = async (req: Request, context?: UserContext) => {
 
 export const updateJob = async (req: Request, context?: UserContext) => {
 	try {
-		const id = (req as any).params.id;
+		const id = req.params.id as string;
 		const parsed = updateJobSchema.parse(req.body);
 
 		const existing = await db.job.findUnique({
@@ -502,48 +504,34 @@ export const updateJob = async (req: Request, context?: UserContext) => {
 			return { err: "Job not found" };
 		}
 
-		const changes = buildChanges(
-			existing,
-			parsed as any,
-			[
-				"name",
-				"description",
-				"priority",
-				"address",
-				"status",
-				"cancellation_reason",
-			] as const
-		);
+		// Exclude line_items from buildChanges (tracked separately for better detail)
+		const { line_items: _lineItems, ...parsedWithoutLineItems } = parsed;
 
-		// Manually track Json and Decimal fields
-		if (parsed.coords !== undefined) {
-			changes.coords = { old: existing.coords, new: parsed.coords };
-		}
-		if (
-			parsed.estimated_total !== undefined &&
-			Number(existing.estimated_total) !== parsed.estimated_total
-		) {
-			changes.estimated_total = {
-				old: existing.estimated_total,
-				new: parsed.estimated_total,
-			};
-		}
-		if (
-			parsed.actual_total !== undefined &&
-			Number(existing.actual_total) !== parsed.actual_total
-		) {
-			changes.actual_total = {
-				old: existing.actual_total,
-				new: parsed.actual_total,
-			};
-		}
+		// Track all job-level field changes
+		const changes = buildChanges(existing, parsedWithoutLineItems, [
+			"name",
+			"description",
+			"priority",
+			"address",
+			"status",
+			"cancellation_reason",
+			"subtotal",
+			"tax_rate",
+			"tax_amount",
+			"discount_value",
+			"discount_amount",
+			"estimated_total",
+			"actual_total",
+			"discount_type",
+			"coords",
+		] as const);
 
 		const updated = await db.$transaction(async (tx) => {
-			// ============================================
-			// BULK LINE ITEMS UPDATE (NEW)
-			// ============================================
+			// BULK LINE ITEMS UPDATE
 			if (parsed.line_items !== undefined) {
 				const incomingItems = parsed.line_items || [];
+
+				// Track existing and incoming item IDs
 				const existingItemIds = new Set(
 					existing.line_items.map((item) => item.id)
 				);
@@ -553,7 +541,7 @@ export const updateJob = async (req: Request, context?: UserContext) => {
 						.map((item) => item.id!)
 				);
 
-				// Delete items not in incoming list
+				// DELETE: Items not in incoming list
 				const itemsToDelete = existing.line_items.filter(
 					(item) => !incomingItemIds.has(item.id)
 				);
@@ -583,16 +571,17 @@ export const updateJob = async (req: Request, context?: UserContext) => {
 					});
 				}
 
-				// Create or update items
+				// CREATE OR UPDATE: Process incoming items
 				for (const item of incomingItems) {
 					if (item.id && existingItemIds.has(item.id)) {
-						// Update existing item
+						// UPDATE existing item
 						const existingItem = existing.line_items.find(
 							(i) => i.id === item.id
 						);
 
 						if (existingItem) {
-							const itemChanges: any = {};
+							// Track changes for this specific item
+							const itemChanges: ChangeSet = {};
 
 							if (item.name !== existingItem.name) {
 								itemChanges.name = {
@@ -640,19 +629,21 @@ export const updateJob = async (req: Request, context?: UserContext) => {
 								};
 							}
 
-							await tx.job_line_item.update({
-								where: { id: item.id },
-								data: {
-									name: item.name,
-									description: item.description || null,
-									quantity: item.quantity,
-									unit_price: item.unit_price,
-									total: item.total,
-									item_type: item.item_type || null,
-								},
-							});
-
+							// Only update if there are actual changes
 							if (Object.keys(itemChanges).length > 0) {
+								await tx.job_line_item.update({
+									where: { id: item.id },
+									data: {
+										name: item.name,
+										description: item.description || null,
+										quantity: item.quantity,
+										unit_price: item.unit_price,
+										total: item.total,
+										item_type: item.item_type || null,
+									},
+								});
+
+								// Log line_item update with changes
 								await logActivity({
 									event_type: "job_line_item.updated",
 									action: "updated",
@@ -673,7 +664,6 @@ export const updateJob = async (req: Request, context?: UserContext) => {
 							}
 						}
 					} else {
-						// Create new item
 						const newItem = await tx.job_line_item.create({
 							data: {
 								job_id: id,
@@ -687,6 +677,7 @@ export const updateJob = async (req: Request, context?: UserContext) => {
 							},
 						});
 
+						// Log line_item creation
 						await logActivity({
 							event_type: "job_line_item.created",
 							action: "created",
@@ -701,6 +692,8 @@ export const updateJob = async (req: Request, context?: UserContext) => {
 							changes: {
 								name: { old: null, new: item.name },
 								job_id: { old: null, new: id },
+								quantity: { old: null, new: item.quantity },
+								unit_price: { old: null, new: item.unit_price },
 								total: { old: null, new: item.total },
 							},
 							ip_address: context?.ipAddress,
@@ -709,10 +702,6 @@ export const updateJob = async (req: Request, context?: UserContext) => {
 					}
 				}
 			}
-			// ============================================
-			// END BULK LINE ITEMS UPDATE
-			// ============================================
-
 			const job = await tx.job.update({
 				where: { id },
 				data: {
@@ -732,16 +721,36 @@ export const updateJob = async (req: Request, context?: UserContext) => {
 					...(parsed.status !== undefined && {
 						status: parsed.status,
 					}),
+
+					...(parsed.subtotal !== undefined && {
+						subtotal: parsed.subtotal,
+					}),
+					...(parsed.tax_rate !== undefined && {
+						tax_rate: parsed.tax_rate,
+					}),
+					...(parsed.tax_amount !== undefined && {
+						tax_amount: parsed.tax_amount,
+					}),
+					...(parsed.discount_type !== undefined && {
+						discount_type: parsed.discount_type,
+					}),
+					...(parsed.discount_value !== undefined && {
+						discount_value: parsed.discount_value,
+					}),
+					...(parsed.discount_amount !== undefined && {
+						discount_amount: parsed.discount_amount,
+					}),
 					...(parsed.estimated_total !== undefined && {
 						estimated_total: parsed.estimated_total,
 					}),
 					...(parsed.actual_total !== undefined && {
 						actual_total: parsed.actual_total,
 					}),
+
 					...(parsed.cancellation_reason !== undefined && {
 						cancellation_reason: parsed.cancellation_reason,
 					}),
-					// Auto-timestamps
+
 					...(parsed.status === "Completed" &&
 						!existing.completed_at && { completed_at: new Date() }),
 					...(parsed.status === "Cancelled" &&
@@ -763,6 +772,7 @@ export const updateJob = async (req: Request, context?: UserContext) => {
 				},
 			});
 
+			// Log job changes
 			if (Object.keys(changes).length > 0) {
 				await logActivity({
 					event_type: "job.updated",
@@ -954,11 +964,12 @@ export const updateJobLineItem = async (
 			return { err: "Item not found" };
 		}
 
-		const changes = buildChanges(
-			existing,
-			parsed as any,
-			["name", "description", "source", "item_type"] as const
-		);
+		const changes = buildChanges(existing, parsed, [
+			"name",
+			"description",
+			"source",
+			"item_type",
+		] as const);
 
 		// Manually track numeric fields (Decimal type)
 		if (

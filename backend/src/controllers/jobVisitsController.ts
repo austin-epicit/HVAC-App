@@ -254,8 +254,8 @@ export const insertJobVisit = async (req: Request, context?: UserContext) => {
 
 export const updateJobVisit = async (req: Request, context?: UserContext) => {
 	try {
-		const id = (req as any).params.id;
-		const parsed = updateJobVisitSchema.parse((req as any).body);
+		const id = req.params.id;
+		const parsed = updateJobVisitSchema.parse(req.body);
 
 		const existingVisit = await db.job_visit.findUnique({
 			where: { id },
@@ -280,7 +280,32 @@ export const updateJobVisit = async (req: Request, context?: UserContext) => {
 		const updated = await db.$transaction(async (tx) => {
 			const visit = await tx.job_visit.update({
 				where: { id },
-				data: parsed,
+				data: {
+					...(parsed.schedule_type !== undefined && {
+						schedule_type: parsed.schedule_type,
+					}),
+					...(parsed.scheduled_start_at !== undefined && {
+						scheduled_start_at: parsed.scheduled_start_at,
+					}),
+					...(parsed.scheduled_end_at !== undefined && {
+						scheduled_end_at: parsed.scheduled_end_at,
+					}),
+					...(parsed.arrival_window_start !== undefined && {
+						arrival_window_start: parsed.arrival_window_start,
+					}),
+					...(parsed.arrival_window_end !== undefined && {
+						arrival_window_end: parsed.arrival_window_end,
+					}),
+					...(parsed.actual_start_at !== undefined && {
+						actual_start_at: parsed.actual_start_at,
+					}),
+					...(parsed.actual_end_at !== undefined && {
+						actual_end_at: parsed.actual_end_at,
+					}),
+					...(parsed.status !== undefined && {
+						status: parsed.status,
+					}),
+				},
 				include: {
 					job: true,
 					visit_techs: {

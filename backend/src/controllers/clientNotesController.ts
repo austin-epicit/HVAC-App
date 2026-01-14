@@ -5,6 +5,7 @@ import {
 	updateNoteSchema,
 } from "../lib/validate/clientNotes.js";
 import { logActivity, buildChanges } from "../services/logger.js";
+import { Prisma } from "../../generated/prisma/client.js";
 
 export interface UserContext {
 	techId?: string;
@@ -197,17 +198,21 @@ export const updateNote = async (
 		const changes = buildChanges(existing, parsed, ["content"] as const);
 
 		const updated = await db.$transaction(async (tx) => {
-			const updateData: any = {
+			const updateData: Prisma.client_noteUpdateInput = {
 				content: parsed.content,
 				updated_at: new Date(),
 			};
 
 			if (context?.techId) {
-				updateData.last_editor_tech_id = context.techId;
-				updateData.last_editor_dispatcher_id = null;
+				updateData.last_editor_tech = {
+					connect: { id: context.techId },
+				};
+				updateData.last_editor_dispatcher = { disconnect: true };
 			} else if (context?.dispatcherId) {
-				updateData.last_editor_dispatcher_id = context.dispatcherId;
-				updateData.last_editor_tech_id = null;
+				updateData.last_editor_dispatcher = {
+					connect: { id: context.dispatcherId },
+				};
+				updateData.last_editor_tech = { disconnect: true };
 			}
 
 			const note = await tx.client_note.update({

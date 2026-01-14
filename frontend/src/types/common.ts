@@ -129,7 +129,6 @@ export interface JobSummary extends JobReference {
 
 export const LineItemTypeValues = ["labor", "material", "equipment", "other"] as const;
 export type LineItemType = (typeof LineItemTypeValues)[number];
-
 export const LineItemTypeLabels: Record<LineItemType, string> = {
 	labor: "Labor",
 	material: "Material",
@@ -139,7 +138,6 @@ export const LineItemTypeLabels: Record<LineItemType, string> = {
 
 export const LineItemSourceValues = ["quote", "job", "visit"] as const;
 export type LineItemSource = (typeof LineItemSourceValues)[number];
-
 export const LineItemSourceLabels: Record<LineItemSource, string> = {
 	quote: "Quote",
 	job: "Job",
