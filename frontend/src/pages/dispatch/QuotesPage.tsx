@@ -7,23 +7,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Search, Plus, X, MoreHorizontal } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import CreateQuote from "../../components/quotes/CreateQuote";
-
-const formatDate = (date: Date | string) => {
-	return new Date(date).toLocaleDateString("en-US", {
-		month: "short",
-		day: "numeric",
-		year: "numeric",
-	});
-};
-
-const formatCurrency = (amount: number) => {
-	return new Intl.NumberFormat("en-US", {
-		style: "currency",
-		currency: "USD",
-		minimumFractionDigits: 2,
-		maximumFractionDigits: 2,
-	}).format(amount);
-};
+import { formatDate, formatCurrency } from "../../util/util";
 
 export default function QuotesPage() {
 	const navigate = useNavigate();

@@ -22,6 +22,7 @@ import EditQuote from "../../components/quotes/EditQuote";
 import ConvertToJob from "../../components/quotes/ConvertToJob";
 import NoteManager from "../../components/quotes/QuoteNoteManager";
 import { useState, useRef, useEffect } from "react";
+import { formatCurrency } from "../../util/util";
 
 export default function QuoteDetailPage() {
 	const { quoteId } = useParams<{ quoteId: string }>();
@@ -92,14 +93,6 @@ export default function QuoteDetailPage() {
 	const handleConvertToJob = () => {
 		setShowActionsMenu(false);
 		setIsConvertToJobModalOpen(true);
-	};
-
-	const formatCurrency = (amount: number | null | undefined) => {
-		if (amount === null || amount === undefined) return "$0.00";
-		return `$${Number(amount).toLocaleString("en-US", {
-			minimumFractionDigits: 2,
-			maximumFractionDigits: 2,
-		})}`;
 	};
 
 	return (
@@ -408,9 +401,9 @@ export default function QuoteDetailPage() {
 			</div>
 
 			<Card title="Financial Summary">
-				<div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-					{/* Left Column - Line Items Table */}
-					<div>
+				<div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+					{/* Left Column - Line Items Table (2/3 width) */}
+					<div className="lg:col-span-2">
 						<h3 className="text-zinc-400 text-xs uppercase tracking-wide font-semibold mb-4">
 							Line Items
 						</h3>
@@ -522,8 +515,8 @@ export default function QuoteDetailPage() {
 						)}
 					</div>
 
-					{/* Right Column - Financial Breakdown */}
-					<div className="space-y-6">
+					{/* Right Column - Financial Breakdown (1/3 width) */}
+					<div className="lg:col-span-1 space-y-6">
 						{/* Quote Metadata */}
 						<div className="p-4 bg-zinc-800/50 rounded-lg border border-zinc-700 space-y-2">
 							<div className="flex justify-between text-sm">

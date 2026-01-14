@@ -11,14 +11,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Search, Plus, MoreHorizontal, X } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import CreateRequest from "../../components/requests/CreateRequest";
-
-const formatDate = (date: Date | string) => {
-	return new Date(date).toLocaleDateString("en-US", {
-		month: "short",
-		day: "numeric",
-		year: "numeric",
-	});
-};
+import { formatDate } from "../../util/util";
 
 export default function RequestsPage() {
 	const navigate = useNavigate();

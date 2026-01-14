@@ -6,7 +6,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Search, Plus, MoreHorizontal, X } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import CreateJob from "../../components/jobs/CreateJob";
-import { addSpacesToCamelCase } from "../../util/util";
+import { addSpacesToCamelCase, formatDate, formatCurrency } from "../../util/util";
 
 export default function JobsPage() {
 	const navigate = useNavigate();
@@ -42,12 +42,14 @@ export default function JobsPage() {
 				const searchLower = activeSearch.toLowerCase();
 				const clientName = j.client?.name?.toLowerCase() || "";
 				const jobName = j.name?.toLowerCase() || "";
+				const jobNumber = j.job_number?.toLowerCase() || "";
 				const status = j.status?.toLowerCase() || "";
 				const address = j.address?.toLowerCase() || "";
 
 				return (
 					jobName.includes(searchLower) ||
 					clientName.includes(searchLower) ||
+					jobNumber.includes(searchLower) ||
 					status.includes(searchLower) ||
 					address.includes(searchLower)
 				);
@@ -56,47 +58,104 @@ export default function JobsPage() {
 
 		return filtered
 			.map((j) => {
-				const scheduledVisits = (j.visits || [])
-					.filter((v) => v.status === "Scheduled")
-					.sort(
-						(a, b) =>
-							new Date(a.scheduled_start_at).getTime() -
-							new Date(b.scheduled_start_at).getTime()
+				// Get all visits sorted by scheduled start time
+				const allVisits = (j.visits || []).sort(
+					(a, b) =>
+						new Date(a.scheduled_start_at).getTime() -
+						new Date(b.scheduled_start_at).getTime()
+				);
+
+				// Determine schedule display based on job status
+				let scheduleDisplay = "No visits scheduled";
+				let scheduleDate: Date | null = null;
+
+				if (j.status === "Completed") {
+					// For completed jobs, show the last completed visit
+					const completedVisits = allVisits
+						.filter((v) => v.status === "Completed")
+						.sort(
+							(a, b) =>
+								new Date(
+									b.actual_end_at ||
+										b.scheduled_end_at
+								).getTime() -
+								new Date(
+									a.actual_end_at ||
+										a.scheduled_end_at
+								).getTime()
+						);
+
+					if (completedVisits.length > 0) {
+						const lastVisit = completedVisits[0];
+						const completedDate =
+							lastVisit.actual_end_at ||
+							lastVisit.scheduled_end_at;
+						scheduleDisplay = `COMPLETED\n${formatDate(completedDate)}`;
+						scheduleDate = new Date(completedDate);
+					}
+				} else {
+					// For non-completed jobs, show next scheduled visit
+					const scheduledVisits = allVisits.filter(
+						(v) =>
+							v.status === "Scheduled" ||
+							v.status === "InProgress"
 					);
 
-				const nextVisit = scheduledVisits[0];
-
-				// Get assigned technicians from next visit
-				const techNames =
-					nextVisit?.visit_techs
-						?.map((vt) => vt.tech.name)
-						.join(", ") || "Unassigned";
+					if (scheduledVisits.length > 0) {
+						const nextVisit = scheduledVisits[0];
+						scheduleDisplay = formatDate(
+							nextVisit.scheduled_start_at
+						);
+						scheduleDate = new Date(
+							nextVisit.scheduled_start_at
+						);
+					}
+				}
 
 				return {
 					id: j.id,
-					name: j.name,
-					technicians: techNames,
 					client: j.client?.name || "Unknown Client",
-					nextVisit: nextVisit
-						? new Date(
-								nextVisit.scheduled_start_at
-							).toLocaleDateString("en-US", {
-								month: "short",
-								day: "numeric",
-								year: "numeric",
-							})
-						: "No visits scheduled",
-					visits: `${j.visits?.length || 0} visit${(j.visits?.length || 0) !== 1 ? "s" : ""}`,
+					jobNumber: `${j.job_number}\n${j.name}`,
+					property: j.address || "No address",
+					schedule: scheduleDisplay,
 					status: addSpacesToCamelCase(j.status),
-					_rawStatus: j.status, // Keep raw status for sorting
+					total: formatCurrency(
+						Number(j.estimated_total || j.actual_total || 0)
+					),
+					_rawStatus: j.status,
+					_rawTotal: Number(j.estimated_total || j.actual_total || 0),
+					_scheduleDate: scheduleDate,
+					_rawJobNumber: j.job_number,
 				};
 			})
-			.sort(
-				(a, b) =>
-					JobStatusValues.indexOf(a._rawStatus) -
-					JobStatusValues.indexOf(b._rawStatus)
-			)
-			.map(({ _rawStatus, ...rest }) => rest); // Remove _rawStatus from display
+			.sort((a, b) => {
+				// Sort by status first
+				const statusDiff =
+					JobStatusValues.indexOf(a._rawStatus as any) -
+					JobStatusValues.indexOf(b._rawStatus as any);
+				if (statusDiff !== 0) return statusDiff;
+
+				// Then by schedule date (nulls last)
+				if (a._scheduleDate && b._scheduleDate) {
+					return (
+						a._scheduleDate.getTime() -
+						b._scheduleDate.getTime()
+					);
+				}
+				if (a._scheduleDate) return -1;
+				if (b._scheduleDate) return 1;
+
+				return 0;
+			})
+			.map(
+				({
+					_rawStatus,
+					_rawTotal,
+					_scheduleDate,
+					_rawJobNumber,
+					...rest
+				}) => rest
+			);
 	}, [jobs, searchInput, searchFilter, clientFilter]);
 
 	const handleSearchSubmit = (e: React.FormEvent) => {
@@ -255,6 +314,11 @@ export default function JobsPage() {
 			)}
 
 			<div className="shadow-sm border border-zinc-800 p-3 bg-zinc-900 rounded-lg overflow-hidden text-left">
+				<style>{`
+					table td {
+						white-space: pre-line;
+					}
+				`}</style>
 				<AdaptableTable
 					data={display}
 					loadListener={isFetchLoading}

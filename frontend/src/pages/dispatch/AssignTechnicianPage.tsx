@@ -46,9 +46,10 @@ export default function AssignTechnicianPage() {
 	const sortedJobs = jobs
 		? [...jobs].sort((a, b) => {
 				const priorityOrder: Record<JobPriority, number> = {
-					High: 4,
-					Medium: 3,
-					Normal: 2,
+					Emergency: 5,
+					Urgent: 4,
+					High: 3,
+					Medium: 2,
 					Low: 1,
 				};
 
@@ -144,19 +145,6 @@ export default function AssignTechnicianPage() {
 	const handleCreateVisit = (job: Job) => {
 		setCreatingVisitForJob(job);
 		setIsCreatingVisit(true);
-	};
-
-	const formatDateTime = (date: Date | string) => {
-		const d = new Date(date);
-		return d.toLocaleString("en-US", {
-			weekday: "short",
-			month: "short",
-			day: "numeric",
-			year: "numeric",
-			hour: "numeric",
-			minute: "2-digit",
-			hour12: true,
-		});
 	};
 
 	const getStatusColor = (status: string) => {
