@@ -28,6 +28,20 @@ enum discount_type {
   amount
 }
 
+enum line_item_type {
+  labor
+  material
+  equipment
+  other
+}
+
+enum line_item_source {
+  quote
+  recurring_plan
+  manual          //dispatch
+  field_addition  //tech
+}
+
 enum visit_status {
   Scheduled
   Driving
@@ -75,6 +89,51 @@ enum technician_status {
   Break
 }
 
+enum recurring_plan_status {
+  Active
+  Paused
+  Completed
+  Cancelled
+}
+
+enum billing_mode {
+  per_visit      // Bill after each visit completion
+  subscription   // Bill on fixed schedule regardless of visits
+  none           // No billing (warranty, internal, etc.)
+}
+
+enum invoice_timing {
+  on_completion      // Generate invoice when visit completed
+  on_schedule_date   // Generate invoice on scheduled date
+  manual             // Never auto-generate
+}
+
+enum occurrence_status {
+  planned      // Scheduled but not yet generated as job_visit
+  generated    // job_visit created
+  skipped      // Manually skipped
+  cancelled    // Cancelled
+  completed    // Visit completed
+}
+
+enum recurring_frequency {
+  daily
+  weekly
+  monthly
+  yearly
+}
+
+enum weekday {
+  MO
+  TU
+  WE
+  TH
+  FR
+  SA
+  SU
+}
+
+
 model organization {
   id   String @id @default(uuid())
   name String
@@ -85,7 +144,22 @@ model organization {
   dispatchers           dispatcher[]
   inventory_items       inventory_item[]
   logs                  log[]
+
+  requests              request[]
+  quotes                quote[]
+  jobs                  job[]
+  recurring_plans       recurring_plan[]
+
+  client_notes          client_note[]
+  request_notes         request_note[]
+  quote_notes           quote_note[]
+  job_notes             job_note[]
+  recurring_plan_notes  recurring_plan_note[]
 }
+
+// ============================================================================
+// Contact
+// ============================================================================
 
 model contact {
   id        String  @id @unique @default(uuid())
@@ -105,7 +179,9 @@ model contact {
 
   client_contacts client_contact[]
 
-  @@unique([email, phone])
+  @@unique([organization_id, email])
+  @@unique([organization_id, phone])
+
   @@index([email])
   @@index([phone])
   @@index([is_active])
@@ -147,6 +223,7 @@ model client {
   quotes   quote[]
   jobs     job[]
   notes    client_note[]
+  recurring_plans recurring_plan[]
 
   @@index([is_active])
   @@index([created_at])
@@ -155,6 +232,8 @@ model client {
 
 model client_note {
   id        String @id @unique @default(uuid())
+  organization_id String?
+  organization    organization? @relation(fields: [organization_id], references: [id])
   client_id String
   client    client @relation(fields: [client_id], references: [id], onDelete: Cascade)
 
@@ -182,6 +261,8 @@ model client_note {
 
 model request {
   id        String @id @default(uuid())
+  organization_id String?
+  organization    organization? @relation(fields: [organization_id], references: [id])
   client_id String
   client    client @relation(fields: [client_id], references: [id])
 
@@ -205,20 +286,23 @@ model request {
   quotes       quote[]
   jobs         job[]
   notes        request_note[]
-  dispatcher   dispatcher?    @relation(fields: [dispatcherId], references: [id])
-  dispatcherId String?
+  created_by_dispatcher_id String?
+  created_by_dispatcher   dispatcher?    @relation("RequestCreator", fields: [created_by_dispatcher_id], references: [id])
+ 
 
   @@index([client_id])
   @@index([status])
   @@index([priority])
   @@index([created_at])
   @@index([updated_at])
-  // @@index([assigned_dispatcher_id])
+  @@index([created_by_dispatcher_id])
   @@index([status, priority]) // Composite for "urgent pending requests"
 }
 
 model request_note {
   id         String  @id @default(uuid())
+  organization_id String?
+  organization    organization? @relation(fields: [organization_id], references: [id])
   request_id String
   request    request @relation(fields: [request_id], references: [id], onDelete: Cascade)
 
@@ -241,6 +325,8 @@ model request_note {
 
 model quote {
   id           String   @id @default(uuid())
+  organization_id String?
+  organization    organization? @relation(fields: [organization_id], references: [id])
   quote_number String   @unique
   client_id    String
   client       client   @relation(fields: [client_id], references: [id])
@@ -309,7 +395,7 @@ model quote_line_item {
   unit_price  Decimal @db.Decimal(10, 2)
   total       Decimal @db.Decimal(10, 2)
 
-  item_type  String? // "labor", "material", "equipment"
+  item_type  line_item_type?
   sort_order Int     @default(0)
 
   @@index([quote_id])
@@ -318,6 +404,8 @@ model quote_line_item {
 
 model quote_note {
   id       String @id @default(uuid())
+  organization_id String?
+  organization    organization? @relation(fields: [organization_id], references: [id])
   quote_id String
   quote    quote  @relation(fields: [quote_id], references: [id], onDelete: Cascade)
 
@@ -340,6 +428,8 @@ model quote_note {
 
 model job {
   id          String   @id @unique @default(uuid())
+  organization_id String?
+  organization    organization? @relation(fields: [organization_id], references: [id])
   job_number  String   @unique
   name        String
   description String   @db.Text
@@ -360,7 +450,13 @@ model job {
   request    request? @relation(fields: [request_id], references: [id])
   quote_id String? @unique // One job per quote
   quote    quote?  @relation(fields: [quote_id], references: [id])
+  recurring_plan_id String? @unique
+  recurring_plan    recurring_plan? @relation(fields: [recurring_plan_id], references: [id])
 
+  // Financial totals for non-recurring jobs OR
+  // aggregated values for recurring job containers
+  // For recurring: estimated_total = quote/template total
+  // For recurring: actual_total = SUM(completed visit totals)
   subtotal        Decimal  @default(0) @db.Decimal(10, 2)
   tax_rate        Decimal  @default(0) @db.Decimal(5, 4)
   tax_amount      Decimal  @default(0) @db.Decimal(10, 2)
@@ -375,12 +471,14 @@ model job {
   line_items job_line_item[]
 
   @@index([client_id])
+  @@index([recurring_plan_id])
+  @@index([request_id])
+  @@index([quote_id])
   @@index([status])
   @@index([priority])
   @@index([created_at])
   @@index([updated_at])
-  @@index([request_id])
-  @@index([quote_id])
+
   @@index([client_id, status])
 }
 
@@ -395,8 +493,8 @@ model job_line_item {
   unit_price  Decimal @db.Decimal(10, 2)
   total       Decimal @db.Decimal(10, 2)
 
-  source    String // "quote", "manual", "field_addition"
-  item_type String? // "labor", "material", "equipment"
+  source    line_item_source
+  item_type line_item_type?
 
   created_at DateTime @default(now())
 
@@ -418,13 +516,46 @@ model job_visit {
 
   status visit_status @default(Scheduled)
 
+  subtotal        Decimal  @default(0) @db.Decimal(10, 2)
+  tax_rate        Decimal  @default(0) @db.Decimal(5, 4)
+  tax_amount      Decimal  @default(0) @db.Decimal(10, 2)
+  discount_type   discount_type?
+  discount_value  Decimal? @db.Decimal(10, 2)
+  discount_amount Decimal? @db.Decimal(10, 2)
+  total           Decimal  @default(0) @db.Decimal(10, 2)
+
   visit_techs job_visit_technician[]
   notes       job_note[]             @relation("VisitNotes")
+  recurring_occurrence recurring_occurrence? @relation("OccurrenceVisit")
+  line_items  job_visit_line_item[]
 
   @@index([job_id])
   @@index([status])
   @@index([scheduled_start_at])
   @@index([scheduled_end_at])
+  @@index([job_id, scheduled_start_at])
+}
+
+model job_visit_line_item {
+  id        String   @id @default(uuid())
+
+  visit_id  String
+  visit     job_visit @relation(fields: [visit_id], references: [id], onDelete: Cascade)
+
+  name        String
+  description String? @db.Text
+  quantity    Decimal @db.Decimal(10, 2)
+  unit_price  Decimal @db.Decimal(10, 2)
+  total       Decimal @db.Decimal(10, 2)
+
+  source    line_item_source
+  item_type line_item_type?
+
+  sort_order Int @default(0)
+  created_at DateTime @default(now())
+
+  @@index([visit_id])
+  @@index([sort_order])
 }
 
 model job_visit_technician {
@@ -440,6 +571,8 @@ model job_visit_technician {
 
 model job_note {
   id     String @id @default(uuid())
+  organization_id String?
+  organization    organization? @relation(fields: [organization_id], references: [id])
   job_id String
   job    job    @relation(fields: [job_id], references: [id], onDelete: Cascade)
 
@@ -463,6 +596,169 @@ model job_note {
   @@index([job_id])
   @@index([visit_id])
 }
+
+// ============================================================================
+// Recurring events
+// ============================================================================
+
+model recurring_plan {
+  id              String                  @id @default(uuid())
+  organization_id String?
+  organization    organization?           @relation(fields: [organization_id], references: [id])
+  
+  client_id       String
+  client          client                  @relation(fields: [client_id], references: [id], onDelete: Cascade)
+
+  job_container job?
+  
+  name            String
+  description     String                  @db.Text
+  address         String
+  coords          Json?
+  priority        priority                @default(Medium)
+  
+  status          recurring_plan_status   @default(Active)
+  starts_at       DateTime
+  ends_at         DateTime?               // null = indefinite
+  timezone        String                  @default("America/Chicago") // IANA timezone
+  generation_window_days Int @default(90) // How far ahead to generate
+  min_advance_days       Int @default(14) // Minimum notice for scheduling
+  
+  // Billing configuration (future-ready)
+  billing_mode    billing_mode            @default(per_visit)
+  invoice_timing  invoice_timing          @default(on_completion)
+  auto_invoice    Boolean                 @default(false)
+  
+  created_at      DateTime                @default(now())
+  updated_at      DateTime                @updatedAt
+  created_by_dispatcher_id String?
+  created_by_dispatcher    dispatcher?    @relation("RecurringPlanCreator", fields: [created_by_dispatcher_id], references: [id])
+  
+  rules           recurring_rule[]
+  occurrences     recurring_occurrence[]
+  line_items      recurring_plan_line_item[]
+  notes           recurring_plan_note[]
+  
+  @@index([client_id])
+  @@index([status])
+  @@index([organization_id])
+  @@index([starts_at])
+  @@index([client_id, status])
+}
+
+// Schedule definition
+model recurring_rule {
+  id                String         @id @default(uuid())
+  recurring_plan_id String
+  recurring_plan    recurring_plan @relation(fields: [recurring_plan_id], references: [id], onDelete: Cascade)
+  
+  // Frequency
+  frequency         recurring_frequency
+  interval          Int            @default(1) // every X days/weeks/months/years
+  
+  // Constraints (optional, depends on frequency)
+  by_weekday        recurring_rule_weekday[]
+  by_month_day      Int?           // 1-31 for monthly
+  by_month          Int?           // 1-12 for yearly
+  
+  // Visit timing
+  time_of_day       String?        // "09:00" or null for all-day - Maybe mins since midnight better
+  schedule_type     schedule_type  @default(exact)
+  duration_minutes  Int            @default(120)
+  arrival_window_minutes Int?      // For window-based scheduling
+  
+  created_at        DateTime       @default(now())
+  
+  @@index([recurring_plan_id])
+}
+
+model recurring_rule_weekday {
+  id                String         @id @default(uuid())
+  recurring_rule_id String
+  recurring_rule    recurring_rule @relation(fields: [recurring_rule_id], references: [id], onDelete: Cascade)
+
+  weekday           weekday
+
+  @@unique([recurring_rule_id, weekday])
+  @@index([weekday])
+}
+
+// Generated occurrences (planned vs actual)
+model recurring_occurrence {
+  id                  String            @id @default(uuid())
+  recurring_plan_id   String
+  recurring_plan      recurring_plan    @relation(fields: [recurring_plan_id], references: [id], onDelete: Cascade)
+  
+  occurrence_start_at DateTime
+  occurrence_end_at   DateTime
+  
+  status              occurrence_status @default(planned)
+  
+  // Link to actual generated visit
+  job_visit_id        String?           @unique
+  job_visit           job_visit?        @relation("OccurrenceVisit", fields: [job_visit_id], references: [id])
+  
+  generated_at        DateTime?
+  completed_at        DateTime?
+  skipped_at          DateTime?
+  skip_reason         String?
+  
+  // Template versioning (optional)
+  template_version    Int               @default(1)
+  
+  created_at          DateTime          @default(now())
+  
+  @@unique([recurring_plan_id, occurrence_start_at])
+  @@index([recurring_plan_id])
+  @@index([occurrence_start_at])
+  @@index([status])
+  @@index([job_visit_id])
+}
+
+// Template pricing for recurring work
+model recurring_plan_line_item {
+  id                String         @id @default(uuid())
+  recurring_plan_id String
+  recurring_plan    recurring_plan @relation(fields: [recurring_plan_id], references: [id], onDelete: Cascade)
+  
+  name              String
+  description       String?        @db.Text
+  quantity          Decimal        @db.Decimal(10, 2)
+  unit_price        Decimal        @db.Decimal(10, 2)
+  
+  item_type         line_item_type?
+  sort_order        Int            @default(0)
+  
+  created_at        DateTime       @default(now())
+  
+  @@index([recurring_plan_id])
+  @@index([sort_order])
+}
+
+model recurring_plan_note {
+  id                String         @id @default(uuid())
+  organization_id String?
+  organization    organization? @relation(fields: [organization_id], references: [id])
+  recurring_plan_id String
+  recurring_plan    recurring_plan @relation(fields: [recurring_plan_id], references: [id], onDelete: Cascade)
+  
+  content           String         @db.Text
+  created_at        DateTime       @default(now())
+  updated_at        DateTime       @updatedAt
+  
+  creator_tech_id           String?
+  creator_dispatcher_id     String?
+  last_editor_tech_id       String?
+  last_editor_dispatcher_id String?
+  
+  creator_tech           technician? @relation("RecurringPlanNoteCreator", fields: [creator_tech_id], references: [id])
+  creator_dispatcher     dispatcher? @relation("RecurringPlanNoteCreator", fields: [creator_dispatcher_id], references: [id])
+  last_editor_tech       technician? @relation("RecurringPlanNoteEditor", fields: [last_editor_tech_id], references: [id])
+  last_editor_dispatcher dispatcher? @relation("RecurringPlanNoteEditor", fields: [last_editor_dispatcher_id], references: [id])
+  
+  @@index([recurring_plan_id])
+}
+
 
 // ============================================================================
 // INVENTORY 
@@ -517,6 +813,8 @@ model technician {
   last_edited_request_notes request_note[] @relation("RequestNoteEditor")
   created_quote_notes       quote_note[]   @relation("QuoteNoteCreator")
   last_edited_quote_notes   quote_note[]   @relation("QuoteNoteEditor")
+  created_recurring_plan_notes      recurring_plan_note[] @relation("RecurringPlanNoteCreator")
+  last_edited_recurring_plan_notes  recurring_plan_note[] @relation("RecurringPlanNoteEditor")
 
   @@index([email])
   @@index([status])
@@ -535,8 +833,9 @@ model dispatcher {
   description String
   last_login  DateTime @default(now())
 
-  assigned_requests request[]
+  created_requests request[] @relation("RequestCreator")
   created_quotes    quote[]   @relation("QuoteCreator")
+  created_recurring_plans     recurring_plan[]      @relation("RecurringPlanCreator")
 
   created_client_notes      client_note[]  @relation("ClientNoteCreator")
   last_edited_client_notes  client_note[]  @relation("ClientNoteEditor")
@@ -546,6 +845,9 @@ model dispatcher {
   last_edited_request_notes request_note[] @relation("RequestNoteEditor")
   created_quote_notes       quote_note[]   @relation("QuoteNoteCreator")
   last_edited_quote_notes   quote_note[]   @relation("QuoteNoteEditor")
+  
+  created_recurring_plan_notes      recurring_plan_note[] @relation("RecurringPlanNoteCreator")
+  last_edited_recurring_plan_notes  recurring_plan_note[] @relation("RecurringPlanNoteEditor")
 
   @@index([email])
   @@index([organization_id])

@@ -71,9 +71,9 @@ export default function RequestsPage() {
 					id: r.id,
 					client: r.client?.name || "Unknown Client",
 					title: r.title,
-					address: r.address || "No address",
+					property: r.address || "No address",
 					priority: RequestPriorityLabels[r.priority] || r.priority,
-					requestedDate: formatDate(r.created_at),
+					created: formatDate(r.created_at),
 					status: RequestStatusLabels[r.status] || r.status,
 					_rawStatus: r.status, // Keep raw status for sorting
 					_rawPriority: r.priority, // Keep raw priority for additional sorting

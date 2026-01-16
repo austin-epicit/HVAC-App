@@ -356,7 +356,7 @@ export const insertJob = async (req: Request, context?: UserContext) => {
 					quantity: item.quantity,
 					unit_price: item.unit_price,
 					total: item.total,
-					source: "job" as const,
+					source: "manual" as const,
 					item_type: item.item_type || null,
 				}));
 			}
@@ -672,7 +672,7 @@ export const updateJob = async (req: Request, context?: UserContext) => {
 								quantity: item.quantity,
 								unit_price: item.unit_price,
 								total: item.total,
-								source: "job",
+								source: "manual",
 								item_type: item.item_type || null,
 							},
 						});
@@ -902,7 +902,7 @@ export const insertJobLineItem = async (
 					quantity: parsed.quantity,
 					unit_price: parsed.unit_price,
 					total: total,
-					source: parsed.source || "job",
+					source: parsed.source || "manual",
 					item_type: parsed.item_type || null,
 				},
 			});

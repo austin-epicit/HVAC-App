@@ -116,7 +116,14 @@ export const updateJobSchema = z
 						.enum(["labor", "material", "equipment", "other"])
 						.optional()
 						.nullable(),
-					source: z.enum(["quote", "job", "visit"]).optional(),
+					source: z
+						.enum([
+							"quote",
+							"recurring_plan",
+							"manual",
+							"field_addition",
+						])
+						.optional(),
 				})
 			)
 			.optional(),
@@ -155,7 +162,9 @@ export const createJobLineItemSchema = z
 		quantity: z.number().positive("Quantity must be positive"),
 		unit_price: z.number().min(0, "Unit price must be non-negative"),
 		total: z.number().min(0, "Total must be non-negative").optional(),
-		source: z.enum(["quote", "job", "visit"]).optional(),
+		source: z
+			.enum(["quote", "recurring_plan", "manual", "field_addition"])
+			.optional(),
 		item_type: z
 			.enum(["labor", "material", "equipment", "other"])
 			.optional(),
@@ -181,7 +190,9 @@ export const updateJobLineItemSchema = z
 			.min(0, "Unit price must be non-negative")
 			.optional(),
 		total: z.number().min(0, "Total must be non-negative").optional(),
-		source: z.enum(["quote", "job", "visit"]).optional(),
+		source: z
+			.enum(["quote", "recurring_plan", "manual", "field_addition"])
+			.optional(),
 		item_type: z
 			.enum(["labor", "material", "equipment", "other"])
 			.optional(),
