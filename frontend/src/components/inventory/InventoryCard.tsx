@@ -1,12 +1,18 @@
+import { Settings } from "lucide-react";
 import type { InventoryItem } from "../../types/inventory";
+import { calculateStockStatus, getStatusLabel, getStatusBadgeClass } from "../../util/util";
 
 interface InventoryCardProps {
 	item: InventoryItem;
+	onEditThreshold?: () => void;
 }
 
-const InventoryCard = ({ item }: InventoryCardProps) => {
+export default function InventoryCard({ item, onEditThreshold }: InventoryCardProps) {
+	const stockStatus = item.stock_status ?? calculateStockStatus(item.quantity, item.low_stock_threshold);
+	const hasThreshold = item.low_stock_threshold !== null;
+
 	return (
-		<div className="p-5 w-70 bg-zinc-900 rounded-xl shadow-md border border-[#3a3a3f]">
+		<div className="p-5 w-70 bg-zinc-900 rounded-xl shadow-md border border-[#3a3a3f] relative">
 			<img
 				src={"./"}
 				className="h-30 w-full border border-[#3a3a3f] mb-2 rounded-md"
@@ -24,9 +30,37 @@ const InventoryCard = ({ item }: InventoryCardProps) => {
 					<h2 className="font-semibold">Quantity</h2>
 					<h3 className="text-zinc-300">{item.quantity}</h3>
 				</div>
+				</div>
+			{/* Stock Status and Settings */}
+			<div className="mt-3 pt-3 border-t border-zinc-800 flex items-center justify-between">
+				<div className="flex items-center gap-2">
+					{/* Stock Status Badge */}
+					<span
+						className={`
+							inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium
+							${getStatusBadgeClass(stockStatus)}
+						`}
+					>
+						{getStatusLabel(stockStatus)}
+					</span>
+
+					{/* Threshold Display */}
+					<span className="text-xs text-zinc-400">
+						{hasThreshold ? `Alert: ${item.low_stock_threshold}` : "No alert set"}
+					</span>
+				</div>
+
+				{/* Settings Button */}
+				{onEditThreshold && (
+					<button
+						onClick={onEditThreshold}
+						className="p-1.5 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-md transition-colors"
+						title="Edit threshold"
+					>
+						<Settings size={14} />
+					</button>
+				)}
 			</div>
 		</div>
 	);
-};
-
-export default InventoryCard;
+}

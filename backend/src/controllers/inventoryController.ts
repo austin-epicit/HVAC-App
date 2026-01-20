@@ -10,12 +10,12 @@ export interface UserContext {
 	userAgent?: string;
 }
 
-function getStockStatus(quantity: number, threshold: number | null): 'normal' | 'low' | 'out_of_stock' | null {
+function getStockStatus(quantity: number, threshold: number | null): 'sufficient' | 'low' | 'out_of_stock' | null {
 	if (threshold === null) return null;
 
 	if (quantity === 0) return 'out_of_stock';
 	if (quantity < threshold) return 'low';
-	return 'normal';
+	return 'sufficient';
 }
 
 export const getAllInventory = async () => {
