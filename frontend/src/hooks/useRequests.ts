@@ -70,6 +70,12 @@ export const useCreateRequestMutation = (): UseMutationResult<
 				queryKey: ["clients", newRequest.client_id, "requests"],
 			});
 
+			// Invalidate clients
+			queryClient.invalidateQueries({
+				queryKey: ["clients", newRequest.client_id],
+			});
+			queryClient.invalidateQueries({ queryKey: ["clients"] });
+
 			// Set individual request cache
 			queryClient.setQueryData(["requests", newRequest.id], newRequest);
 		},
@@ -90,12 +96,21 @@ export const useUpdateRequestMutation = (): UseMutationResult<
 		mutationFn: ({ id, data }: { id: string; data: UpdateRequestInput }) =>
 			requestApi.updateRequest(id, data),
 		onSuccess: (updatedRequest: Request) => {
+			// Invalidate all requests
 			queryClient.invalidateQueries({ queryKey: ["requests"] });
 
+			// Invalidate client-specific requests
 			queryClient.invalidateQueries({
 				queryKey: ["clients", updatedRequest.client_id, "requests"],
 			});
 
+			// Invalidate clients
+			queryClient.invalidateQueries({
+				queryKey: ["clients", updatedRequest.client_id],
+			});
+			queryClient.invalidateQueries({ queryKey: ["clients"] });
+
+			// Update the specific request in cache
 			queryClient.setQueryData(["requests", updatedRequest.id], updatedRequest);
 		},
 		onError: (error: Error) => {
@@ -117,14 +132,23 @@ export const useDeleteRequestMutation = (): UseMutationResult<
 		onSuccess: (data, variables) => {
 			const { id: deletedId, clientId } = variables;
 
+			// Invalidate all requests
 			queryClient.invalidateQueries({ queryKey: ["requests"] });
 
+			// Invalidate client-specific requests if clientId provided
 			if (clientId) {
 				queryClient.invalidateQueries({
 					queryKey: ["clients", clientId, "requests"],
 				});
+				queryClient.invalidateQueries({
+					queryKey: ["clients", clientId],
+				});
 			}
 
+			// Invalidate all clients
+			queryClient.invalidateQueries({ queryKey: ["clients"] });
+
+			// Remove the deleted request from cache
 			queryClient.removeQueries({ queryKey: ["requests", deletedId] });
 		},
 		onError: (error: Error) => {

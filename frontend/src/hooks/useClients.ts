@@ -77,9 +77,12 @@ export const useUpdateClientMutation = (): UseMutationResult<
 			queryClient.invalidateQueries({ queryKey: ["clients"] });
 			queryClient.setQueryData(["clients", updatedClient.id], updatedClient);
 
+			// Invalidate all related entities (list AND detail views)
+			queryClient.invalidateQueries({ queryKey: ["jobs"] });
+			queryClient.invalidateQueries({ queryKey: ["jobVisits"] });
 			queryClient.invalidateQueries({ queryKey: ["quotes"] });
 			queryClient.invalidateQueries({ queryKey: ["requests"] });
-			queryClient.invalidateQueries({ queryKey: ["jobs"] });
+			queryClient.invalidateQueries({ queryKey: ["recurringPlans"] });
 		},
 		onError: (error: Error) => {
 			console.error("Failed to update client:", error);
@@ -100,9 +103,12 @@ export const useDeleteClientMutation = (): UseMutationResult<
 			queryClient.invalidateQueries({ queryKey: ["clients"] });
 			queryClient.removeQueries({ queryKey: ["clients", deletedId] });
 
+			// Invalidate all related entities (list AND detail views)
+			queryClient.invalidateQueries({ queryKey: ["jobs"] });
+			queryClient.invalidateQueries({ queryKey: ["jobVisits"] });
 			queryClient.invalidateQueries({ queryKey: ["quotes"] });
 			queryClient.invalidateQueries({ queryKey: ["requests"] });
-			queryClient.invalidateQueries({ queryKey: ["jobs"] });
+			queryClient.invalidateQueries({ queryKey: ["recurringPlans"] });
 		},
 		onError: (error: Error) => {
 			console.error("Failed to delete client:", error);
@@ -187,9 +193,12 @@ export const useCreateContactMutation = (): UseMutationResult<
 					});
 				});
 
+				// Invalidate all related entities (list AND detail views)
+				queryClient.invalidateQueries({ queryKey: ["jobs"] });
+				queryClient.invalidateQueries({ queryKey: ["jobVisits"] });
 				queryClient.invalidateQueries({ queryKey: ["quotes"] });
 				queryClient.invalidateQueries({ queryKey: ["requests"] });
-				queryClient.invalidateQueries({ queryKey: ["jobs"] });
+				queryClient.invalidateQueries({ queryKey: ["recurringPlans"] });
 			}
 		},
 		onError: (error: Error) => {
@@ -230,9 +239,12 @@ export const useUpdateContactMutation = (): UseMutationResult<
 				});
 			});
 
+			// Invalidate all related entities (list AND detail views)
+			queryClient.invalidateQueries({ queryKey: ["jobs"] });
+			queryClient.invalidateQueries({ queryKey: ["jobVisits"] });
 			queryClient.invalidateQueries({ queryKey: ["quotes"] });
 			queryClient.invalidateQueries({ queryKey: ["requests"] });
-			queryClient.invalidateQueries({ queryKey: ["jobs"] });
+			queryClient.invalidateQueries({ queryKey: ["recurringPlans"] });
 		},
 		onError: (error: Error) => {
 			console.error("Failed to update contact:", error);
@@ -255,9 +267,13 @@ export const useDeleteContactMutation = (): UseMutationResult<
 
 			// Invalidate related entities as they might show this contact
 			queryClient.invalidateQueries({ queryKey: ["clients"] });
+
+			// Invalidate all related entities (list AND detail views)
+			queryClient.invalidateQueries({ queryKey: ["jobs"] });
+			queryClient.invalidateQueries({ queryKey: ["jobVisits"] });
 			queryClient.invalidateQueries({ queryKey: ["quotes"] });
 			queryClient.invalidateQueries({ queryKey: ["requests"] });
-			queryClient.invalidateQueries({ queryKey: ["jobs"] });
+			queryClient.invalidateQueries({ queryKey: ["recurringPlans"] });
 		},
 		onError: (error: Error) => {
 			console.error("Failed to delete contact:", error);
@@ -298,12 +314,15 @@ export const useLinkContactMutation = (): UseMutationResult<
 			};
 		}) => clientApi.linkContactToClient(clientId, data),
 		onSuccess: (_, variables) => {
+			// Invalidate client-specific queries
 			queryClient.invalidateQueries({
 				queryKey: ["clients", variables.clientId, "contacts"],
 			});
 			queryClient.invalidateQueries({
 				queryKey: ["clients", variables.clientId],
 			});
+
+			// Invalidate contact queries
 			queryClient.invalidateQueries({
 				queryKey: ["contacts", variables.data.contact_id],
 			});
@@ -311,10 +330,14 @@ export const useLinkContactMutation = (): UseMutationResult<
 				queryKey: ["contacts"],
 			});
 
+			// Invalidate all entities that display client/contact info
 			if (variables.data.is_primary) {
+				// Invalidate all related entities (list AND detail views)
+				queryClient.invalidateQueries({ queryKey: ["jobs"] });
+				queryClient.invalidateQueries({ queryKey: ["jobVisits"] });
 				queryClient.invalidateQueries({ queryKey: ["quotes"] });
 				queryClient.invalidateQueries({ queryKey: ["requests"] });
-				queryClient.invalidateQueries({ queryKey: ["jobs"] });
+				queryClient.invalidateQueries({ queryKey: ["recurringPlans"] });
 			}
 		},
 		onError: (error: Error) => {
@@ -341,6 +364,7 @@ export const useUpdateClientContactMutation = (): UseMutationResult<
 			data: UpdateClientContactInput;
 		}) => clientApi.updateClientContact(clientId, contactId, data),
 		onSuccess: (_, variables) => {
+			// Invalidate client-specific queries
 			queryClient.invalidateQueries({
 				queryKey: ["clients", variables.clientId, "contacts"],
 			});
@@ -348,10 +372,19 @@ export const useUpdateClientContactMutation = (): UseMutationResult<
 				queryKey: ["clients", variables.clientId],
 			});
 
+			// Invalidate contact queries
+			queryClient.invalidateQueries({
+				queryKey: ["contacts", variables.contactId],
+			});
+
+			// If primary status changed, invalidate everything that shows contact info
 			if (variables.data.is_primary !== undefined) {
+				// Invalidate all related entities (list AND detail views)
+				queryClient.invalidateQueries({ queryKey: ["jobs"] });
+				queryClient.invalidateQueries({ queryKey: ["jobVisits"] });
 				queryClient.invalidateQueries({ queryKey: ["quotes"] });
 				queryClient.invalidateQueries({ queryKey: ["requests"] });
-				queryClient.invalidateQueries({ queryKey: ["jobs"] });
+				queryClient.invalidateQueries({ queryKey: ["recurringPlans"] });
 			}
 		},
 		onError: (error: Error) => {
@@ -371,19 +404,26 @@ export const useUnlinkContactFromClientMutation = (): UseMutationResult<
 		mutationFn: ({ clientId, contactId }: { clientId: string; contactId: string }) =>
 			clientApi.unlinkContactFromClient(clientId, contactId),
 		onSuccess: (_, variables) => {
+			// Invalidate client-specific queries
 			queryClient.invalidateQueries({
 				queryKey: ["clients", variables.clientId, "contacts"],
 			});
 			queryClient.invalidateQueries({
 				queryKey: ["clients", variables.clientId],
 			});
+
+			// Invalidate contact queries
 			queryClient.invalidateQueries({
 				queryKey: ["contacts", variables.contactId],
 			});
 
+			// Invalidate all entities that might show this contact
+			// Invalidate all related entities (list AND detail views)
+			queryClient.invalidateQueries({ queryKey: ["jobs"] });
+			queryClient.invalidateQueries({ queryKey: ["jobVisits"] });
 			queryClient.invalidateQueries({ queryKey: ["quotes"] });
 			queryClient.invalidateQueries({ queryKey: ["requests"] });
-			queryClient.invalidateQueries({ queryKey: ["jobs"] });
+			queryClient.invalidateQueries({ queryKey: ["recurringPlans"] });
 		},
 		onError: (error: Error) => {
 			console.error("Failed to unlink contact from client:", error);

@@ -32,35 +32,19 @@ import type {
 } from "../types/quotes";
 
 // ============================================================================
-// Query Keys
-// ============================================================================
-
-export const quoteKeys = {
-	all: ["quotes"] as const,
-	lists: () => [...quoteKeys.all, "list"] as const,
-	list: (filters?: Record<string, unknown>) => [...quoteKeys.lists(), filters] as const,
-	details: () => [...quoteKeys.all, "detail"] as const,
-	detail: (id: string) => [...quoteKeys.details(), id] as const,
-	byClient: (clientId: string) => [...quoteKeys.all, "client", clientId] as const,
-	byRequest: (requestId: string) => [...quoteKeys.all, "request", requestId] as const,
-	notes: (quoteId: string) => [...quoteKeys.all, "notes", quoteId] as const,
-	statistics: (clientId?: string) => [...quoteKeys.all, "statistics", clientId] as const,
-};
-
-// ============================================================================
 // Queries
 // ============================================================================
 
-export const useQuotesQuery = () => {
+export const useAllQuotesQuery = () => {
 	return useQuery({
-		queryKey: quoteKeys.lists(),
+		queryKey: ["quotes"],
 		queryFn: getAllQuotes,
 	});
 };
 
 export const useQuoteByIdQuery = (id: string) => {
 	return useQuery({
-		queryKey: quoteKeys.detail(id),
+		queryKey: ["quotes", id],
 		queryFn: () => getQuoteById(id),
 		enabled: !!id,
 	});
@@ -68,7 +52,7 @@ export const useQuoteByIdQuery = (id: string) => {
 
 export const useQuotesByClientIdQuery = (clientId: string) => {
 	return useQuery({
-		queryKey: quoteKeys.byClient(clientId),
+		queryKey: ["clients", clientId, "quotes"],
 		queryFn: () => getQuotesByClientId(clientId),
 		enabled: !!clientId,
 	});
@@ -76,7 +60,7 @@ export const useQuotesByClientIdQuery = (clientId: string) => {
 
 export const useQuotesByRequestIdQuery = (requestId: string) => {
 	return useQuery({
-		queryKey: quoteKeys.byRequest(requestId),
+		queryKey: ["requests", requestId, "quotes"],
 		queryFn: () => getQuotesByRequestId(requestId),
 		enabled: !!requestId,
 	});
@@ -84,7 +68,7 @@ export const useQuotesByRequestIdQuery = (requestId: string) => {
 
 export const useQuoteNotesQuery = (quoteId: string) => {
 	return useQuery({
-		queryKey: quoteKeys.notes(quoteId),
+		queryKey: ["quotes", quoteId, "notes"],
 		queryFn: () => getQuoteNotes(quoteId),
 		enabled: !!quoteId,
 	});
@@ -92,7 +76,7 @@ export const useQuoteNotesQuery = (quoteId: string) => {
 
 export const useQuoteStatisticsQuery = (clientId?: string) => {
 	return useQuery({
-		queryKey: quoteKeys.statistics(clientId),
+		queryKey: ["quotes", "statistics", clientId],
 		queryFn: () => getQuoteStatistics(clientId),
 	});
 };
@@ -108,12 +92,12 @@ export const useCreateQuoteMutation = () => {
 		mutationFn: (input: CreateQuoteInput) => createQuote(input),
 		onSuccess: (newQuote) => {
 			// Invalidate quote lists
-			queryClient.invalidateQueries({ queryKey: quoteKeys.lists() });
+			queryClient.invalidateQueries({ queryKey: ["quotes"] });
 
 			// Invalidate client-specific quotes if applicable
 			if (newQuote.client_id) {
 				queryClient.invalidateQueries({
-					queryKey: quoteKeys.byClient(newQuote.client_id),
+					queryKey: ["clients", newQuote.client_id, "quotes"],
 				});
 
 				//  Invalidate client queries
@@ -128,7 +112,7 @@ export const useCreateQuoteMutation = () => {
 			// Invalidate request-specific quotes if applicable
 			if (newQuote.request_id) {
 				queryClient.invalidateQueries({
-					queryKey: quoteKeys.byRequest(newQuote.request_id),
+					queryKey: ["requests", newQuote.request_id, "quotes"],
 				});
 
 				// Invalidate the specific request
@@ -142,8 +126,8 @@ export const useCreateQuoteMutation = () => {
 				});
 			}
 
-			// Invalidate statistics
-			queryClient.invalidateQueries({ queryKey: quoteKeys.statistics() });
+			// Set the new quote in cache
+			queryClient.setQueryData(["quotes", newQuote.id], newQuote);
 		},
 	});
 };
@@ -155,30 +139,25 @@ export const useUpdateQuoteMutation = () => {
 		mutationFn: ({ id, data }: { id: string; data: UpdateQuoteInput }) =>
 			updateQuote(id, data),
 		onSuccess: (updatedQuote) => {
-			// Invalidate the specific quote
-			queryClient.invalidateQueries({
-				queryKey: quoteKeys.detail(updatedQuote.id),
-			});
-
-			// Invalidate lists
-			queryClient.invalidateQueries({ queryKey: quoteKeys.lists() });
+			// Invalidate all quotes (catches list and all details)
+			queryClient.invalidateQueries({ queryKey: ["quotes"] });
 
 			// Invalidate client-specific quotes
 			if (updatedQuote.client_id) {
 				queryClient.invalidateQueries({
-					queryKey: quoteKeys.byClient(updatedQuote.client_id),
+					queryKey: ["clients", updatedQuote.client_id, "quotes"],
 				});
 			}
 
 			// Invalidate request-specific quotes if applicable
 			if (updatedQuote.request_id) {
 				queryClient.invalidateQueries({
-					queryKey: quoteKeys.byRequest(updatedQuote.request_id),
+					queryKey: ["requests", updatedQuote.request_id, "quotes"],
 				});
 			}
 
-			// Invalidate statistics
-			queryClient.invalidateQueries({ queryKey: quoteKeys.statistics() });
+			// Update the specific quote in cache
+			queryClient.setQueryData(["quotes", updatedQuote.id], updatedQuote);
 		},
 	});
 };
@@ -189,9 +168,12 @@ export const useDeleteQuoteMutation = () => {
 	return useMutation({
 		mutationFn: ({ id, hardDelete }: { id: string; hardDelete?: boolean }) =>
 			deleteQuote(id, hardDelete),
-		onSuccess: () => {
+		onSuccess: (_, variables) => {
 			// Invalidate all quote-related queries
-			queryClient.invalidateQueries({ queryKey: quoteKeys.all });
+			queryClient.invalidateQueries({ queryKey: ["quotes"] });
+
+			// Remove the deleted quote from cache
+			queryClient.removeQueries({ queryKey: ["quotes", variables.id] });
 		},
 	});
 };
@@ -207,10 +189,9 @@ export const useSendQuoteMutation = () => {
 		mutationFn: (id: string) => sendQuote(id),
 		onSuccess: (updatedQuote) => {
 			queryClient.invalidateQueries({
-				queryKey: quoteKeys.detail(updatedQuote.id),
+				queryKey: ["quotes", updatedQuote.id],
 			});
-			queryClient.invalidateQueries({ queryKey: quoteKeys.lists() });
-			queryClient.invalidateQueries({ queryKey: quoteKeys.statistics() });
+			queryClient.invalidateQueries({ queryKey: ["quotes"] });
 		},
 	});
 };
@@ -222,10 +203,9 @@ export const useApproveQuoteMutation = () => {
 		mutationFn: (id: string) => approveQuote(id),
 		onSuccess: (updatedQuote) => {
 			queryClient.invalidateQueries({
-				queryKey: quoteKeys.detail(updatedQuote.id),
+				queryKey: ["quotes", updatedQuote.id],
 			});
-			queryClient.invalidateQueries({ queryKey: quoteKeys.lists() });
-			queryClient.invalidateQueries({ queryKey: quoteKeys.statistics() });
+			queryClient.invalidateQueries({ queryKey: ["quotes"] });
 		},
 	});
 };
@@ -238,10 +218,9 @@ export const useRejectQuoteMutation = () => {
 			rejectQuote(id, rejectionReason),
 		onSuccess: (updatedQuote) => {
 			queryClient.invalidateQueries({
-				queryKey: quoteKeys.detail(updatedQuote.id),
+				queryKey: ["quotes", updatedQuote.id],
 			});
-			queryClient.invalidateQueries({ queryKey: quoteKeys.lists() });
-			queryClient.invalidateQueries({ queryKey: quoteKeys.statistics() });
+			queryClient.invalidateQueries({ queryKey: ["quotes"] });
 		},
 	});
 };
@@ -253,7 +232,7 @@ export const useRecordQuoteViewMutation = () => {
 		mutationFn: (id: string) => recordQuoteView(id),
 		onSuccess: (updatedQuote) => {
 			queryClient.invalidateQueries({
-				queryKey: quoteKeys.detail(updatedQuote.id),
+				queryKey: ["quotes", updatedQuote.id],
 			});
 		},
 	});
@@ -265,29 +244,32 @@ export const useReviseQuoteMutation = () => {
 	return useMutation({
 		mutationFn: (id: string) => reviseQuote(id),
 		onSuccess: (newQuote) => {
-			// Invalidate lists
-			queryClient.invalidateQueries({ queryKey: quoteKeys.lists() });
+			// Invalidate all quotes
+			queryClient.invalidateQueries({ queryKey: ["quotes"] });
 
 			// Invalidate client quotes
 			if (newQuote.client_id) {
 				queryClient.invalidateQueries({
-					queryKey: quoteKeys.byClient(newQuote.client_id),
+					queryKey: ["clients", newQuote.client_id, "quotes"],
 				});
 			}
 
 			// Invalidate request quotes if applicable
 			if (newQuote.request_id) {
 				queryClient.invalidateQueries({
-					queryKey: quoteKeys.byRequest(newQuote.request_id),
+					queryKey: ["requests", newQuote.request_id, "quotes"],
 				});
 			}
 
 			// Invalidate the old quote (since it gets deactivated)
 			if (newQuote.previous_quote_id) {
 				queryClient.invalidateQueries({
-					queryKey: quoteKeys.detail(newQuote.previous_quote_id),
+					queryKey: ["quotes", newQuote.previous_quote_id],
 				});
 			}
+
+			// Set the new quote in cache
+			queryClient.setQueryData(["quotes", newQuote.id], newQuote);
 		},
 	});
 };
@@ -310,7 +292,7 @@ export const useAddLineItemMutation = () => {
 		onSuccess: (_, variables) => {
 			// Invalidate the quote to refresh line items
 			queryClient.invalidateQueries({
-				queryKey: quoteKeys.detail(variables.quoteId),
+				queryKey: ["quotes", variables.quoteId],
 			});
 		},
 	});
@@ -331,7 +313,7 @@ export const useUpdateLineItemMutation = () => {
 		}) => updateLineItem(quoteId, lineItemId, data),
 		onSuccess: (_, variables) => {
 			queryClient.invalidateQueries({
-				queryKey: quoteKeys.detail(variables.quoteId),
+				queryKey: ["quotes", variables.quoteId],
 			});
 		},
 	});
@@ -345,7 +327,7 @@ export const useDeleteLineItemMutation = () => {
 			deleteLineItem(quoteId, lineItemId),
 		onSuccess: (_, variables) => {
 			queryClient.invalidateQueries({
-				queryKey: quoteKeys.detail(variables.quoteId),
+				queryKey: ["quotes", variables.quoteId],
 			});
 		},
 	});
@@ -363,10 +345,10 @@ export const useCreateQuoteNoteMutation = () => {
 			createQuoteNote(quoteId, data),
 		onSuccess: (_, variables) => {
 			queryClient.invalidateQueries({
-				queryKey: quoteKeys.notes(variables.quoteId),
+				queryKey: ["quotes", variables.quoteId, "notes"],
 			});
 			queryClient.invalidateQueries({
-				queryKey: quoteKeys.detail(variables.quoteId),
+				queryKey: ["quotes", variables.quoteId],
 			});
 		},
 	});
@@ -387,7 +369,7 @@ export const useUpdateQuoteNoteMutation = () => {
 		}) => updateQuoteNote(quoteId, noteId, data),
 		onSuccess: (_, variables) => {
 			queryClient.invalidateQueries({
-				queryKey: quoteKeys.notes(variables.quoteId),
+				queryKey: ["quotes", variables.quoteId, "notes"],
 			});
 		},
 	});
@@ -401,7 +383,7 @@ export const useDeleteQuoteNoteMutation = () => {
 			deleteQuoteNote(quoteId, noteId),
 		onSuccess: (_, variables) => {
 			queryClient.invalidateQueries({
-				queryKey: quoteKeys.notes(variables.quoteId),
+				queryKey: ["quotes", variables.quoteId, "notes"],
 			});
 		},
 	});
