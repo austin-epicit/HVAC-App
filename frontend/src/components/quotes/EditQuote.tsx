@@ -823,6 +823,7 @@ const EditQuote = ({ isModalOpen, setIsModalOpen, quote }: EditQuoteProps) => {
 						<DatePicker
 							value={validUntilDate}
 							onChange={setValidUntilDate}
+							align="left"
 						/>
 					</div>
 
@@ -833,6 +834,7 @@ const EditQuote = ({ isModalOpen, setIsModalOpen, quote }: EditQuoteProps) => {
 						<DatePicker
 							value={expiresAtDate}
 							onChange={setExpiresAtDate}
+							align="right"
 						/>
 					</div>
 				</div>

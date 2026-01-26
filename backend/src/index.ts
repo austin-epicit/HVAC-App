@@ -61,6 +61,8 @@ import {
 	assignTechniciansToVisit,
 	deleteJobVisit,
 } from "./controllers/jobVisitsController.js";
+import * as recurringPlansController from "./controllers/recurringPlansController.js";
+import * as recurringPlanNotesController from "./controllers/recurringPlanNotesController.js";
 import {
 	getAllClients,
 	getClientById,
@@ -94,11 +96,11 @@ import {
 	updateTechnician,
 	deleteTechnician,
 } from "./controllers/techniciansController.js";
-import{
+import {
 	getAllInventory,
 	getLowStockInventory,
 	updateInventoryThreshold,
-}from "./controllers/inventoryController.js";
+} from "./controllers/inventoryController.js";
 import http from "http";
 import { Server } from "socket.io";
 
@@ -117,7 +119,7 @@ const errorHandler = (
 	err: any,
 	req: Request,
 	res: Response,
-	next: NextFunction
+	next: NextFunction,
 ) => {
 	console.error(`[ERROR] ${req.method} ${req.path}:`, err);
 
@@ -127,8 +129,8 @@ const errorHandler = (
 		createErrorResponse(
 			err.code || ErrorCodes.SERVER_ERROR,
 			err.message || "An unexpected error occurred",
-			process.env.NODE_ENV === "development" ? err.stack : undefined
-		)
+			process.env.NODE_ENV === "development" ? err.stack : undefined,
+		),
 	);
 };
 
@@ -142,8 +144,8 @@ const notFoundHandler = (req: Request, res: Response) => {
 	res.status(404).json(
 		createErrorResponse(
 			ErrorCodes.NOT_FOUND,
-			`Route ${req.method} ${req.path} not found`
-		)
+			`Route ${req.method} ${req.path} not found`,
+		),
 	);
 };
 
@@ -227,8 +229,8 @@ app.get("/requests/:id", async (req, res, next) => {
 				.json(
 					createErrorResponse(
 						ErrorCodes.NOT_FOUND,
-						"Request not found"
-					)
+						"Request not found",
+					),
 				);
 		}
 
@@ -257,7 +259,10 @@ app.post("/requests", async (req, res, next) => {
 			return res
 				.status(400)
 				.json(
-					createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+					createErrorResponse(
+						ErrorCodes.VALIDATION_ERROR,
+						result.err,
+					),
 				);
 		}
 
@@ -277,7 +282,10 @@ app.put("/requests/:id", async (req, res, next) => {
 			return res
 				.status(statusCode)
 				.json(
-					createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+					createErrorResponse(
+						ErrorCodes.VALIDATION_ERROR,
+						result.err,
+					),
 				);
 		}
 
@@ -324,14 +332,14 @@ app.get("/requests/:requestId/notes/:noteId", async (req, res, next) => {
 		const { requestId, noteId } = req.params;
 		const note = await requestNotesController.getNoteById(
 			requestId,
-			noteId
+			noteId,
 		);
 
 		if (!note) {
 			return res
 				.status(404)
 				.json(
-					createErrorResponse(ErrorCodes.NOT_FOUND, "Note not found")
+					createErrorResponse(ErrorCodes.NOT_FOUND, "Note not found"),
 				);
 		}
 
@@ -348,7 +356,7 @@ app.post("/requests/:requestId/notes", async (req, res, next) => {
 		const result = await requestNotesController.insertRequestNote(
 			requestId,
 			req.body,
-			context
+			context,
 		);
 
 		if (result.err) {
@@ -356,7 +364,10 @@ app.post("/requests/:requestId/notes", async (req, res, next) => {
 			return res
 				.status(statusCode)
 				.json(
-					createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+					createErrorResponse(
+						ErrorCodes.VALIDATION_ERROR,
+						result.err,
+					),
 				);
 		}
 
@@ -374,7 +385,7 @@ app.put("/requests/:requestId/notes/:noteId", async (req, res, next) => {
 			requestId,
 			noteId,
 			req.body,
-			context
+			context,
 		);
 
 		if (result.err) {
@@ -382,7 +393,10 @@ app.put("/requests/:requestId/notes/:noteId", async (req, res, next) => {
 			return res
 				.status(statusCode)
 				.json(
-					createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+					createErrorResponse(
+						ErrorCodes.VALIDATION_ERROR,
+						result.err,
+					),
 				);
 		}
 
@@ -399,7 +413,7 @@ app.delete("/requests/:requestId/notes/:noteId", async (req, res, next) => {
 		const result = await requestNotesController.deleteRequestNote(
 			requestId,
 			noteId,
-			context
+			context,
 		);
 
 		if (result.err) {
@@ -410,7 +424,7 @@ app.delete("/requests/:requestId/notes/:noteId", async (req, res, next) => {
 		}
 
 		res.status(200).json(
-			createSuccessResponse({ message: result.message })
+			createSuccessResponse({ message: result.message }),
 		);
 	} catch (err) {
 		next(err);
@@ -439,7 +453,10 @@ app.get("/quotes/:id", async (req, res, next) => {
 			return res
 				.status(404)
 				.json(
-					createErrorResponse(ErrorCodes.NOT_FOUND, "Quote not found")
+					createErrorResponse(
+						ErrorCodes.NOT_FOUND,
+						"Quote not found",
+					),
 				);
 		}
 
@@ -468,7 +485,10 @@ app.post("/quotes", async (req, res, next) => {
 			return res
 				.status(400)
 				.json(
-					createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+					createErrorResponse(
+						ErrorCodes.VALIDATION_ERROR,
+						result.err,
+					),
 				);
 		}
 
@@ -488,7 +508,10 @@ app.put("/quotes/:id", async (req, res, next) => {
 			return res
 				.status(statusCode)
 				.json(
-					createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+					createErrorResponse(
+						ErrorCodes.VALIDATION_ERROR,
+						result.err,
+					),
 				);
 		}
 
@@ -542,8 +565,8 @@ app.get("/quotes/:quoteId/line-items/:itemId", async (req, res, next) => {
 				.json(
 					createErrorResponse(
 						ErrorCodes.NOT_FOUND,
-						"Line item not found"
-					)
+						"Line item not found",
+					),
 				);
 		}
 
@@ -564,7 +587,10 @@ app.post("/quotes/:quoteId/line-items", async (req, res, next) => {
 			return res
 				.status(statusCode)
 				.json(
-					createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+					createErrorResponse(
+						ErrorCodes.VALIDATION_ERROR,
+						result.err,
+					),
 				);
 		}
 
@@ -582,7 +608,7 @@ app.put("/quotes/:quoteId/line-items/:itemId", async (req, res, next) => {
 			quoteId,
 			itemId,
 			req.body,
-			context
+			context,
 		);
 
 		if (result.err) {
@@ -590,7 +616,10 @@ app.put("/quotes/:quoteId/line-items/:itemId", async (req, res, next) => {
 			return res
 				.status(statusCode)
 				.json(
-					createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+					createErrorResponse(
+						ErrorCodes.VALIDATION_ERROR,
+						result.err,
+					),
 				);
 		}
 
@@ -614,7 +643,7 @@ app.delete("/quotes/:quoteId/line-items/:itemId", async (req, res, next) => {
 		}
 
 		res.status(200).json(
-			createSuccessResponse({ message: result.message })
+			createSuccessResponse({ message: result.message }),
 		);
 	} catch (err) {
 		next(err);
@@ -644,7 +673,7 @@ app.get("/quotes/:quoteId/notes/:noteId", async (req, res, next) => {
 			return res
 				.status(404)
 				.json(
-					createErrorResponse(ErrorCodes.NOT_FOUND, "Note not found")
+					createErrorResponse(ErrorCodes.NOT_FOUND, "Note not found"),
 				);
 		}
 
@@ -661,7 +690,7 @@ app.post("/quotes/:quoteId/notes", async (req, res, next) => {
 		const result = await quoteNotesController.insertQuoteNote(
 			quoteId,
 			req.body,
-			context
+			context,
 		);
 
 		if (result.err) {
@@ -669,7 +698,10 @@ app.post("/quotes/:quoteId/notes", async (req, res, next) => {
 			return res
 				.status(statusCode)
 				.json(
-					createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+					createErrorResponse(
+						ErrorCodes.VALIDATION_ERROR,
+						result.err,
+					),
 				);
 		}
 
@@ -687,7 +719,7 @@ app.put("/quotes/:quoteId/notes/:noteId", async (req, res, next) => {
 			quoteId,
 			noteId,
 			req.body,
-			context
+			context,
 		);
 
 		if (result.err) {
@@ -695,7 +727,10 @@ app.put("/quotes/:quoteId/notes/:noteId", async (req, res, next) => {
 			return res
 				.status(statusCode)
 				.json(
-					createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+					createErrorResponse(
+						ErrorCodes.VALIDATION_ERROR,
+						result.err,
+					),
 				);
 		}
 
@@ -712,7 +747,7 @@ app.delete("/quotes/:quoteId/notes/:noteId", async (req, res, next) => {
 		const result = await quoteNotesController.deleteQuoteNote(
 			quoteId,
 			noteId,
-			context
+			context,
 		);
 
 		if (result.err) {
@@ -723,7 +758,7 @@ app.delete("/quotes/:quoteId/notes/:noteId", async (req, res, next) => {
 		}
 
 		res.status(200).json(
-			createSuccessResponse({ message: result.message })
+			createSuccessResponse({ message: result.message }),
 		);
 	} catch (err) {
 		next(err);
@@ -752,7 +787,7 @@ app.get("/jobs/:id", async (req, res, next) => {
 			return res
 				.status(404)
 				.json(
-					createErrorResponse(ErrorCodes.NOT_FOUND, "Job not found")
+					createErrorResponse(ErrorCodes.NOT_FOUND, "Job not found"),
 				);
 		}
 
@@ -771,7 +806,10 @@ app.post("/jobs", async (req, res, next) => {
 			return res
 				.status(400)
 				.json(
-					createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+					createErrorResponse(
+						ErrorCodes.VALIDATION_ERROR,
+						result.err,
+					),
 				);
 		}
 
@@ -790,7 +828,10 @@ app.patch("/jobs/:id", async (req, res, next) => {
 			return res
 				.status(400)
 				.json(
-					createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+					createErrorResponse(
+						ErrorCodes.VALIDATION_ERROR,
+						result.err,
+					),
 				);
 		}
 
@@ -813,7 +854,7 @@ app.delete("/jobs/:id", async (req, res, next) => {
 		}
 
 		res.status(200).json(
-			createSuccessResponse({ message: "Job deleted successfully", id })
+			createSuccessResponse({ message: "Job deleted successfully", id }),
 		);
 	} catch (err) {
 		next(err);
@@ -844,8 +885,8 @@ app.get("/job-visits/:id", async (req, res, next) => {
 				.json(
 					createErrorResponse(
 						ErrorCodes.NOT_FOUND,
-						"Job visit not found"
-					)
+						"Job visit not found",
+					),
 				);
 		}
 
@@ -889,8 +930,8 @@ app.get(
 					.json(
 						createErrorResponse(
 							ErrorCodes.INVALID_INPUT,
-							"Invalid date format. Use YYYY-MM-DD"
-						)
+							"Invalid date format. Use YYYY-MM-DD",
+						),
 					);
 			}
 
@@ -899,7 +940,7 @@ app.get(
 		} catch (err) {
 			next(err);
 		}
-	}
+	},
 );
 
 app.post("/job-visits", async (req, res, next) => {
@@ -911,7 +952,10 @@ app.post("/job-visits", async (req, res, next) => {
 			return res
 				.status(400)
 				.json(
-					createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+					createErrorResponse(
+						ErrorCodes.VALIDATION_ERROR,
+						result.err,
+					),
 				);
 		}
 
@@ -930,7 +974,10 @@ app.put("/job-visits/:id", async (req, res, next) => {
 			return res
 				.status(400)
 				.json(
-					createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+					createErrorResponse(
+						ErrorCodes.VALIDATION_ERROR,
+						result.err,
+					),
 				);
 		}
 
@@ -954,8 +1001,8 @@ app.put("/job-visits/:id/technicians", async (req, res, next) => {
 						ErrorCodes.INVALID_INPUT,
 						"tech_ids must be an array",
 						null,
-						"tech_ids"
-					)
+						"tech_ids",
+					),
 				);
 		}
 
@@ -965,7 +1012,10 @@ app.put("/job-visits/:id/technicians", async (req, res, next) => {
 			return res
 				.status(400)
 				.json(
-					createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+					createErrorResponse(
+						ErrorCodes.VALIDATION_ERROR,
+						result.err,
+					),
 				);
 		}
 
@@ -991,7 +1041,7 @@ app.delete("/job-visits/:id", async (req, res, next) => {
 			createSuccessResponse({
 				message: result.message || "Job visit deleted successfully",
 				id,
-			})
+			}),
 		);
 	} catch (err) {
 		next(err);
@@ -1032,7 +1082,10 @@ app.post("/jobs/:jobId/notes", async (req, res, next) => {
 			return res
 				.status(400)
 				.json(
-					createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+					createErrorResponse(
+						ErrorCodes.VALIDATION_ERROR,
+						result.err,
+					),
 				);
 		}
 
@@ -1052,7 +1105,10 @@ app.put("/jobs/:jobId/notes/:noteId", async (req, res, next) => {
 			return res
 				.status(400)
 				.json(
-					createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+					createErrorResponse(
+						ErrorCodes.VALIDATION_ERROR,
+						result.err,
+					),
 				);
 		}
 
@@ -1077,12 +1133,535 @@ app.delete("/jobs/:jobId/notes/:noteId", async (req, res, next) => {
 		res.status(200).json(
 			createSuccessResponse({
 				message: result.message || "Note deleted successfully",
-			})
+			}),
 		);
 	} catch (err) {
 		next(err);
 	}
 });
+
+// ============================================
+// RECURRING PLAN ROUTES
+// ============================================
+
+app.get("/recurring-plans", async (req, res, next) => {
+	try {
+		const plans = await recurringPlansController.getAllRecurringPlans();
+		res.json(createSuccessResponse(plans, { count: plans.length }));
+	} catch (err) {
+		next(err);
+	}
+});
+
+app.get("/recurring-plans/:id", async (req, res, next) => {
+	try {
+		const { id } = req.params;
+		const plan = await recurringPlansController.getRecurringPlanById(id);
+
+		if (!plan) {
+			return res
+				.status(404)
+				.json(
+					createErrorResponse(
+						ErrorCodes.NOT_FOUND,
+						"Recurring plan not found",
+					),
+				);
+		}
+
+		res.json(createSuccessResponse(plan));
+	} catch (err) {
+		next(err);
+	}
+});
+
+app.post("/recurring-plans", async (req, res, next) => {
+	try {
+		const context = getUserContext(req);
+		const result = await recurringPlansController.insertRecurringPlan(
+			req,
+			context,
+		);
+
+		if (result.err) {
+			const statusCode = result.err.includes("not found") ? 404 : 400;
+			return res
+				.status(statusCode)
+				.json(
+					createErrorResponse(
+						ErrorCodes.VALIDATION_ERROR,
+						result.err,
+					),
+				);
+		}
+
+		res.status(201).json(createSuccessResponse(result.item));
+	} catch (err) {
+		next(err);
+	}
+});
+
+app.get("/jobs/:jobId/recurring-plan", async (req, res, next) => {
+	try {
+		const { jobId } = req.params;
+		const plan =
+			await recurringPlansController.getRecurringPlanByJobId(jobId);
+
+		if (!plan) {
+			return res
+				.status(404)
+				.json(
+					createErrorResponse(
+						ErrorCodes.NOT_FOUND,
+						"Recurring plan not found",
+					),
+				);
+		}
+
+		res.json(createSuccessResponse(plan));
+	} catch (err) {
+		next(err);
+	}
+});
+
+app.put("/jobs/:jobId/recurring-plan", async (req, res, next) => {
+	try {
+		const { jobId } = req.params;
+		const context = getUserContext(req);
+		const result = await recurringPlansController.updateRecurringPlan(
+			jobId,
+			req.body,
+			context,
+		);
+
+		if (result.err) {
+			const statusCode = result.err.includes("not found") ? 404 : 400;
+			return res
+				.status(statusCode)
+				.json(
+					createErrorResponse(
+						ErrorCodes.VALIDATION_ERROR,
+						result.err,
+					),
+				);
+		}
+
+		res.json(createSuccessResponse(result.item));
+	} catch (err) {
+		next(err);
+	}
+});
+
+app.put("/jobs/:jobId/recurring-plan/template", async (req, res, next) => {
+	try {
+		const { jobId } = req.params;
+		const context = getUserContext(req);
+		const result =
+			await recurringPlansController.updateRecurringPlanLineItems(
+				jobId,
+				req.body,
+				context,
+			);
+
+		if (result.err) {
+			const statusCode = result.err.includes("not found") ? 404 : 400;
+			return res
+				.status(statusCode)
+				.json(
+					createErrorResponse(
+						ErrorCodes.VALIDATION_ERROR,
+						result.err,
+					),
+				);
+		}
+
+		res.json(createSuccessResponse(result.item));
+	} catch (err) {
+		next(err);
+	}
+});
+
+app.post("/jobs/:jobId/recurring-plan/pause", async (req, res, next) => {
+	try {
+		const { jobId } = req.params;
+		const context = getUserContext(req);
+		const result = await recurringPlansController.pauseRecurringPlan(
+			jobId,
+			context,
+		);
+
+		if (result.err) {
+			const statusCode = result.err.includes("not found") ? 404 : 400;
+			return res
+				.status(statusCode)
+				.json(
+					createErrorResponse(
+						ErrorCodes.VALIDATION_ERROR,
+						result.err,
+					),
+				);
+		}
+
+		res.json(createSuccessResponse(result.item));
+	} catch (err) {
+		next(err);
+	}
+});
+
+app.post("/jobs/:jobId/recurring-plan/resume", async (req, res, next) => {
+	try {
+		const { jobId } = req.params;
+		const context = getUserContext(req);
+		const result = await recurringPlansController.resumeRecurringPlan(
+			jobId,
+			context,
+		);
+
+		if (result.err) {
+			const statusCode = result.err.includes("not found") ? 404 : 400;
+			return res
+				.status(statusCode)
+				.json(
+					createErrorResponse(
+						ErrorCodes.VALIDATION_ERROR,
+						result.err,
+					),
+				);
+		}
+
+		res.json(createSuccessResponse(result.item));
+	} catch (err) {
+		next(err);
+	}
+});
+
+app.post("/jobs/:jobId/recurring-plan/cancel", async (req, res, next) => {
+	try {
+		const { jobId } = req.params;
+		const context = getUserContext(req);
+		const result = await recurringPlansController.cancelRecurringPlan(
+			jobId,
+			context,
+		);
+
+		if (result.err) {
+			const statusCode = result.err.includes("not found") ? 404 : 400;
+			return res
+				.status(statusCode)
+				.json(
+					createErrorResponse(
+						ErrorCodes.VALIDATION_ERROR,
+						result.err,
+					),
+				);
+		}
+
+		res.json(createSuccessResponse(result.item));
+	} catch (err) {
+		next(err);
+	}
+});
+
+app.post("/jobs/:jobId/recurring-plan/complete", async (req, res, next) => {
+	try {
+		const { jobId } = req.params;
+		const context = getUserContext(req);
+		const result = await recurringPlansController.completeRecurringPlan(
+			jobId,
+			context,
+		);
+
+		if (result.err) {
+			const statusCode = result.err.includes("not found") ? 404 : 400;
+			return res
+				.status(statusCode)
+				.json(
+					createErrorResponse(
+						ErrorCodes.VALIDATION_ERROR,
+						result.err,
+					),
+				);
+		}
+
+		res.json(createSuccessResponse(result.item));
+	} catch (err) {
+		next(err);
+	}
+});
+
+// ============================================
+// RECURRING PLAN NOTES ROUTES
+// ============================================
+
+app.get("/jobs/:jobId/recurring-plan/notes", async (req, res, next) => {
+	try {
+		const { jobId } = req.params;
+
+		const plan =
+			await recurringPlansController.getRecurringPlanByJobId(jobId);
+
+		if (!plan) {
+			return res
+				.status(404)
+				.json(
+					createErrorResponse(
+						ErrorCodes.NOT_FOUND,
+						"Recurring plan not found",
+					),
+				);
+		}
+
+		const notes = await recurringPlanNotesController.getRecurringPlanNotes(
+			plan.id,
+		);
+		res.json(createSuccessResponse(notes, { count: notes.length }));
+	} catch (err) {
+		next(err);
+	}
+});
+
+app.post("/jobs/:jobId/recurring-plan/notes", async (req, res, next) => {
+	try {
+		const context = getUserContext(req);
+		const result =
+			await recurringPlanNotesController.insertRecurringPlanNote(
+				req,
+				context,
+			);
+
+		if (result.err) {
+			const statusCode = result.err.includes("not found") ? 404 : 400;
+			return res
+				.status(statusCode)
+				.json(
+					createErrorResponse(
+						ErrorCodes.VALIDATION_ERROR,
+						result.err,
+					),
+				);
+		}
+
+		res.status(201).json(createSuccessResponse(result.item));
+	} catch (err) {
+		next(err);
+	}
+});
+
+app.put("/jobs/:jobId/recurring-plan/notes/:noteId", async (req, res, next) => {
+	try {
+		const context = getUserContext(req);
+		const result =
+			await recurringPlanNotesController.updateRecurringPlanNote(
+				req,
+				context,
+			);
+
+		if (result.err) {
+			const statusCode = result.err.includes("not found") ? 404 : 400;
+			return res
+				.status(statusCode)
+				.json(
+					createErrorResponse(
+						ErrorCodes.VALIDATION_ERROR,
+						result.err,
+					),
+				);
+		}
+
+		res.json(createSuccessResponse(result.item));
+	} catch (err) {
+		next(err);
+	}
+});
+
+app.delete(
+	"/jobs/:jobId/recurring-plan/notes/:noteId",
+	async (req, res, next) => {
+		try {
+			const { jobId, noteId } = req.params;
+			const context = getUserContext(req);
+			const result =
+				await recurringPlanNotesController.deleteRecurringPlanNote(
+					jobId,
+					noteId,
+					context,
+				);
+
+			if (result.err) {
+				const statusCode = result.err.includes("not found") ? 404 : 400;
+				return res
+					.status(statusCode)
+					.json(
+						createErrorResponse(
+							ErrorCodes.VALIDATION_ERROR,
+							result.err,
+						),
+					);
+			}
+
+			res.json(createSuccessResponse({ message: result.message }));
+		} catch (err) {
+			next(err);
+		}
+	},
+);
+
+// ============================================
+// OCCURRENCE ROUTES
+// ============================================
+
+app.get("/jobs/:jobId/occurrences", async (req, res, next) => {
+	try {
+		const { jobId } = req.params;
+		const occurrences =
+			await recurringPlansController.getOccurrencesByJobId(jobId);
+		res.json(
+			createSuccessResponse(occurrences, { count: occurrences.length }),
+		);
+	} catch (err) {
+		next(err);
+	}
+});
+
+app.post("/jobs/:jobId/occurrences/generate", async (req, res, next) => {
+	try {
+		const { jobId } = req.params;
+		const context = getUserContext(req);
+		const result = await recurringPlansController.generateOccurrences(
+			jobId,
+			req.body,
+			context,
+		);
+
+		if (result.err) {
+			const statusCode = result.err.includes("not found") ? 404 : 400;
+			return res
+				.status(statusCode)
+				.json(
+					createErrorResponse(
+						ErrorCodes.VALIDATION_ERROR,
+						result.err,
+					),
+				);
+		}
+
+		res.json(createSuccessResponse(result.item));
+	} catch (err) {
+		next(err);
+	}
+});
+
+app.post("/occurrences/:occurrenceId/skip", async (req, res, next) => {
+	try {
+		const { occurrenceId } = req.params;
+		const context = getUserContext(req);
+		const result = await recurringPlansController.skipOccurrence(
+			occurrenceId,
+			req.body,
+			context,
+		);
+
+		if (result.err) {
+			const statusCode = result.err.includes("not found") ? 404 : 400;
+			return res
+				.status(statusCode)
+				.json(
+					createErrorResponse(
+						ErrorCodes.VALIDATION_ERROR,
+						result.err,
+					),
+				);
+		}
+
+		res.json(createSuccessResponse(result.item));
+	} catch (err) {
+		next(err);
+	}
+});
+
+app.put("/occurrences/:occurrenceId/reschedule", async (req, res, next) => {
+	try {
+		const { occurrenceId } = req.params;
+		const context = getUserContext(req);
+		const result = await recurringPlansController.rescheduleOccurrence(
+			occurrenceId,
+			req.body,
+			context,
+		);
+
+		if (result.err) {
+			const statusCode = result.err.includes("not found") ? 404 : 400;
+			return res
+				.status(statusCode)
+				.json(
+					createErrorResponse(
+						ErrorCodes.VALIDATION_ERROR,
+						result.err,
+					),
+				);
+		}
+
+		res.json(createSuccessResponse(result.item));
+	} catch (err) {
+		next(err);
+	}
+});
+
+app.post("/occurrences/bulk-skip", async (req, res, next) => {
+	try {
+		const context = getUserContext(req);
+		const result = await recurringPlansController.bulkSkipOccurrences(
+			req.body,
+			context,
+		);
+
+		if (result.err) {
+			return res
+				.status(400)
+				.json(
+					createErrorResponse(
+						ErrorCodes.VALIDATION_ERROR,
+						result.err,
+					),
+				);
+		}
+
+		res.json(createSuccessResponse(result.item));
+	} catch (err) {
+		next(err);
+	}
+});
+
+app.post(
+	"/occurrences/:occurrenceId/generate-visit",
+	async (req, res, next) => {
+		try {
+			const { occurrenceId } = req.params;
+			const context = getUserContext(req);
+			const result =
+				await recurringPlansController.generateVisitFromOccurrence(
+					occurrenceId,
+					context,
+				);
+
+			if (result.err) {
+				const statusCode = result.err.includes("not found") ? 404 : 400;
+				return res
+					.status(statusCode)
+					.json(
+						createErrorResponse(
+							ErrorCodes.VALIDATION_ERROR,
+							result.err,
+						),
+					);
+			}
+
+			res.status(201).json(createSuccessResponse(result.item));
+		} catch (err) {
+			next(err);
+		}
+	},
+);
 
 // ============================================
 // CLIENTS
@@ -1108,8 +1687,8 @@ app.get("/clients/:id", async (req, res, next) => {
 				.json(
 					createErrorResponse(
 						ErrorCodes.NOT_FOUND,
-						"Client not found"
-					)
+						"Client not found",
+					),
 				);
 		}
 
@@ -1135,8 +1714,8 @@ app.post("/clients", async (req, res, next) => {
 						isDuplicate
 							? ErrorCodes.CONFLICT
 							: ErrorCodes.VALIDATION_ERROR,
-						result.err
-					)
+						result.err,
+					),
 				);
 		}
 
@@ -1163,8 +1742,8 @@ app.put("/clients/:id", async (req, res, next) => {
 						isDuplicate
 							? ErrorCodes.CONFLICT
 							: ErrorCodes.VALIDATION_ERROR,
-						result.err
-					)
+						result.err,
+					),
 				);
 		}
 
@@ -1190,7 +1769,7 @@ app.delete("/clients/:id", async (req, res, next) => {
 			createSuccessResponse({
 				message: result.message || "Client deleted successfully",
 				id,
-			})
+			}),
 		);
 	} catch (err) {
 		next(err);
@@ -1208,7 +1787,7 @@ app.get("/contacts/search", async (req, res, next) => {
 
 		const result = await searchContacts(
 			q as string,
-			exclude_client_id as string | undefined
+			exclude_client_id as string | undefined,
 		);
 
 		if (result.err) {
@@ -1244,8 +1823,8 @@ app.get("/contacts/:contactId", async (req, res, next) => {
 				.json(
 					createErrorResponse(
 						ErrorCodes.NOT_FOUND,
-						"Contact not found"
-					)
+						"Contact not found",
+					),
 				);
 		}
 
@@ -1277,8 +1856,8 @@ app.post("/contacts", async (req, res, next) => {
 					createErrorResponse(
 						ErrorCodes.VALIDATION_ERROR,
 						result.err,
-						result.existingContact
-					)
+						result.existingContact,
+					),
 				);
 		}
 
@@ -1300,7 +1879,10 @@ app.put("/contacts/:contactId", async (req, res, next) => {
 			return res
 				.status(statusCode)
 				.json(
-					createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+					createErrorResponse(
+						ErrorCodes.VALIDATION_ERROR,
+						result.err,
+					),
 				);
 		}
 
@@ -1325,7 +1907,7 @@ app.delete("/contacts/:contactId", async (req, res, next) => {
 		}
 
 		res.status(200).json(
-			createSuccessResponse({ message: result.message })
+			createSuccessResponse({ message: result.message }),
 		);
 	} catch (err) {
 		next(err);
@@ -1343,19 +1925,22 @@ app.post("/clients/:clientId/contacts/link", async (req, res, next) => {
 			contact_id,
 			clientId,
 			{ relationship, is_primary, is_billing },
-			context
+			context,
 		);
 
 		if (result.err) {
 			const statusCode = result.err.includes("not found")
 				? 404
 				: result.err.includes("already linked")
-				? 409
-				: 400;
+					? 409
+					: 400;
 			return res
 				.status(statusCode)
 				.json(
-					createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+					createErrorResponse(
+						ErrorCodes.VALIDATION_ERROR,
+						result.err,
+					),
 				);
 		}
 
@@ -1376,7 +1961,7 @@ app.put(
 				contactId,
 				clientId,
 				req.body,
-				context
+				context,
 			);
 
 			if (result.err) {
@@ -1388,8 +1973,8 @@ app.put(
 					.json(
 						createErrorResponse(
 							ErrorCodes.VALIDATION_ERROR,
-							result.err
-						)
+							result.err,
+						),
 					);
 			}
 
@@ -1397,7 +1982,7 @@ app.put(
 		} catch (err) {
 			next(err);
 		}
-	}
+	},
 );
 
 // Unlink a contact from a client
@@ -1410,7 +1995,7 @@ app.delete(
 			const result = await unlinkContactFromClient(
 				contactId,
 				clientId,
-				context
+				context,
 			);
 
 			if (result.err) {
@@ -1420,17 +2005,20 @@ app.delete(
 				return res
 					.status(statusCode)
 					.json(
-						createErrorResponse(ErrorCodes.DELETE_ERROR, result.err)
+						createErrorResponse(
+							ErrorCodes.DELETE_ERROR,
+							result.err,
+						),
 					);
 			}
 
 			res.status(200).json(
-				createSuccessResponse({ message: result.message })
+				createSuccessResponse({ message: result.message }),
 			);
 		} catch (err) {
 			next(err);
 		}
-	}
+	},
 );
 
 // ============================================
@@ -1456,7 +2044,7 @@ app.get("/clients/:clientId/notes/:noteId", async (req, res, next) => {
 			return res
 				.status(404)
 				.json(
-					createErrorResponse(ErrorCodes.NOT_FOUND, "Note not found")
+					createErrorResponse(ErrorCodes.NOT_FOUND, "Note not found"),
 				);
 		}
 
@@ -1476,7 +2064,10 @@ app.post("/clients/:clientId/notes", async (req, res, next) => {
 			return res
 				.status(400)
 				.json(
-					createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+					createErrorResponse(
+						ErrorCodes.VALIDATION_ERROR,
+						result.err,
+					),
 				);
 		}
 
@@ -1496,7 +2087,10 @@ app.put("/clients/:clientId/notes/:noteId", async (req, res, next) => {
 			return res
 				.status(400)
 				.json(
-					createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+					createErrorResponse(
+						ErrorCodes.VALIDATION_ERROR,
+						result.err,
+					),
 				);
 		}
 
@@ -1521,7 +2115,7 @@ app.delete("/clients/:clientId/notes/:noteId", async (req, res, next) => {
 		res.status(200).json(
 			createSuccessResponse({
 				message: result.message || "Note deleted successfully",
-			})
+			}),
 		);
 	} catch (err) {
 		next(err);
@@ -1550,7 +2144,7 @@ app.get("/technicians", async (req, res, next) => {
 	try {
 		const technicians = await getAllTechnicians();
 		res.json(
-			createSuccessResponse(technicians, { count: technicians.length })
+			createSuccessResponse(technicians, { count: technicians.length }),
 		);
 	} catch (err) {
 		next(err);
@@ -1568,8 +2162,8 @@ app.get("/technicians/:id", async (req, res, next) => {
 				.json(
 					createErrorResponse(
 						ErrorCodes.NOT_FOUND,
-						"Technician not found"
-					)
+						"Technician not found",
+					),
 				);
 		}
 
@@ -1595,8 +2189,8 @@ app.post("/technicians", async (req, res, next) => {
 						isDuplicate
 							? ErrorCodes.CONFLICT
 							: ErrorCodes.VALIDATION_ERROR,
-						result.err
-					)
+						result.err,
+					),
 				);
 		}
 
@@ -1623,8 +2217,8 @@ app.post("/technicians/:id/ping", async (req, res, next) => {
 						isDuplicate
 							? ErrorCodes.CONFLICT
 							: ErrorCodes.VALIDATION_ERROR,
-						result.err
-					)
+						result.err,
+					),
 				);
 		}
 
@@ -1652,8 +2246,8 @@ app.put("/technicians/:id", async (req, res, next) => {
 						isDuplicate
 							? ErrorCodes.CONFLICT
 							: ErrorCodes.VALIDATION_ERROR,
-						result.err
-					)
+						result.err,
+					),
 				);
 		}
 
@@ -1679,7 +2273,7 @@ app.delete("/technicians/:id", async (req, res, next) => {
 			createSuccessResponse({
 				message: result.message || "Technician deleted successfully",
 				id,
-			})
+			}),
 		);
 	} catch (err) {
 		next(err);
@@ -1692,9 +2286,10 @@ app.delete("/technicians/:id", async (req, res, next) => {
 app.get("/inventory", async (req, res, next) => {
 	try {
 		const { low_stock } = req.query;
-		const items = low_stock === "true" 
-			? await getLowStockInventory() 
-			: await getAllInventory();
+		const items =
+			low_stock === "true"
+				? await getLowStockInventory()
+				: await getAllInventory();
 		res.json(createSuccessResponse(items, { count: items.length }));
 	} catch (err) {
 		next(err);
@@ -1712,7 +2307,10 @@ app.patch("/inventory/:id/threshold", async (req, res, next) => {
 			return res
 				.status(statusCode)
 				.json(
-					createErrorResponse(ErrorCodes.VALIDATION_ERROR, result.err)
+					createErrorResponse(
+						ErrorCodes.VALIDATION_ERROR,
+						result.err,
+					),
 				);
 		}
 
@@ -1721,7 +2319,6 @@ app.patch("/inventory/:id/threshold", async (req, res, next) => {
 		next(err);
 	}
 });
-
 
 // ============================================
 // ERROR HANDLERS (Must be last)

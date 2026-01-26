@@ -20,6 +20,12 @@ import {
 	LineItemSourceValues,
 	DiscountTypeValues,
 } from "./common";
+import {
+	ArrivalConstraintValues,
+	FinishConstraintValues,
+	type ArrivalConstraint,
+	type FinishConstraint,
+} from "./recurringPlans";
 
 // ============================================================================
 // JOB-SPECIFIC TYPES
@@ -61,6 +67,7 @@ export const VisitStatusValues = [
 	"Driving",
 	"OnSite",
 	"InProgress",
+	"Paused",
 	"Delayed",
 	"Completed",
 	"Cancelled",
@@ -73,6 +80,7 @@ export const VisitStatusLabels: Record<VisitStatus, string> = {
 	Driving: "Driving",
 	OnSite: "On Site",
 	InProgress: "In Progress",
+	Paused: "Paused",
 	Delayed: "Delayed",
 	Completed: "Completed",
 	Cancelled: "Cancelled",
@@ -83,25 +91,15 @@ export const VisitStatusColors: Record<VisitStatus, string> = {
 	Driving: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
 	OnSite: "bg-purple-500/20 text-purple-400 border-purple-500/30",
 	InProgress: "bg-amber-500/20 text-amber-400 border-amber-500/30",
-	Delayed: "bg-orange-500/20 text-orange-400 border-orange-500/30",
+	Paused: "bg-orange-500/20 text-orange-400 border-orange-500/30",
+	Delayed: "bg-red-500/20 text-red-400 border-red-500/30",
 	Completed: "bg-green-500/20 text-green-400 border-green-500/30",
 	Cancelled: "bg-red-500/20 text-red-400 border-red-500/30",
 };
 
-export const ScheduleTypeValues = ["all_day", "exact", "window"] as const;
-export type ScheduleType = (typeof ScheduleTypeValues)[number];
-
-export const ScheduleTypeLabels: Record<ScheduleType, string> = {
-	all_day: "All Day",
-	exact: "Exact Time",
-	window: "Arrival Window",
-};
-
-export const ScheduleTypeColors: Record<ScheduleType, string> = {
-	all_day: "bg-zinc-500/20 text-zinc-400 border-zinc-500/30",
-	exact: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-	window: "bg-purple-500/20 text-purple-400 border-purple-500/30",
-};
+// Re-export constraint types from recurringPlans for convenience
+export { ArrivalConstraintValues, FinishConstraintValues };
+export type { ArrivalConstraint, FinishConstraint };
 
 // ============================================================================
 // JOB TYPES
@@ -133,6 +131,7 @@ export interface JobSummary {
 
 export interface VisitReference {
 	id: string;
+	name?: string;
 	scheduled_start_at: Date | string;
 	scheduled_end_at: Date | string;
 	status: VisitStatus;
@@ -157,6 +156,7 @@ export interface Job extends PricingBreakdown, ExecutionTotals {
 
 	request_id: string | null;
 	quote_id: string | null;
+	recurring_plan_id?: string | null;
 
 	client?: ClientWithPrimaryContact;
 	request?: RequestReference | null;
@@ -176,6 +176,7 @@ export interface CreateJobInput extends PricingBreakdown, ExecutionTotals {
 	status?: JobStatus;
 	request_id?: string;
 	quote_id?: string;
+	recurring_plan_id?: string;
 	line_items?: CreateJobLineItemInput[];
 }
 
@@ -187,10 +188,14 @@ export interface UpdateJobInput extends PricingBreakdown, ExecutionTotals {
 	priority?: JobPriority;
 	status?: JobStatus;
 
-	cancellation_reason?: string; //unused
+	cancellation_reason?: string;
 	line_items?: UpdateJobLineItemInput[];
 }
-//Job Line Items
+
+// ============================================================================
+// LINE ITEM TYPES
+// ============================================================================
+
 export interface JobLineItem {
 	id?: string;
 	name: string;
@@ -200,8 +205,8 @@ export interface JobLineItem {
 	total: number;
 	item_type?: LineItemType | null;
 	source?: LineItemSource;
-	isNew?: boolean; // Frontend only - marks items created in form
-	isDeleted?: boolean; // Frontend only - soft delete marker
+	isNew?: boolean;
+	isDeleted?: boolean;
 }
 
 export interface CreateJobLineItemInput {
@@ -210,10 +215,10 @@ export interface CreateJobLineItemInput {
 	quantity: number;
 	unit_price: number;
 	total?: number;
-
 	item_type?: LineItemType | null;
 	source?: LineItemSource;
 }
+
 export interface UpdateJobLineItemInput {
 	id?: string;
 	name: string;
@@ -221,51 +226,130 @@ export interface UpdateJobLineItemInput {
 	quantity: number;
 	unit_price: number;
 	total: number;
-
 	item_type?: LineItemType | null;
 	source?: LineItemSource;
 }
 
-//Job Visit
-export interface JobVisit {
+export interface VisitLineItem {
+	id?: string;
+	name: string;
+	description?: string | null;
+	quantity: number;
+	unit_price: number;
+	total: number;
+	item_type?: LineItemType | null;
+	source?: LineItemSource;
+	isNew?: boolean;
+	isDeleted?: boolean;
+}
+
+export interface CreateVisitLineItemInput {
+	name: string;
+	description?: string;
+	quantity: number;
+	unit_price: number;
+	total?: number;
+	item_type?: LineItemType | null;
+	source?: LineItemSource;
+	sort_order?: number;
+}
+
+export interface UpdateVisitLineItemInput {
+	id?: string;
+	name: string;
+	description?: string | null;
+	quantity: number;
+	unit_price: number;
+	total: number;
+	item_type?: LineItemType | null;
+	source?: LineItemSource;
+	sort_order?: number;
+}
+
+// ============================================================================
+// JOB VISIT TYPES
+// ============================================================================
+
+export interface JobVisit extends PricingBreakdown {
 	id: string;
 	job_id: string;
-	schedule_type: ScheduleType;
+
+	// NEW: Visit details
+	name?: string;
+	description?: string | null;
+
+	// Constraint-based scheduling
+	arrival_constraint: ArrivalConstraint;
+	finish_constraint: FinishConstraint;
 	scheduled_start_at: Date | string;
 	scheduled_end_at: Date | string;
-	arrival_window_start?: Date | string | null;
-	arrival_window_end?: Date | string | null;
+	arrival_time?: string | null; // HH:MM
+	arrival_window_start?: string | null; // HH:MM
+	arrival_window_end?: string | null; // HH:MM
+	finish_time?: string | null; // HH:MM
+
 	actual_start_at?: Date | string | null;
 	actual_end_at?: Date | string | null;
 	status: VisitStatus;
+	cancellation_reason?: string | null;
+
+	created_at?: Date | string;
+	updated_at?: Date | string;
 
 	job?: JobSummary & { client: ClientSummary; coords: Coordinates };
 	visit_techs: JobVisitTechnician[];
 	notes?: JobNote[];
+	line_items?: VisitLineItem[];
 }
 
 export interface CreateJobVisitInput {
 	job_id: string;
-	schedule_type: ScheduleType;
+
+	// NEW: Visit details
+	name: string;
+	description?: string | null;
+
+	// Constraint-based scheduling
+	arrival_constraint: ArrivalConstraint;
+	finish_constraint: FinishConstraint;
 	scheduled_start_at: Date | string;
 	scheduled_end_at: Date | string;
-	arrival_window_start?: Date | string | null;
-	arrival_window_end?: Date | string | null;
+	arrival_time?: string | null;
+	arrival_window_start?: string | null;
+	arrival_window_end?: string | null;
+	finish_time?: string | null;
+
 	status?: VisitStatus;
 	tech_ids?: string[];
+	line_items?: CreateVisitLineItemInput[];
 }
 
 export interface UpdateJobVisitInput {
-	schedule_type?: ScheduleType;
+	// NEW: Visit details
+	name?: string;
+	description?: string | null;
+
+	// Constraint-based scheduling
+	arrival_constraint?: ArrivalConstraint;
+	finish_constraint?: FinishConstraint;
 	scheduled_start_at?: Date | string;
 	scheduled_end_at?: Date | string;
-	arrival_window_start?: Date | string | null;
-	arrival_window_end?: Date | string | null;
+	arrival_time?: string | null;
+	arrival_window_start?: string | null;
+	arrival_window_end?: string | null;
+	finish_time?: string | null;
+
 	actual_start_at?: Date | string | null;
 	actual_end_at?: Date | string | null;
 	status?: VisitStatus;
+	cancellation_reason?: string | null;
+	tech_ids?: string[];
+	line_items?: UpdateVisitLineItemInput[];
 }
-//Notes
+
+// ============================================================================
+// NOTE TYPES
+// ============================================================================
 
 export interface JobNote extends BaseNote {
 	job_id: string;
@@ -282,6 +366,10 @@ export interface UpdateJobNoteInput {
 	content: string;
 	visit_id?: string | null;
 }
+
+// ============================================================================
+// API RESPONSE TYPES
+// ============================================================================
 
 export interface JobResponse {
 	err: string;
@@ -306,6 +394,7 @@ export const CreateJobSchema = z.object({
 	status: z.enum(JobStatusValues).default("Unscheduled"),
 	request_id: z.string().uuid().optional().nullable(),
 	quote_id: z.string().uuid().optional().nullable(),
+	recurring_plan_id: z.string().uuid().optional().nullable(),
 
 	estimated_total: z.number().nonnegative().optional().nullable(),
 	line_items: z
@@ -337,10 +426,11 @@ export const UpdateJobSchema = z.object({
 	status: z.enum(JobStatusValues).optional(),
 	estimated_total: z.number().nonnegative().optional().nullable(),
 	actual_total: z.number().nonnegative().optional().nullable(),
+	cancellation_reason: z.string().optional(),
 	line_items: z
 		.array(
 			z.object({
-				id: z.string().uuid().optional(), // undefined = create new
+				id: z.string().uuid().optional(),
 				name: z.string().min(1, "Item name is required"),
 				description: z.string().optional(),
 				quantity: z.number().positive("Quantity must be positive"),
@@ -358,13 +448,58 @@ export const UpdateJobSchema = z.object({
 export const CreateJobVisitSchema = z
 	.object({
 		job_id: z.string().uuid("Invalid job ID"),
-		schedule_type: z.enum(ScheduleTypeValues).default("exact"),
+
+		// NEW: Visit details
+		name: z.string().min(1, "Visit name is required").max(255),
+		description: z.string().optional().nullable(),
+
+		// Constraint-based scheduling
+		arrival_constraint: z.enum(ArrivalConstraintValues),
+		finish_constraint: z.enum(FinishConstraintValues),
 		scheduled_start_at: z.coerce.date({ message: "Start time is required" }),
 		scheduled_end_at: z.coerce.date({ message: "End time is required" }),
-		arrival_window_start: z.coerce.date().optional().nullable(),
-		arrival_window_end: z.coerce.date().optional().nullable(),
+		arrival_time: z
+			.string()
+			.regex(/^\d{2}:\d{2}$/, "Time must be in HH:MM format")
+			.optional()
+			.nullable(),
+		arrival_window_start: z
+			.string()
+			.regex(/^\d{2}:\d{2}$/, "Time must be in HH:MM format")
+			.optional()
+			.nullable(),
+		arrival_window_end: z
+			.string()
+			.regex(/^\d{2}:\d{2}$/, "Time must be in HH:MM format")
+			.optional()
+			.nullable(),
+		finish_time: z
+			.string()
+			.regex(/^\d{2}:\d{2}$/, "Time must be in HH:MM format")
+			.optional()
+			.nullable(),
+
 		status: z.enum(VisitStatusValues).default("Scheduled"),
 		tech_ids: z.array(z.string().uuid()).optional(),
+		line_items: z
+			.array(
+				z.object({
+					name: z.string().min(1, "Item name is required"),
+					description: z.string().optional().nullable(),
+					quantity: z.number().positive("Quantity must be positive"),
+					unit_price: z
+						.number()
+						.nonnegative("Unit price must be non-negative"),
+					total: z
+						.number()
+						.nonnegative("Total must be non-negative")
+						.optional(),
+					source: z.enum(LineItemSourceValues).optional(),
+					item_type: z.enum(LineItemTypeValues).optional().nullable(),
+					sort_order: z.number().nonnegative().default(0),
+				})
+			)
+			.optional(),
 	})
 	.refine(
 		(data) => {
@@ -377,39 +512,114 @@ export const CreateJobVisitSchema = z
 	)
 	.refine(
 		(data) => {
-			if (data.schedule_type === "window") {
-				return data.arrival_window_start && data.arrival_window_end;
+			if (data.arrival_constraint === "at" && !data.arrival_time) {
+				return false;
 			}
 			return true;
 		},
 		{
-			message: "Arrival window times are required for window schedule type",
+			message: "Arrival time is required when constraint is 'at'",
+			path: ["arrival_time"],
+		}
+	)
+	.refine(
+		(data) => {
+			if (
+				data.arrival_constraint === "between" &&
+				(!data.arrival_window_start || !data.arrival_window_end)
+			) {
+				return false;
+			}
+			return true;
+		},
+		{
+			message: "Arrival window start and end are required for 'between' constraint",
 			path: ["arrival_window_start"],
 		}
 	)
 	.refine(
 		(data) => {
-			if (data.arrival_window_start && data.arrival_window_end) {
-				return data.arrival_window_end > data.arrival_window_start;
+			if (data.arrival_constraint === "by" && !data.arrival_window_end) {
+				return false;
 			}
 			return true;
 		},
 		{
-			message: "Arrival window end must be after start",
+			message: "Arrival deadline is required for 'by' constraint",
 			path: ["arrival_window_end"],
+		}
+	)
+	.refine(
+		(data) => {
+			if (
+				(data.finish_constraint === "at" ||
+					data.finish_constraint === "by") &&
+				!data.finish_time
+			) {
+				return false;
+			}
+			return true;
+		},
+		{
+			message: "Finish time is required for 'at' or 'by' constraint",
+			path: ["finish_time"],
 		}
 	);
 
 export const UpdateJobVisitSchema = z
 	.object({
-		schedule_type: z.enum(ScheduleTypeValues).optional(),
+		// NEW: Visit details
+		name: z.string().min(1).max(255).optional(),
+		description: z.string().optional().nullable(),
+
+		// Constraint-based scheduling
+		arrival_constraint: z.enum(ArrivalConstraintValues).optional(),
+		finish_constraint: z.enum(FinishConstraintValues).optional(),
 		scheduled_start_at: z.coerce.date().optional(),
 		scheduled_end_at: z.coerce.date().optional(),
-		arrival_window_start: z.coerce.date().optional().nullable(),
-		arrival_window_end: z.coerce.date().optional().nullable(),
+		arrival_time: z
+			.string()
+			.regex(/^\d{2}:\d{2}$/, "Time must be in HH:MM format")
+			.optional()
+			.nullable(),
+		arrival_window_start: z
+			.string()
+			.regex(/^\d{2}:\d{2}$/, "Time must be in HH:MM format")
+			.optional()
+			.nullable(),
+		arrival_window_end: z
+			.string()
+			.regex(/^\d{2}:\d{2}$/, "Time must be in HH:MM format")
+			.optional()
+			.nullable(),
+		finish_time: z
+			.string()
+			.regex(/^\d{2}:\d{2}$/, "Time must be in HH:MM format")
+			.optional()
+			.nullable(),
+
 		actual_start_at: z.coerce.date().optional().nullable(),
 		actual_end_at: z.coerce.date().optional().nullable(),
 		status: z.enum(VisitStatusValues).optional(),
+		cancellation_reason: z.string().optional().nullable(),
+		tech_ids: z.array(z.string().uuid()).optional(),
+		line_items: z
+			.array(
+				z.object({
+					id: z.string().uuid().optional(),
+					name: z.string().min(1, "Item name is required"),
+					description: z.string().optional().nullable(),
+					quantity: z.number().positive("Quantity must be positive"),
+					unit_price: z
+						.number()
+						.nonnegative("Unit price must be non-negative"),
+					total: z.number().nonnegative("Total must be non-negative"),
+					source: z.enum(LineItemSourceValues).optional(),
+					item_type: z.enum(LineItemTypeValues).optional().nullable(),
+					sort_order: z.number().nonnegative().default(0),
+				})
+			)
+			.optional(),
 	})
 	.refine(
 		(data) => {
@@ -437,14 +647,61 @@ export const UpdateJobVisitSchema = z
 	)
 	.refine(
 		(data) => {
-			if (data.arrival_window_start && data.arrival_window_end) {
-				return data.arrival_window_end > data.arrival_window_start;
+			if (data.arrival_constraint === "at" && data.arrival_time === undefined) {
+				return false;
 			}
 			return true;
 		},
 		{
-			message: "Arrival window end must be after start",
+			message: "Arrival time is required when constraint is 'at'",
+			path: ["arrival_time"],
+		}
+	)
+	.refine(
+		(data) => {
+			if (
+				data.arrival_constraint === "between" &&
+				(data.arrival_window_start === undefined ||
+					data.arrival_window_end === undefined)
+			) {
+				return false;
+			}
+			return true;
+		},
+		{
+			message: "Arrival window start and end are required for 'between' constraint",
+			path: ["arrival_window_start"],
+		}
+	)
+	.refine(
+		(data) => {
+			if (
+				data.arrival_constraint === "by" &&
+				data.arrival_window_end === undefined
+			) {
+				return false;
+			}
+			return true;
+		},
+		{
+			message: "Arrival deadline is required for 'by' constraint",
 			path: ["arrival_window_end"],
+		}
+	)
+	.refine(
+		(data) => {
+			if (
+				(data.finish_constraint === "at" ||
+					data.finish_constraint === "by") &&
+				data.finish_time === undefined
+			) {
+				return false;
+			}
+			return true;
+		},
+		{
+			message: "Finish time is required for 'at' or 'by' constraint",
+			path: ["finish_time"],
 		}
 	);
 

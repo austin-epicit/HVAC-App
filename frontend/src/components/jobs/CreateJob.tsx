@@ -759,7 +759,7 @@ const CreateJob = ({ isModalOpen, setIsModalOpen, createJob }: CreateJobProps) =
 					) : (
 						<>
 							<div
-								className="border-1 border-zinc-800 rounded-sm cursor-pointer hover:bg-zinc-800 transition-all"
+								className="border-1 border-zinc-700 rounded-sm cursor-pointer hover:bg-zinc-800 transition-all px-4"
 								onClick={() =>
 									setIsModalOpen(false)
 								}
@@ -767,7 +767,7 @@ const CreateJob = ({ isModalOpen, setIsModalOpen, createJob }: CreateJobProps) =
 								<Button label="Cancel" />
 							</div>
 							<div
-								className="border-1 border-zinc-800 rounded-sm cursor-pointer hover:bg-zinc-800 transition-all font-bold"
+								className=" bg-blue-600 rounded-sm cursor-pointer hover:bg-blue-700 transition-all font-bold px-4"
 								onClick={() => {
 									invokeCreate();
 								}}

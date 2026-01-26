@@ -8,7 +8,7 @@ import {
 	type Request,
 } from "../../types/requests";
 import { useState, useMemo, useEffect } from "react";
-import { Search, Plus, MoreHorizontal, X } from "lucide-react";
+import { Search, Plus, MoreVertical, X } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import CreateRequest from "../../components/requests/CreateRequest";
 import { formatDate } from "../../util/util";
@@ -171,8 +171,8 @@ export default function RequestsPage() {
 						New Request
 					</button>
 
-					<button className="flex items-center justify-center w-10 h-10 bg-zinc-700 hover:bg-zinc-600 rounded-md transition-colors">
-						<MoreHorizontal size={20} className="text-white" />
+					<button className="flex items-center justify-center p-2 hover:bg-zinc-800 rounded-md transition-colors border border-zinc-700 hover:border-zinc-600">
+						<MoreVertical size={20} className="text-white" />
 					</button>
 				</div>
 			</div>

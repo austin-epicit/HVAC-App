@@ -27,6 +27,9 @@ export const getAllJobVisits = async () => {
 					tech: true,
 				},
 			},
+			line_items: {
+				orderBy: { sort_order: "asc" },
+			},
 			notes: true,
 		},
 	});
@@ -46,6 +49,9 @@ export const getJobVisitById = async (id: string) => {
 					tech: true,
 				},
 			},
+			line_items: {
+				orderBy: { sort_order: "asc" },
+			},
 			notes: true,
 		},
 	});
@@ -59,6 +65,9 @@ export const getJobVisitsByJobId = async (jobId: string) => {
 				include: {
 					tech: true,
 				},
+			},
+			line_items: {
+				orderBy: { sort_order: "asc" },
 			},
 			notes: true,
 		},
@@ -83,6 +92,9 @@ export const getJobVisitsByTechId = async (techId: string) => {
 					client: true,
 				},
 			},
+			line_items: {
+				orderBy: { sort_order: "asc" },
+			},
 			visit_techs: {
 				include: {
 					tech: true,
@@ -98,7 +110,7 @@ export const getJobVisitsByTechId = async (techId: string) => {
 
 export const getJobVisitsByDateRange = async (
 	startDate: Date,
-	endDate: Date
+	endDate: Date,
 ) => {
 	return await db.job_visit.findMany({
 		where: {
@@ -128,6 +140,9 @@ export const getJobVisitsByDateRange = async (
 					tech: true,
 				},
 			},
+			line_items: {
+				orderBy: { sort_order: "asc" },
+			},
 			notes: true,
 		},
 		orderBy: {
@@ -155,7 +170,7 @@ export const insertJobVisit = async (req: Request, context?: UserContext) => {
 			});
 			const existingIds = new Set(existingTechs.map((t) => t.id));
 			const missing = parsed.tech_ids.filter(
-				(id) => !existingIds.has(id)
+				(id) => !existingIds.has(id),
 			);
 			if (missing.length > 0) {
 				return {
@@ -168,11 +183,18 @@ export const insertJobVisit = async (req: Request, context?: UserContext) => {
 			const visit = await tx.job_visit.create({
 				data: {
 					job_id: parsed.job_id,
-					schedule_type: parsed.schedule_type,
+					name: parsed.name,
+					description: parsed.description ?? null,
+
+					arrival_constraint: parsed.arrival_constraint,
+					finish_constraint: parsed.finish_constraint,
 					scheduled_start_at: parsed.scheduled_start_at,
 					scheduled_end_at: parsed.scheduled_end_at,
-					arrival_window_start: parsed.arrival_window_start || null,
-					arrival_window_end: parsed.arrival_window_end || null,
+					arrival_time: parsed.arrival_time ?? null,
+					arrival_window_start: parsed.arrival_window_start ?? null,
+					arrival_window_end: parsed.arrival_window_end ?? null,
+					finish_time: parsed.finish_time ?? null,
+
 					status: parsed.status,
 				},
 			});
@@ -202,11 +224,20 @@ export const insertJobVisit = async (req: Request, context?: UserContext) => {
 				actor_type: context?.techId
 					? "technician"
 					: context?.dispatcherId
-					? "dispatcher"
-					: "system",
+						? "dispatcher"
+						: "system",
 				actor_id: context?.techId || context?.dispatcherId,
 				changes: {
-					schedule_type: { old: null, new: visit.schedule_type },
+					name: { old: null, new: visit.name },
+					description: { old: null, new: visit.description },
+					arrival_constraint: {
+						old: null,
+						new: visit.arrival_constraint,
+					},
+					finish_constraint: {
+						old: null,
+						new: visit.finish_constraint,
+					},
 					scheduled_start_at: {
 						old: null,
 						new: visit.scheduled_start_at,
@@ -267,11 +298,16 @@ export const updateJobVisit = async (req: Request, context?: UserContext) => {
 		}
 
 		const changes = buildChanges(existingVisit, parsed, [
-			"schedule_type",
+			"name",
+			"description",
+			"arrival_constraint",
+			"finish_constraint",
 			"scheduled_start_at",
 			"scheduled_end_at",
+			"arrival_time",
 			"arrival_window_start",
 			"arrival_window_end",
+			"finish_time",
 			"actual_start_at",
 			"actual_end_at",
 			"status",
@@ -281,8 +317,17 @@ export const updateJobVisit = async (req: Request, context?: UserContext) => {
 			const visit = await tx.job_visit.update({
 				where: { id },
 				data: {
-					...(parsed.schedule_type !== undefined && {
-						schedule_type: parsed.schedule_type,
+					...(parsed.name !== undefined && {
+						name: parsed.name,
+					}),
+					...(parsed.description !== undefined && {
+						description: parsed.description,
+					}),
+					...(parsed.arrival_constraint !== undefined && {
+						arrival_constraint: parsed.arrival_constraint,
+					}),
+					...(parsed.finish_constraint !== undefined && {
+						finish_constraint: parsed.finish_constraint,
 					}),
 					...(parsed.scheduled_start_at !== undefined && {
 						scheduled_start_at: parsed.scheduled_start_at,
@@ -290,11 +335,17 @@ export const updateJobVisit = async (req: Request, context?: UserContext) => {
 					...(parsed.scheduled_end_at !== undefined && {
 						scheduled_end_at: parsed.scheduled_end_at,
 					}),
+					...(parsed.arrival_time !== undefined && {
+						arrival_time: parsed.arrival_time,
+					}),
 					...(parsed.arrival_window_start !== undefined && {
 						arrival_window_start: parsed.arrival_window_start,
 					}),
 					...(parsed.arrival_window_end !== undefined && {
 						arrival_window_end: parsed.arrival_window_end,
+					}),
+					...(parsed.finish_time !== undefined && {
+						finish_time: parsed.finish_time,
 					}),
 					...(parsed.actual_start_at !== undefined && {
 						actual_start_at: parsed.actual_start_at,
@@ -347,8 +398,8 @@ export const updateJobVisit = async (req: Request, context?: UserContext) => {
 					actor_type: context?.techId
 						? "technician"
 						: context?.dispatcherId
-						? "dispatcher"
-						: "system",
+							? "dispatcher"
+							: "system",
 					actor_id: context?.techId || context?.dispatcherId,
 					changes,
 					ip_address: context?.ipAddress,
@@ -376,7 +427,7 @@ export const updateJobVisit = async (req: Request, context?: UserContext) => {
 export const assignTechniciansToVisit = async (
 	visitId: string,
 	techIds: string[],
-	context?: UserContext
+	context?: UserContext,
 ) => {
 	try {
 		const visit = await db.job_visit.findUnique({
@@ -428,8 +479,8 @@ export const assignTechniciansToVisit = async (
 				actor_type: context?.techId
 					? "technician"
 					: context?.dispatcherId
-					? "dispatcher"
-					: "system",
+						? "dispatcher"
+						: "system",
 				actor_id: context?.techId || context?.dispatcherId,
 				changes: {
 					technicians: {
@@ -487,10 +538,12 @@ export const deleteJobVisit = async (id: string, context?: UserContext) => {
 				actor_type: context?.techId
 					? "technician"
 					: context?.dispatcherId
-					? "dispatcher"
-					: "system",
+						? "dispatcher"
+						: "system",
 				actor_id: context?.techId || context?.dispatcherId,
 				changes: {
+					name: { old: visit.name, new: null },
+					description: { old: visit.description, new: null },
 					scheduled_start_at: {
 						old: visit.scheduled_start_at,
 						new: null,

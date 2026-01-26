@@ -15,6 +15,7 @@ import {
 	FileText,
 	Briefcase,
 	DollarSign,
+	ChevronRight,
 } from "lucide-react";
 import {
 	useJobByIdQuery,
@@ -25,21 +26,22 @@ import JobNoteManager from "../../components/jobs/JobNoteManager";
 import Card from "../../components/ui/Card";
 import EditJob from "../../components/jobs/EditJob";
 import CreateJobVisit from "../../components/jobs/CreateJobVisit";
-import EditJobVisit from "../../components/jobs/EditJobVisit";
 import {
 	JobStatusColors,
 	JobPriorityColors,
 	VisitStatusColors,
-	ScheduleTypeLabels,
 	type VisitStatus,
-	type ScheduleType,
 	type JobLineItem,
 } from "../../types/jobs";
+import {
+	ArrivalConstraintLabels,
+	FinishConstraintLabels,
+	formatScheduleConstraints,
+} from "../../types/recurringPlans";
 import { QuoteStatusColors } from "../../types/quotes";
 import { RequestStatusColors } from "../../types/requests";
 import { getGenericStatusColor } from "../../types/common";
 import type { ClientContact } from "../../types/clients";
-import type { VisitTech } from "../../types/technicians";
 import { useState } from "react";
 import { formatCurrency, formatDateTime, formatTime } from "../../util/util";
 
@@ -50,10 +52,7 @@ export default function JobDetailPage() {
 	const { data: visits = [] } = useJobVisitsByJobIdQuery(jobId!);
 	const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 	const [isCreateVisitModalOpen, setIsCreateVisitModalOpen] = useState(false);
-	const [editingVisitId, setEditingVisitId] = useState<string | null>(null);
 	const { mutateAsync: createJobVisitMutation } = useCreateJobVisitMutation();
-
-	const editingVisit = visits.find((v) => v.id === editingVisitId);
 
 	if (isLoading) {
 		return (
@@ -83,6 +82,49 @@ export default function JobDetailPage() {
 
 	const lineItems: JobLineItem[] = job.line_items || [];
 	const hasLineItems = lineItems.length > 0;
+
+	// Helper to format visit time constraints
+	const formatVisitTimeConstraints = (visit: (typeof visits)[0]): string => {
+		const {
+			arrival_constraint,
+			finish_constraint,
+			arrival_time,
+			arrival_window_start,
+			arrival_window_end,
+			finish_time,
+		} = visit;
+
+		let arrivalStr = "";
+		switch (arrival_constraint) {
+			case "anytime":
+				arrivalStr = "Anytime";
+				break;
+			case "at":
+				arrivalStr = `At ${arrival_time}`;
+				break;
+			case "between":
+				arrivalStr = `${arrival_window_start} - ${arrival_window_end}`;
+				break;
+			case "by":
+				arrivalStr = `By ${arrival_window_end}`;
+				break;
+		}
+
+		let finishStr = "";
+		switch (finish_constraint) {
+			case "when_done":
+				finishStr = "when done";
+				break;
+			case "at":
+				finishStr = `finish at ${finish_time}`;
+				break;
+			case "by":
+				finishStr = `finish by ${finish_time}`;
+				break;
+		}
+
+		return `${arrivalStr}, ${finishStr}`;
+	};
 
 	return (
 		<div className="text-white space-y-6">
@@ -861,14 +903,26 @@ export default function JobDetailPage() {
 						</button>
 					</div>
 				) : (
-					<div className="space-y-3">
+					<div className="flex flex-wrap gap-3">
 						{sortedVisits.map((visit) => (
-							<div
+							<button
 								key={visit.id}
-								className="bg-zinc-800 border border-zinc-700 rounded-lg p-4 hover:border-zinc-600 transition-colors"
+								onClick={() =>
+									navigate(
+										`/dispatch/jobs/${jobId}/visits/${visit.id}`
+									)
+								}
+								className="bg-zinc-800 border border-zinc-700 rounded-lg p-4 hover:border-blue-500 hover:bg-zinc-750 transition-all cursor-pointer text-left group w-fit"
 							>
-								<div className="flex items-start justify-between mb-3">
-									<div className="flex items-center gap-3">
+								{/* Visit Name Header */}
+								{visit.name && (
+									<h4 className="text-white font-semibold text-base mb-2 group-hover:text-blue-400 transition-colors">
+										{visit.name}
+									</h4>
+								)}
+
+								<div className="flex items-start justify-between gap-4 mb-3">
+									<div className="flex items-center gap-2 flex-wrap">
 										<div
 											className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${
 												VisitStatusColors[
@@ -881,29 +935,19 @@ export default function JobDetailPage() {
 												visit.status
 											}
 										</div>
-										<span className="text-gray-500">
+										<span className="text-zinc-500 text-sm">
 											•
 										</span>
-										<span className="text-sm text-gray-400">
-											{ScheduleTypeLabels[
-												visit.schedule_type as ScheduleType
-											] ||
-												visit.schedule_type.replace(
-													"_",
-													" "
-												)}
+										<span className="text-xs text-zinc-400">
+											{formatVisitTimeConstraints(
+												visit
+											)}
 										</span>
 									</div>
-									<button
-										onClick={() =>
-											setEditingVisitId(
-												visit.id
-											)
-										}
-										className="text-gray-400 hover:text-white transition-colors"
-									>
-										<Edit2 size={16} />
-									</button>
+									<ChevronRight
+										size={16}
+										className="text-zinc-400 group-hover:text-blue-400 group-hover:translate-x-1 transition-all flex-shrink-0"
+									/>
 								</div>
 
 								<div className="space-y-2">
@@ -911,55 +955,25 @@ export default function JobDetailPage() {
 									<div className="flex items-center gap-2 text-sm">
 										<Clock
 											size={16}
-											className="text-gray-400"
+											className="text-zinc-400 flex-shrink-0"
 										/>
-										{visit.schedule_type ===
-										"all_day" ? (
-											<span className="text-gray-300">
-												{
-													formatDateTime(
-														visit.scheduled_start_at
-													).split(
-														" at "
-													)[0]
-												}{" "}
-												-
-												All
-												Day
-											</span>
-										) : visit.schedule_type ===
-												"window" &&
-										  visit.arrival_window_start &&
-										  visit.arrival_window_end ? (
-											<span className="text-gray-300">
-												{
-													formatDateTime(
-														visit.scheduled_start_at
-													).split(
-														" at "
-													)[0]
-												}{" "}
-												•
-												Window:{" "}
-												{formatTime(
-													visit.arrival_window_start
-												)}{" "}
-												-{" "}
-												{formatTime(
-													visit.arrival_window_end
-												)}
-											</span>
-										) : (
-											<span className="text-gray-300">
-												{formatDateTime(
+										<span className="text-zinc-300 whitespace-nowrap">
+											{
+												formatDateTime(
 													visit.scheduled_start_at
-												)}{" "}
-												-{" "}
-												{formatTime(
-													visit.scheduled_end_at
-												)}
-											</span>
-										)}
+												).split(
+													" at "
+												)[0]
+											}{" "}
+											•{" "}
+											{formatTime(
+												visit.scheduled_start_at
+											)}{" "}
+											-{" "}
+											{formatTime(
+												visit.scheduled_end_at
+											)}
+										</span>
 									</div>
 
 									{/* Technicians */}
@@ -972,9 +986,9 @@ export default function JobDetailPage() {
 													size={
 														16
 													}
-													className="text-gray-400"
+													className="text-zinc-400 flex-shrink-0"
 												/>
-												<span className="text-gray-300">
+												<span className="text-zinc-300">
 													{visit.visit_techs
 														.map(
 															(
@@ -991,10 +1005,20 @@ export default function JobDetailPage() {
 											</div>
 										)}
 
+									{/* Description (if exists and no name) */}
+									{visit.description &&
+										!visit.name && (
+											<div className="text-xs text-zinc-400 italic mt-2 line-clamp-2">
+												{
+													visit.description
+												}
+											</div>
+										)}
+
 									{/* Actual Times (if completed) */}
 									{visit.actual_start_at &&
 										visit.actual_end_at && (
-											<div className="mt-2 pt-2 border-t border-zinc-700 text-xs text-gray-400">
+											<div className="mt-2 pt-2 border-t border-zinc-700 text-xs text-zinc-400">
 												Actual:{" "}
 												{formatTime(
 													visit.actual_start_at
@@ -1006,7 +1030,7 @@ export default function JobDetailPage() {
 											</div>
 										)}
 								</div>
-							</div>
+							</button>
 						))}
 					</div>
 				)}
@@ -1139,8 +1163,15 @@ export default function JobDetailPage() {
 										key={visit.id}
 										className="space-y-2"
 									>
-										{/* Visit Header */}
-										<div className="flex items-center gap-2 text-xs text-zinc-500 mb-2">
+										{/* Visit Header - Now Clickable */}
+										<button
+											onClick={() =>
+												navigate(
+													`/dispatch/jobs/${jobId}/visits/${visit.id}`
+												)
+											}
+											className="w-full flex items-center gap-2 text-xs text-zinc-400 hover:text-zinc-300 mb-2 transition-colors group"
+										>
 											<Calendar
 												size={
 													12
@@ -1175,7 +1206,13 @@ export default function JobDetailPage() {
 													visit.status
 												}
 											</span>
-										</div>
+											<ChevronRight
+												size={
+													14
+												}
+												className="text-zinc-500 group-hover:text-zinc-300 group-hover:translate-x-0.5 transition-all"
+											/>
+										</button>
 
 										{/* Technician Cards */}
 										{visit.visit_techs.map(
@@ -1184,11 +1221,14 @@ export default function JobDetailPage() {
 													key={
 														vt.tech_id
 													}
-													onClick={() =>
+													onClick={(
+														e
+													) => {
+														e.stopPropagation();
 														navigate(
 															`/dispatch/technicians/${vt.tech_id}`
-														)
-													}
+														);
+													}}
 													className="w-full bg-zinc-800 hover:bg-zinc-750 border border-zinc-700 hover:border-zinc-600 rounded-lg p-3 transition-all cursor-pointer text-left group"
 												>
 													<div className="flex items-center gap-3">
@@ -1280,11 +1320,11 @@ export default function JobDetailPage() {
 																		.status
 																}
 															</span>
-															<ChevronLeft
+															<ChevronRight
 																size={
 																	16
 																}
-																className="text-zinc-400 rotate-180 group-hover:translate-x-1 transition-transform"
+																className="text-zinc-400 group-hover:translate-x-1 transition-transform"
 															/>
 														</div>
 													</div>
@@ -1326,7 +1366,6 @@ export default function JobDetailPage() {
 				</Card>
 			</div>
 
-			{/* Job Notes - Full Width at Bottom */}
 			<JobNoteManager jobId={jobId!} visits={visits} />
 
 			{job && (
@@ -1343,15 +1382,6 @@ export default function JobDetailPage() {
 				jobId={jobId!}
 				createVisit={createJobVisitMutation}
 			/>
-
-			{editingVisitId && editingVisit && (
-				<EditJobVisit
-					isModalOpen={true}
-					setIsModalOpen={(open) => !open && setEditingVisitId(null)}
-					visit={editingVisit}
-					jobId={jobId!}
-				/>
-			)}
 		</div>
 	);
 }

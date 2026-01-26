@@ -29,6 +29,7 @@ export const createJobSchema = z
 			.default("Unscheduled"),
 		request_id: z.string().uuid().optional().nullable(),
 		quote_id: z.string().uuid().optional().nullable(),
+		recurring_plan_id: z.string().uuid().optional().nullable(),
 
 		subtotal: z.number().min(0).optional(),
 		tax_rate: z.number().min(0).max(1).optional(),
@@ -54,7 +55,7 @@ export const createJobSchema = z
 						.enum(["labor", "material", "equipment", "other"])
 						.optional()
 						.nullable(),
-				})
+				}),
 			)
 			.optional(),
 	})
@@ -66,6 +67,7 @@ export const createJobSchema = z
 		coords: data.coords || undefined,
 		request_id: data.request_id || undefined,
 		quote_id: data.quote_id || undefined,
+		recurring_plan_id: data.recurring_plan_id || undefined,
 		subtotal: data.subtotal || undefined,
 		tax_rate: data.tax_rate || undefined,
 		tax_amount: data.tax_amount || undefined,
@@ -124,7 +126,7 @@ export const updateJobSchema = z
 							"field_addition",
 						])
 						.optional(),
-				})
+				}),
 			)
 			.optional(),
 		subtotal: z.number().min(0).optional(),
@@ -208,22 +210,34 @@ export const updateJobLineItemSchema = z
 		item_type: data.item_type || undefined,
 	}));
 
-export const createJobNoteSchema = z.object({
-	content: z.string().min(1, "Content is required"),
-	visit_id: z.string().uuid("Invalid visit ID").optional(),
-});
+export const createJobNoteSchema = z
+	.object({
+		content: z.string().min(1, "Content is required"),
+		visit_id: z.string().uuid("Invalid visit ID").optional().nullable(),
+	})
+	.transform((data) => ({
+		content: data.content,
+		visit_id: data.visit_id || null,
+	}));
 
 export const updateJobNoteSchema = z
 	.object({
 		content: z.string().min(1, "Content is required").optional(),
-		visit_id: z.string().uuid("Invalid visit ID").optional(),
+		visit_id: z.string().uuid("Invalid visit ID").optional().nullable(),
 	})
-	.transform((data) => ({
-		...data,
-		content: data.content || undefined,
-		visit_id: data.visit_id || undefined,
-	}));
+	.transform((data) => {
+		const result: Record<string, any> = {};
 
+		if (data.content !== undefined) {
+			result.content = data.content;
+		}
+
+		if (data.visit_id !== undefined) {
+			result.visit_id = data.visit_id;
+		}
+
+		return result;
+	});
 export type CreateJobInput = z.infer<typeof createJobSchema>;
 export type UpdateJobInput = z.infer<typeof updateJobSchema>;
 export type CreateJobLineItemInput = z.infer<typeof createJobLineItemSchema>;

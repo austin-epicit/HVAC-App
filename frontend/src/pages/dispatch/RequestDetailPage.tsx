@@ -174,7 +174,7 @@ export default function RequestDetailPage() {
 							onClick={() =>
 								setShowActionsMenu(!showActionsMenu)
 							}
-							className="p-2 hover:bg-zinc-800 rounded-md transition-colors"
+							className="p-2 hover:bg-zinc-800 rounded-md transition-colors border border-zinc-700 hover:border-zinc-600"
 						>
 							<MoreVertical size={20} />
 						</button>

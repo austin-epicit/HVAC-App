@@ -1,10 +1,10 @@
 import AdaptableTable from "../../components/AdaptableTable";
-import { useQuotesQuery, useCreateQuoteMutation } from "../../hooks/useQuotes";
+import { useAllQuotesQuery, useCreateQuoteMutation } from "../../hooks/useQuotes";
 import { useClientByIdQuery } from "../../hooks/useClients";
 import { useRequestByIdQuery } from "../../hooks/useRequests";
 import { QuoteStatusValues, QuoteStatusLabels, type Quote } from "../../types/quotes";
 import { useState, useMemo, useEffect } from "react";
-import { Search, Plus, X, MoreHorizontal } from "lucide-react";
+import { Search, Plus, X, MoreVertical } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import CreateQuote from "../../components/quotes/CreateQuote";
 import { formatDate, formatCurrency } from "../../util/util";
@@ -12,7 +12,7 @@ import { formatDate, formatCurrency } from "../../util/util";
 export default function QuotesPage() {
 	const navigate = useNavigate();
 	const location = useLocation();
-	const { data: quotes, isLoading: isFetchLoading, error: fetchError } = useQuotesQuery();
+	const { data: quotes, isLoading: isFetchLoading, error: fetchError } = useAllQuotesQuery();
 	const { mutateAsync: createQuote } = useCreateQuoteMutation();
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [searchInput, setSearchInput] = useState("");
@@ -168,8 +168,8 @@ export default function QuotesPage() {
 						<Plus size={16} className="text-white" />
 						New Quote
 					</button>
-					<button className="flex items-center justify-center w-10 h-10 bg-zinc-700 hover:bg-zinc-600 rounded-md transition-colors">
-						<MoreHorizontal size={20} className="text-white" />
+					<button className="flex items-center justify-center p-2 hover:bg-zinc-800 rounded-md transition-colors border border-zinc-700 hover:border-zinc-600">
+						<MoreVertical size={20} className="text-white" />
 					</button>
 				</div>
 			</div>

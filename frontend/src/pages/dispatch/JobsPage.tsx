@@ -1,162 +1,328 @@
 import AdaptableTable from "../../components/AdaptableTable";
 import { useAllJobsQuery, useCreateJobMutation } from "../../hooks/useJobs";
+import { useAllRecurringPlansQuery } from "../../hooks/useRecurringPlans";
 import { useClientByIdQuery } from "../../hooks/useClients";
 import { JobStatusValues } from "../../types/jobs";
-import { useState, useMemo, useEffect } from "react";
-import { Search, Plus, MoreHorizontal, X } from "lucide-react";
+import { RecurringPlanStatusValues } from "../../types/recurringPlans";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { Search, Plus, MoreVertical, X, Repeat, Briefcase, Download, Upload } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import CreateJob from "../../components/jobs/CreateJob";
+import CreateRecurringPlan from "../../components/recurringPlans/CreateRecurringPlan";
 import { addSpacesToCamelCase, formatDate, formatCurrency } from "../../util/util";
+
+type ViewMode = "jobs" | "templates";
 
 export default function JobsPage() {
 	const navigate = useNavigate();
 	const location = useLocation();
-	const { data: jobs, isLoading: isFetchLoading, error: fetchError } = useAllJobsQuery();
+	const { data: jobs, isLoading: jobsLoading, error: jobsError } = useAllJobsQuery();
+	const {
+		data: recurringPlans,
+		isLoading: plansLoading,
+		error: plansError,
+	} = useAllRecurringPlansQuery();
 	const { mutateAsync: createJob } = useCreateJobMutation();
-	const [isModalOpen, setIsModalOpen] = useState(false);
+	const [isCreateJobModalOpen, setIsCreateJobModalOpen] = useState(false);
+	const [isCreatePlanModalOpen, setIsCreatePlanModalOpen] = useState(false);
 	const [searchInput, setSearchInput] = useState("");
+	const [viewMode, setViewMode] = useState<ViewMode>("jobs");
+	const [showActionsMenu, setShowActionsMenu] = useState(false);
+	const menuRef = useRef<HTMLDivElement>(null);
 
 	const queryParams = new URLSearchParams(location.search);
 	const clientFilter = queryParams.get("client");
 	const searchFilter = queryParams.get("search");
+	const viewParam = queryParams.get("view") as ViewMode | null;
 
 	const { data: filterClient } = useClientByIdQuery(clientFilter);
 
+	const isFetchLoading = jobsLoading || plansLoading;
+	const fetchError = jobsError || plansError;
+
+	// Close menu on outside click
+	useEffect(() => {
+		const handleOutsideClick = (event: MouseEvent) => {
+			if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+				setShowActionsMenu(false);
+			}
+		};
+
+		if (showActionsMenu) {
+			document.addEventListener("mousedown", handleOutsideClick);
+			return () => document.removeEventListener("mousedown", handleOutsideClick);
+		}
+	}, [showActionsMenu]);
+
 	useEffect(() => {
 		setSearchInput(searchFilter || "");
-	}, [searchFilter]);
+		setViewMode(viewParam || "jobs");
+	}, [searchFilter, viewParam]);
 
 	const display = useMemo(() => {
-		if (!jobs) return [];
-
 		const activeSearch = searchInput || searchFilter;
 
-		let filtered = jobs;
-
-		if (clientFilter) {
-			filtered = jobs.filter((j) => j.client_id === clientFilter);
-		}
-
-		if (activeSearch) {
-			filtered = filtered.filter((j) => {
-				const searchLower = activeSearch.toLowerCase();
-				const clientName = j.client?.name?.toLowerCase() || "";
-				const jobName = j.name?.toLowerCase() || "";
-				const jobNumber = j.job_number?.toLowerCase() || "";
-				const status = j.status?.toLowerCase() || "";
-				const address = j.address?.toLowerCase() || "";
-
-				return (
-					jobName.includes(searchLower) ||
-					clientName.includes(searchLower) ||
-					jobNumber.includes(searchLower) ||
-					status.includes(searchLower) ||
-					address.includes(searchLower)
-				);
-			});
-		}
-
-		return filtered
-			.map((j) => {
-				// Get all visits sorted by scheduled start time
-				const allVisits = (j.visits || []).sort(
-					(a, b) =>
-						new Date(a.scheduled_start_at).getTime() -
-						new Date(b.scheduled_start_at).getTime()
-				);
-
-				// Determine schedule display based on job status
-				let scheduleDisplay = "No visits scheduled";
-				let scheduleDate: Date | null = null;
-
-				if (j.status === "Completed") {
-					// For completed jobs, show the last completed visit
-					const completedVisits = allVisits
-						.filter((v) => v.status === "Completed")
+		if (viewMode === "templates") {
+			// TEMPLATES VIEW - Show only recurring plan templates
+			let templatesData =
+				recurringPlans?.map((plan) => {
+					const upcomingOccurrences = (plan.occurrences || [])
+						.filter(
+							(occ) =>
+								new Date(occ.occurrence_start_at) >
+									new Date() &&
+								(occ.status === "planned" ||
+									occ.status === "generated")
+						)
 						.sort(
 							(a, b) =>
 								new Date(
-									b.actual_end_at ||
-										b.scheduled_end_at
+									a.occurrence_start_at
 								).getTime() -
 								new Date(
-									a.actual_end_at ||
-										a.scheduled_end_at
+									b.occurrence_start_at
 								).getTime()
 						);
 
-					if (completedVisits.length > 0) {
-						const lastVisit = completedVisits[0];
-						const completedDate =
-							lastVisit.actual_end_at ||
-							lastVisit.scheduled_end_at;
-						scheduleDisplay = `COMPLETED\n${formatDate(completedDate)}`;
-						scheduleDate = new Date(completedDate);
-					}
-				} else {
-					// For non-completed jobs, show next scheduled visit
-					const scheduledVisits = allVisits.filter(
-						(v) =>
-							v.status === "Scheduled" ||
-							v.status === "InProgress"
-					);
+					let scheduleDisplay = "No occurrences";
+					let scheduleDate: Date | null = null;
 
-					if (scheduledVisits.length > 0) {
-						const nextVisit = scheduledVisits[0];
-						scheduleDisplay = formatDate(
-							nextVisit.scheduled_start_at
-						);
+					if (upcomingOccurrences.length > 0) {
+						const nextOccurrence = upcomingOccurrences[0];
+						scheduleDisplay = `NEXT\n${formatDate(
+							nextOccurrence.occurrence_start_at
+						)}`;
 						scheduleDate = new Date(
-							nextVisit.scheduled_start_at
+							nextOccurrence.occurrence_start_at
+						);
+					} else if (plan.status === "Completed") {
+						scheduleDisplay = "COMPLETED";
+					} else if (plan.status === "Cancelled") {
+						scheduleDisplay = "CANCELLED";
+					}
+
+					const templateTotal =
+						plan.line_items?.reduce(
+							(sum, item) =>
+								sum +
+								item.quantity * item.unit_price,
+							0
+						) || 0;
+
+					return {
+						id: plan.id,
+						client: plan.client?.name || "Unknown Client",
+						title: plan.name,
+						property: plan.address || "No address",
+						schedule: scheduleDisplay,
+						status: addSpacesToCamelCase(plan.status),
+						templateTotal: formatCurrency(templateTotal),
+						_rawStatus: plan.status,
+						_scheduleDate: scheduleDate,
+						_clientId: plan.client_id,
+						_recurringPlanId: plan.id,
+					};
+				}) || [];
+
+			if (clientFilter) {
+				templatesData = templatesData.filter(
+					(item) => item._clientId === clientFilter
+				);
+			}
+
+			if (activeSearch) {
+				templatesData = templatesData.filter((item) => {
+					const searchLower = activeSearch.toLowerCase();
+					const clientName = item.client?.toLowerCase() || "";
+					const title = item.title?.toLowerCase() || "";
+					const property = item.property?.toLowerCase() || "";
+					const status = item.status?.toLowerCase() || "";
+
+					return (
+						title.includes(searchLower) ||
+						clientName.includes(searchLower) ||
+						property.includes(searchLower) ||
+						status.includes(searchLower)
+					);
+				});
+			}
+
+			return templatesData
+				.sort((a, b) => {
+					// Sort by status
+					const statusDiff =
+						RecurringPlanStatusValues.indexOf(
+							a._rawStatus as any
+						) -
+						RecurringPlanStatusValues.indexOf(
+							b._rawStatus as any
+						);
+					if (statusDiff !== 0) return statusDiff;
+
+					// Then by schedule date (nulls last)
+					if (a._scheduleDate && b._scheduleDate) {
+						return (
+							a._scheduleDate.getTime() -
+							b._scheduleDate.getTime()
 						);
 					}
-				}
+					if (a._scheduleDate) return -1;
+					if (b._scheduleDate) return 1;
 
-				return {
-					id: j.id,
-					client: j.client?.name || "Unknown Client",
-					jobNumber: `${j.job_number}\n${j.name}`,
-					property: j.address || "No address",
-					schedule: scheduleDisplay,
-					status: addSpacesToCamelCase(j.status),
-					total: formatCurrency(
-						Number(j.estimated_total || j.actual_total || 0)
-					),
-					_rawStatus: j.status,
-					_rawTotal: Number(j.estimated_total || j.actual_total || 0),
-					_scheduleDate: scheduleDate,
-					_rawJobNumber: j.job_number,
-				};
-			})
-			.sort((a, b) => {
-				// Sort by status first
-				const statusDiff =
-					JobStatusValues.indexOf(a._rawStatus as any) -
-					JobStatusValues.indexOf(b._rawStatus as any);
-				if (statusDiff !== 0) return statusDiff;
-
-				// Then by schedule date (nulls last)
-				if (a._scheduleDate && b._scheduleDate) {
-					return (
-						a._scheduleDate.getTime() -
-						b._scheduleDate.getTime()
+					return 0;
+				})
+				.map(
+					({
+						_rawStatus,
+						_scheduleDate,
+						_clientId,
+						_recurringPlanId,
+						...rest
+					}) => rest
+				);
+		} else {
+			// JOBS VIEW - Show all job containers (one-time + recurring)
+			let jobsData =
+				jobs?.map((j) => {
+					const allVisits = (j.visits || []).sort(
+						(a, b) =>
+							new Date(a.scheduled_start_at).getTime() -
+							new Date(b.scheduled_start_at).getTime()
 					);
-				}
-				if (a._scheduleDate) return -1;
-				if (b._scheduleDate) return 1;
 
-				return 0;
-			})
-			.map(
-				({
-					_rawStatus,
-					_rawTotal,
-					_scheduleDate,
-					_rawJobNumber,
-					...rest
-				}) => rest
-			);
-	}, [jobs, searchInput, searchFilter, clientFilter]);
+					let scheduleDisplay = "No visits scheduled";
+					let scheduleDate: Date | null = null;
+
+					if (j.status === "Completed") {
+						const completedVisits = allVisits
+							.filter((v) => v.status === "Completed")
+							.sort(
+								(a, b) =>
+									new Date(
+										b.actual_end_at ||
+											b.scheduled_end_at
+									).getTime() -
+									new Date(
+										a.actual_end_at ||
+											a.scheduled_end_at
+									).getTime()
+							);
+
+						if (completedVisits.length > 0) {
+							const lastVisit = completedVisits[0];
+							const completedDate =
+								lastVisit.actual_end_at ||
+								lastVisit.scheduled_end_at;
+							scheduleDisplay = `COMPLETED\n${formatDate(completedDate)}`;
+							scheduleDate = new Date(completedDate);
+						}
+					} else {
+						const scheduledVisits = allVisits.filter(
+							(v) =>
+								v.status === "Scheduled" ||
+								v.status === "InProgress"
+						);
+
+						if (scheduledVisits.length > 0) {
+							const nextVisit = scheduledVisits[0];
+							scheduleDisplay = formatDate(
+								nextVisit.scheduled_start_at
+							);
+							scheduleDate = new Date(
+								nextVisit.scheduled_start_at
+							);
+						}
+					}
+
+					return {
+						id: j.id,
+						isRecurring: !!j.recurring_plan_id,
+						client: j.client?.name || "Unknown Client",
+						jobNumber: `${j.job_number}\n${j.name}`,
+						property: j.address || "No address",
+						schedule: scheduleDisplay,
+						status: addSpacesToCamelCase(j.status),
+						total: formatCurrency(
+							Number(
+								j.estimated_total ||
+									j.actual_total ||
+									0
+							)
+						),
+						_rawStatus: j.status,
+						_rawTotal: Number(
+							j.estimated_total || j.actual_total || 0
+						),
+						_scheduleDate: scheduleDate,
+						_rawJobNumber: j.job_number,
+						_clientId: j.client_id,
+						_jobId: j.id,
+					};
+				}) || [];
+
+			if (clientFilter) {
+				jobsData = jobsData.filter(
+					(item) => item._clientId === clientFilter
+				);
+			}
+
+			if (activeSearch) {
+				jobsData = jobsData.filter((item) => {
+					const searchLower = activeSearch.toLowerCase();
+					const clientName = item.client?.toLowerCase() || "";
+					const jobInfo = item.jobNumber?.toLowerCase() || "";
+					const status = item.status?.toLowerCase() || "";
+					const address = item.property?.toLowerCase() || "";
+
+					return (
+						jobInfo.includes(searchLower) ||
+						clientName.includes(searchLower) ||
+						status.includes(searchLower) ||
+						address.includes(searchLower)
+					);
+				});
+			}
+
+			// Sort jobs
+			return jobsData
+				.sort((a, b) => {
+					// Sort by status
+					const statusDiff =
+						JobStatusValues.indexOf(a._rawStatus as any) -
+						JobStatusValues.indexOf(b._rawStatus as any);
+					if (statusDiff !== 0) return statusDiff;
+
+					// Then by schedule date (nulls last)
+					if (a._scheduleDate && b._scheduleDate) {
+						return (
+							a._scheduleDate.getTime() -
+							b._scheduleDate.getTime()
+						);
+					}
+					if (a._scheduleDate) return -1;
+					if (b._scheduleDate) return 1;
+
+					return 0;
+				})
+				.map(
+					({
+						_rawStatus,
+						_rawTotal,
+						_scheduleDate,
+						_rawJobNumber,
+						_clientId,
+						_jobId,
+						isRecurring,
+						...rest
+					}) => ({
+						...rest,
+						jobNumber: isRecurring
+							? `🔄 ${rest.jobNumber}`
+							: rest.jobNumber,
+					})
+				);
+		}
+	}, [jobs, recurringPlans, searchInput, searchFilter, clientFilter, viewMode]);
 
 	const handleSearchSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
@@ -167,6 +333,19 @@ export default function JobsPage() {
 			newParams.set("search", searchInput.trim());
 		} else {
 			newParams.delete("search");
+		}
+
+		navigate(`/dispatch/jobs?${newParams.toString()}`);
+	};
+
+	const handleViewModeChange = (mode: ViewMode) => {
+		setViewMode(mode);
+		const newParams = new URLSearchParams(location.search);
+
+		if (mode !== "jobs") {
+			newParams.set("view", mode);
+		} else {
+			newParams.delete("view");
 		}
 
 		navigate(`/dispatch/jobs?${newParams.toString()}`);
@@ -219,19 +398,109 @@ export default function JobsPage() {
 
 					<button
 						className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-md text-sm font-medium transition-colors"
-						onClick={() => setIsModalOpen(true)}
+						onClick={() => setIsCreateJobModalOpen(true)}
 					>
 						<Plus size={16} className="text-white" />
 						New Job
 					</button>
 
-					<button className="flex items-center justify-center w-10 h-10 bg-zinc-700 hover:bg-zinc-600 rounded-md transition-colors">
-						<MoreHorizontal size={20} className="text-white" />
+					<button
+						className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-md text-sm font-medium transition-colors"
+						onClick={() => setIsCreatePlanModalOpen(true)}
+					>
+						<Repeat size={16} className="text-white" />
+						New Recurring Plan
 					</button>
+
+					{/* Actions Menu */}
+					<div className="relative" ref={menuRef}>
+						<button
+							onClick={() =>
+								setShowActionsMenu(!showActionsMenu)
+							}
+							className="flex items-center justify-center p-2 hover:bg-zinc-800 rounded-md transition-colors border border-zinc-700 hover:border-zinc-600"
+						>
+							<MoreVertical
+								size={20}
+								className="text-white"
+							/>
+						</button>
+
+						{showActionsMenu && (
+							<div className="absolute right-0 mt-2 w-56 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl z-50">
+								<div className="py-1">
+									<button
+										onClick={() => {
+											// TODO: Implement export functionality
+											setShowActionsMenu(
+												false
+											);
+										}}
+										className="w-full px-4 py-2 text-left text-sm hover:bg-zinc-800 transition-colors flex items-center gap-2"
+									>
+										<Download
+											size={16}
+										/>
+										Export Jobs
+									</button>
+									<button
+										onClick={() => {
+											// TODO: Implement import functionality
+											setShowActionsMenu(
+												false
+											);
+										}}
+										className="w-full px-4 py-2 text-left text-sm hover:bg-zinc-800 transition-colors flex items-center gap-2"
+									>
+										<Upload size={16} />
+										Import Jobs
+									</button>
+									<div className="border-t border-zinc-800 my-1"></div>
+									<button
+										onClick={() => {
+											// TODO: Implement settings
+											setShowActionsMenu(
+												false
+											);
+										}}
+										className="w-full px-4 py-2 text-left text-sm hover:bg-zinc-800 transition-colors flex items-center gap-2"
+									>
+										⚙️ Settings
+									</button>
+								</div>
+							</div>
+						)}
+					</div>
 				</div>
 			</div>
 
-			{/* Single Filter Bar with Multiple Filters */}
+			{/* View Mode Toggle */}
+			<div className="mb-3 flex gap-2">
+				<button
+					onClick={() => handleViewModeChange("jobs")}
+					className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+						viewMode === "jobs"
+							? "bg-blue-600 text-white"
+							: "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
+					}`}
+				>
+					<Briefcase size={16} />
+					Jobs ({jobs?.length || 0})
+				</button>
+				<button
+					onClick={() => handleViewModeChange("templates")}
+					className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+						viewMode === "templates"
+							? "bg-blue-600 text-white"
+							: "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
+					}`}
+				>
+					<Repeat size={16} />
+					Recurring Plans ({recurringPlans?.length || 0})
+				</button>
+			</div>
+
+			{/* Filter Bar */}
 			{hasFilters && (
 				<div className="mb-2 p-3 bg-zinc-800 rounded-lg border border-zinc-700">
 					<div className="flex items-center justify-between">
@@ -323,13 +592,23 @@ export default function JobsPage() {
 					data={display}
 					loadListener={isFetchLoading}
 					errListener={fetchError}
-					onRowClick={(row) => navigate(`/dispatch/jobs/${row.id}`)}
+					onRowClick={(row) => {
+						if (viewMode === "templates") {
+							// Templates view: navigate to recurring plan detail page
+							navigate(
+								`/dispatch/recurring-plans/${row.id}`
+							);
+						} else {
+							// Jobs view: navigate to job detail page (both one-time and recurring jobs)
+							navigate(`/dispatch/jobs/${row.id}`);
+						}
+					}}
 				/>
 			</div>
 
 			<CreateJob
-				isModalOpen={isModalOpen}
-				setIsModalOpen={setIsModalOpen}
+				isModalOpen={isCreateJobModalOpen}
+				setIsModalOpen={setIsCreateJobModalOpen}
 				createJob={async (input) => {
 					const newJob = await createJob(input);
 
@@ -340,6 +619,11 @@ export default function JobsPage() {
 
 					return newJob.id;
 				}}
+			/>
+
+			<CreateRecurringPlan
+				isModalOpen={isCreatePlanModalOpen}
+				setIsModalOpen={setIsCreatePlanModalOpen}
 			/>
 		</div>
 	);

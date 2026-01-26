@@ -769,6 +769,7 @@ const CreateQuote = ({ isModalOpen, setIsModalOpen, createQuote }: CreateQuotePr
 						<DatePicker
 							value={validUntilDate}
 							onChange={setValidUntilDate}
+							align="left"
 						/>
 					</div>
 
@@ -779,6 +780,7 @@ const CreateQuote = ({ isModalOpen, setIsModalOpen, createQuote }: CreateQuotePr
 						<DatePicker
 							value={expiresAtDate}
 							onChange={setExpiresAtDate}
+							align="right"
 						/>
 					</div>
 				</div>

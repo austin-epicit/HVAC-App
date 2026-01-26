@@ -10,6 +10,7 @@ import { Prisma } from "../../generated/prisma/client.js";
 export interface UserContext {
 	techId?: string;
 	dispatcherId?: string;
+	organizationId?: string;
 	ipAddress?: string;
 	userAgent?: string;
 }
@@ -157,12 +158,16 @@ export const getNoteById = async (jobId: string, noteId: string) => {
 export const insertJobNote = async (
 	jobId: string,
 	data: unknown,
-	context?: UserContext
+	context?: UserContext,
 ) => {
 	try {
 		const parsed = createJobNoteSchema.parse(data);
 
-		const job = await db.job.findUnique({ where: { id: jobId } });
+		const job = await db.job.findUnique({
+			where: { id: jobId },
+			select: { id: true, organization_id: true },
+		});
+
 		if (!job) {
 			return { err: "Job not found" };
 		}
@@ -185,6 +190,9 @@ export const insertJobNote = async (
 			const noteData: Prisma.job_noteCreateInput = {
 				job: { connect: { id: jobId } },
 				content: parsed.content,
+				...(job.organization_id && {
+					organization: { connect: { id: job.organization_id } },
+				}),
 				...(parsed.visit_id && {
 					visit: { connect: { id: parsed.visit_id } },
 				}),
@@ -234,8 +242,8 @@ export const insertJobNote = async (
 				actor_type: context?.techId
 					? "technician"
 					: context?.dispatcherId
-					? "dispatcher"
-					: "system",
+						? "dispatcher"
+						: "system",
 				actor_id: context?.techId || context?.dispatcherId,
 				changes: {
 					content: { old: null, new: parsed.content },
@@ -267,7 +275,7 @@ export const updateJobNote = async (
 	jobId: string,
 	noteId: string,
 	data: unknown,
-	context?: UserContext
+	context?: UserContext,
 ) => {
 	try {
 		const parsed = updateJobNoteSchema.parse(data);
@@ -383,8 +391,8 @@ export const updateJobNote = async (
 					actor_type: context?.techId
 						? "technician"
 						: context?.dispatcherId
-						? "dispatcher"
-						: "system",
+							? "dispatcher"
+							: "system",
 					actor_id: context?.techId || context?.dispatcherId,
 					changes,
 					ip_address: context?.ipAddress,
@@ -412,7 +420,7 @@ export const updateJobNote = async (
 export const deleteJobNote = async (
 	jobId: string,
 	noteId: string,
-	context?: UserContext
+	context?: UserContext,
 ) => {
 	try {
 		const existing = await db.job_note.findFirst({
@@ -435,8 +443,8 @@ export const deleteJobNote = async (
 				actor_type: context?.techId
 					? "technician"
 					: context?.dispatcherId
-					? "dispatcher"
-					: "system",
+						? "dispatcher"
+						: "system",
 				actor_id: context?.techId || context?.dispatcherId,
 				changes: {
 					content: { old: existing.content, new: null },

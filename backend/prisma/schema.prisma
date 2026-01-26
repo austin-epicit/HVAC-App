@@ -17,10 +17,17 @@ enum job_status {
   Cancelled
 }
 
-enum schedule_type {
-  all_day
-  exact
-  window
+enum arrival_constraint {
+  anytime
+  at
+  between
+  by
+}
+
+enum finish_constraint {
+  when_done
+  at
+  by
 }
 
 enum discount_type {
@@ -506,11 +513,20 @@ model job_visit {
   job_id String
   job    job    @relation(fields: [job_id], references: [id], onDelete: Cascade)
 
-  schedule_type        schedule_type @default(exact)
+  name        String?  
+  description String?  @db.Text 
+
+  arrival_constraint   arrival_constraint
+  finish_constraint    finish_constraint
+  
   scheduled_start_at   DateTime
   scheduled_end_at     DateTime
-  arrival_window_start DateTime?
-  arrival_window_end   DateTime?
+  
+  arrival_time         String? // For arrival_constraint = "at"
+  arrival_window_start String? // For arrival_constraint = "between"
+  arrival_window_end   String? // For arrival_constraint = "between" or "by"
+  finish_time          String? // For finish_constraint = "at" or "by"
+
   actual_start_at      DateTime?
   actual_end_at        DateTime?
 
@@ -523,6 +539,9 @@ model job_visit {
   discount_value  Decimal? @db.Decimal(10, 2)
   discount_amount Decimal? @db.Decimal(10, 2)
   total           Decimal  @default(0) @db.Decimal(10, 2)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   visit_techs job_visit_technician[]
   notes       job_note[]             @relation("VisitNotes")
@@ -646,26 +665,25 @@ model recurring_plan {
   @@index([client_id, status])
 }
 
-// Schedule definition
 model recurring_rule {
   id                String         @id @default(uuid())
   recurring_plan_id String
   recurring_plan    recurring_plan @relation(fields: [recurring_plan_id], references: [id], onDelete: Cascade)
   
-  // Frequency
   frequency         recurring_frequency
   interval          Int            @default(1) // every X days/weeks/months/years
   
-  // Constraints (optional, depends on frequency)
   by_weekday        recurring_rule_weekday[]
   by_month_day      Int?           // 1-31 for monthly
   by_month          Int?           // 1-12 for yearly
   
-  // Visit timing
-  time_of_day       String?        // "09:00" or null for all-day - Maybe mins since midnight better
-  schedule_type     schedule_type  @default(exact)
-  duration_minutes  Int            @default(120)
-  arrival_window_minutes Int?      // For window-based scheduling
+  arrival_constraint   arrival_constraint
+  finish_constraint    finish_constraint
+  
+  arrival_time         String? // For arrival_constraint = "at"
+  arrival_window_start String? // For arrival_constraint = "between"
+  arrival_window_end   String? // For arrival_constraint = "between" or "by"
+  finish_time          String? // For finish_constraint = "at" or "by"
   
   created_at        DateTime       @default(now())
   

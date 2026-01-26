@@ -394,16 +394,13 @@ const EditJob = ({ isModalOpen, setIsModalOpen, job }: EditJobProps) => {
 				<div className="border border-zinc-800 rounded-sm">
 					<Dropdown
 						refToApply={priorityRef}
+						defaultValue={job.priority}
 						entries={
 							<>
 								{JobPriorityValues.map((v) => (
 									<option
 										key={v}
 										value={v}
-										selected={
-											v ===
-											job.priority
-										}
 										className="text-black"
 									>
 										{v}

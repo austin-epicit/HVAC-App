@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from "react";
 import { DayPicker } from "react-day-picker";
 import { Calendar, X } from "lucide-react";
 import { format } from "date-fns";
-
 import "react-day-picker/dist/style.css";
 
 type DatePickerProps = {
@@ -10,6 +9,7 @@ type DatePickerProps = {
 	onChange: (date: Date | null) => void;
 	disabled?: boolean;
 	optional?: boolean;
+	align?: "left" | "right";
 };
 
 export default function DatePicker({
@@ -17,53 +17,70 @@ export default function DatePicker({
 	onChange,
 	disabled,
 	optional = false,
+	align = "left",
 }: DatePickerProps) {
 	const [open, setOpen] = useState(false);
-	const [alignRight, setAlignRight] = useState(false);
-	const [showAbove, setShowAbove] = useState(false);
+	const [ready, setReady] = useState(false);
+	const [position, setPosition] = useState<{
+		horizontal: "left" | "right";
+		vertical: "below" | "above";
+	}>({
+		horizontal: align,
+		vertical: "below",
+	});
 
 	const buttonRef = useRef<HTMLButtonElement>(null);
 	const calendarRef = useRef<HTMLDivElement>(null);
-
-	// Provide default date for non-optional mode
 	const displayValue = value || new Date();
 
 	useEffect(() => {
-		if (open && buttonRef.current) {
-			const rect = buttonRef.current.getBoundingClientRect();
-			const shouldAlignRight = rect.left > window.innerWidth / 2;
-
-			const calendarHeight = 350;
-			const spaceBelow = window.innerHeight - rect.bottom;
-			const spaceAbove = rect.top;
-
-			const shouldShowAbove =
-				spaceBelow < calendarHeight && spaceAbove > calendarHeight;
-
-			setAlignRight(shouldAlignRight);
-			setShowAbove(shouldShowAbove);
+		if (!open) {
+			setReady(false);
+			return;
 		}
+		const CAL_H = 350;
+		const rect = buttonRef.current!.getBoundingClientRect();
+		const vertical: "below" | "above" =
+			window.innerHeight - rect.bottom >= CAL_H ? "below" : "above";
+		setPosition({ horizontal: align, vertical });
+		requestAnimationFrame(() => setReady(true));
+	}, [open, align]);
+
+	/* ---------- close on outside click  ------------ */
+	useEffect(() => {
+		if (!open) return;
+		const handler = (e: MouseEvent) => {
+			const inBtn = buttonRef.current?.contains(e.target as Node);
+			const inCal = calendarRef.current?.contains(e.target as Node);
+			if (!inBtn && !inCal) setOpen(false);
+		};
+		document.addEventListener("click", handler, true);
+		return () => document.removeEventListener("click", handler, true);
 	}, [open]);
 
+	/* ---------- close on Escape / scroll -------------------- */
 	useEffect(() => {
-		function handleClickOutside(event: MouseEvent) {
-			if (
-				open &&
-				buttonRef.current &&
-				calendarRef.current &&
-				!buttonRef.current.contains(event.target as Node) &&
-				!calendarRef.current.contains(event.target as Node)
-			) {
-				setOpen(false);
-			}
-		}
-
-		document.addEventListener("mousedown", handleClickOutside);
+		const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+		const onScroll = () => setOpen(false);
+		window.addEventListener("keydown", onKey);
+		window.addEventListener("scroll", onScroll, true);
 		return () => {
-			document.removeEventListener("mousedown", handleClickOutside);
+			window.removeEventListener("keydown", onKey);
+			window.removeEventListener("scroll", onScroll, true);
 		};
 	}, [open]);
 
+	/* ---------- popup classes ------------------------------- */
+	const popupClasses = `
+    absolute z-50 bg-zinc-950 border border-zinc-700
+    rounded-sm shadow-xl p-0.5
+    ${position.vertical === "above" ? "bottom-full mb-1" : "top-full mt-1"}
+    ${position.horizontal === "left" ? "left-0" : "right-0"}
+  `;
+
+	/* ================================================================== */
+	/*                           RENDER                                   */
+	/* ================================================================== */
 	return (
 		<div className="relative w-full">
 			<style>{`
@@ -76,7 +93,6 @@ export default function DatePicker({
           pointer-events: auto !important;
           overscroll-behavior: contain;
         }
-
         .date-picker-dark .rdp-month_caption {
           color: #e4e4e7;
           font-weight: 600;
@@ -84,68 +100,46 @@ export default function DatePicker({
           margin-bottom: 0.25rem;
           font-size: 1rem;
         }
-
-        .date-picker-dark .rdp-weekdays {
-          padding: 0 0.25rem;
-        }
-
+        .date-picker-dark .rdp-weekdays { padding: 0 0.25rem; }
         .date-picker-dark .rdp-weekday {
           color: #a1a1aa;
-          font-size: 0.70rem;
+          font-size: 0.7rem;
           padding: 0.05rem 0.25rem;
         }
-
         .date-picker-dark .rdp-day_button {
-          padding: 0.15rem 0.15rem;
+          padding: 0.15rem;
           border-radius: 3px;
-          font-size: 0.80rem;
+          font-size: 0.8rem;
           line-height: 1rem;
         }
-
         .date-picker-dark .rdp-day_button:hover:not([disabled]):not(.rdp-day_selected) {
           background-color: #27272a;
         }
-
         .date-picker-dark .rdp-day_button.rdp-day_selected {
           background-color: #3b82f6;
           color: white;
         }
-
         .date-picker-dark .rdp-day_button.rdp-day_today:not(.rdp-day_selected) {
           color: #3b82f6;
           font-weight: 600;
         }
-
-        .date-picker-dark .rdp-day_button:disabled {
-          opacity: 0.25;
-        }
-
+        .date-picker-dark .rdp-day_button:disabled { opacity: 0.25; }
         .date-picker-dark .rdp-nav_button {
           padding: 0.2rem;
           border-radius: 4px;
           color: #e4e4e7;
         }
-
-        .date-picker-dark .rdp-nav_button:hover {
-          background-color: #27272a;
-        }
-      `}</style>
+        .date-picker-dark .rdp-nav_button:hover { background-color: #27272a; }
+`}</style>
 
 			<button
 				ref={buttonRef}
 				type="button"
 				disabled={disabled}
-				onClick={() => setOpen(!open)}
-				className="
-          border border-zinc-800 
-          p-2 w-full 
-          rounded-sm 
-          text-left 
-          flex items-center justify-between
-          hover:bg-zinc-900 
-          transition-all 
-          disabled:opacity-50 disabled:cursor-not-allowed
-        "
+				onClick={() => setOpen((o) => !o)}
+				className="border border-zinc-700 bg-zinc-900 p-2 w-full rounded-sm text-left flex items-center justify-between
+                   hover:border-zinc-600 focus:border-blue-500 focus:outline-none transition-colors
+                   disabled:opacity-60 disabled:cursor-not-allowed"
 			>
 				<span
 					className={
@@ -158,32 +152,22 @@ export default function DatePicker({
 				</span>
 				<div className="flex items-center gap-1">
 					{optional && value && !disabled && (
-						<button
-							type="button"
+						<span
 							onClick={(e) => {
 								e.stopPropagation();
 								onChange(null);
 							}}
-							className="hover:bg-zinc-800 rounded p-0.5 transition-colors"
+							className="hover:bg-zinc-800 rounded p-0.5 transition-colors cursor-pointer inline-flex"
 						>
 							<X className="h-3 w-3 text-zinc-400 hover:text-white" />
-						</button>
+						</span>
 					)}
-					<Calendar className="h-4 w-4 opacity-50" />
+					<Calendar className="h-4 w-4 text-white opacity-50" />
 				</div>
 			</button>
 
-			{open && (
-				<div
-					ref={calendarRef}
-					className={`
-            absolute z-50 
-            bg-zinc-950 border border-zinc-800 
-            rounded-sm shadow-xl p-0.5
-            ${alignRight ? "right-0" : "left-0"}
-            ${showAbove ? "bottom-full mb-1" : "top-full mt-1"}
-          `}
-				>
+			{open && ready && (
+				<div ref={calendarRef} className={popupClasses}>
 					<DayPicker
 						mode="single"
 						selected={displayValue}

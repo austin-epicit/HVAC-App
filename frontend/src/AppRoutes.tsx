@@ -3,6 +3,8 @@ import DispatchLayout from "./layouts/DispatchLayout";
 import DashboardPage from "./pages/dispatch/DashboardPage";
 import JobsPage from "./pages/dispatch/JobsPage";
 import JobDetailPage from "./pages/dispatch/JobDetailPage";
+import JobVisitDetailPage from "./pages/dispatch/JobVisitDetailPage";
+import RecurringPlanDetailPage from "./pages/dispatch/RecurringPlanDetailPage";
 import SchedulePage from "./pages/dispatch/SchedulePage";
 import ClientsPage from "./pages/dispatch/ClientsPage";
 import ClientDetailsPage from "./pages/dispatch/ClientDetailPage";
@@ -47,6 +49,15 @@ export default function AppRoutes() {
 				<Route path="clients/:clientId" element={<ClientDetailsPage />} />
 				<Route path="jobs" element={<JobsPage />} />
 				<Route path="jobs/:jobId" element={<JobDetailPage />} />
+				<Route
+					path="jobs/:jobId/visits/:visitId"
+					element={<JobVisitDetailPage />}
+				/>
+
+				<Route
+					path="recurring-plans/:recurringPlanId"
+					element={<RecurringPlanDetailPage />}
+				/>
 				<Route path="technicians" element={<TechniciansPage />} />
 				<Route
 					path="technicians/:technicianId"

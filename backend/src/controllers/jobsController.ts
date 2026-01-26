@@ -225,11 +225,11 @@ export const insertJob = async (req: Request, context?: UserContext) => {
 				});
 				const existingIds = new Set(existingTechs.map((t) => t.id));
 				const missing = parsed.tech_ids.filter(
-					(id) => !existingIds.has(id)
+					(id) => !existingIds.has(id),
 				);
 				if (missing.length > 0) {
 					throw new Error(
-						`Technicians not found: ${missing.join(", ")}`
+						`Technicians not found: ${missing.join(", ")}`,
 					);
 				}
 			}
@@ -389,6 +389,7 @@ export const insertJob = async (req: Request, context?: UserContext) => {
 					status: parsed.status || "Unscheduled",
 					request_id: parsed.request_id || null,
 					quote_id: parsed.quote_id || null,
+					recurring_plan_id: parsed.recurring_plan_id || null,
 					...(subtotal !== undefined && { subtotal }),
 					...(taxRate !== undefined && { tax_rate: taxRate }),
 					...(taxAmount !== undefined && { tax_amount: taxAmount }),
@@ -416,8 +417,8 @@ export const insertJob = async (req: Request, context?: UserContext) => {
 						description: item.description,
 						quantity: item.quantity,
 						unit_price: item.unit_price,
-						total: item.total,
-						source: item.source,
+						total: item.total ?? item.quantity * item.unit_price,
+						source: item.source ?? "manual",
 						item_type: item.item_type,
 					})),
 				});
@@ -436,8 +437,8 @@ export const insertJob = async (req: Request, context?: UserContext) => {
 				actor_type: context?.techId
 					? "technician"
 					: context?.dispatcherId
-					? "dispatcher"
-					: "system",
+						? "dispatcher"
+						: "system",
 				actor_id: context?.techId || context?.dispatcherId,
 				changes: {
 					job_number: { old: null, new: job.job_number },
@@ -533,17 +534,17 @@ export const updateJob = async (req: Request, context?: UserContext) => {
 
 				// Track existing and incoming item IDs
 				const existingItemIds = new Set(
-					existing.line_items.map((item) => item.id)
+					existing.line_items.map((item) => item.id),
 				);
 				const incomingItemIds = new Set(
 					incomingItems
 						.filter((item) => item.id)
-						.map((item) => item.id!)
+						.map((item) => item.id!),
 				);
 
 				// DELETE: Items not in incoming list
 				const itemsToDelete = existing.line_items.filter(
-					(item) => !incomingItemIds.has(item.id)
+					(item) => !incomingItemIds.has(item.id),
 				);
 
 				for (const item of itemsToDelete) {
@@ -559,8 +560,8 @@ export const updateJob = async (req: Request, context?: UserContext) => {
 						actor_type: context?.techId
 							? "technician"
 							: context?.dispatcherId
-							? "dispatcher"
-							: "system",
+								? "dispatcher"
+								: "system",
 						actor_id: context?.techId || context?.dispatcherId,
 						changes: {
 							name: { old: item.name, new: null },
@@ -576,7 +577,7 @@ export const updateJob = async (req: Request, context?: UserContext) => {
 					if (item.id && existingItemIds.has(item.id)) {
 						// UPDATE existing item
 						const existingItem = existing.line_items.find(
-							(i) => i.id === item.id
+							(i) => i.id === item.id,
 						);
 
 						if (existingItem) {
@@ -652,8 +653,8 @@ export const updateJob = async (req: Request, context?: UserContext) => {
 									actor_type: context?.techId
 										? "technician"
 										: context?.dispatcherId
-										? "dispatcher"
-										: "system",
+											? "dispatcher"
+											: "system",
 									actor_id:
 										context?.techId ||
 										context?.dispatcherId,
@@ -686,8 +687,8 @@ export const updateJob = async (req: Request, context?: UserContext) => {
 							actor_type: context?.techId
 								? "technician"
 								: context?.dispatcherId
-								? "dispatcher"
-								: "system",
+									? "dispatcher"
+									: "system",
 							actor_id: context?.techId || context?.dispatcherId,
 							changes: {
 								name: { old: null, new: item.name },
@@ -782,8 +783,8 @@ export const updateJob = async (req: Request, context?: UserContext) => {
 					actor_type: context?.techId
 						? "technician"
 						: context?.dispatcherId
-						? "dispatcher"
-						: "system",
+							? "dispatcher"
+							: "system",
 					actor_id: context?.techId || context?.dispatcherId,
 					changes,
 					ip_address: context?.ipAddress,
@@ -827,8 +828,8 @@ export const deleteJob = async (id: string, context?: UserContext) => {
 				actor_type: context?.techId
 					? "technician"
 					: context?.dispatcherId
-					? "dispatcher"
-					: "system",
+						? "dispatcher"
+						: "system",
 				actor_id: context?.techId || context?.dispatcherId,
 				changes: {
 					job_number: { old: existing.job_number, new: null },
@@ -874,7 +875,7 @@ export const getJobLineItemById = async (jobId: string, itemId: string) => {
 export const insertJobLineItem = async (
 	jobId: string,
 	data: unknown,
-	context?: UserContext
+	context?: UserContext,
 ) => {
 	try {
 		const parsed = createJobLineItemSchema.parse(data);
@@ -915,8 +916,8 @@ export const insertJobLineItem = async (
 				actor_type: context?.techId
 					? "technician"
 					: context?.dispatcherId
-					? "dispatcher"
-					: "system",
+						? "dispatcher"
+						: "system",
 				actor_id: context?.techId || context?.dispatcherId,
 				changes: {
 					name: { old: null, new: parsed.name },
@@ -948,7 +949,7 @@ export const updateJobLineItem = async (
 	jobId: string,
 	itemId: string,
 	data: unknown,
-	context?: UserContext
+	context?: UserContext,
 ) => {
 	try {
 		const parsed = updateJobLineItemSchema.parse(data);
@@ -1041,8 +1042,8 @@ export const updateJobLineItem = async (
 					actor_type: context?.techId
 						? "technician"
 						: context?.dispatcherId
-						? "dispatcher"
-						: "system",
+							? "dispatcher"
+							: "system",
 					actor_id: context?.techId || context?.dispatcherId,
 					changes,
 					ip_address: context?.ipAddress,
@@ -1070,7 +1071,7 @@ export const updateJobLineItem = async (
 export const deleteJobLineItem = async (
 	jobId: string,
 	itemId: string,
-	context?: UserContext
+	context?: UserContext,
 ) => {
 	try {
 		const existing = await db.job_line_item.findFirst({
@@ -1093,8 +1094,8 @@ export const deleteJobLineItem = async (
 				actor_type: context?.techId
 					? "technician"
 					: context?.dispatcherId
-					? "dispatcher"
-					: "system",
+						? "dispatcher"
+						: "system",
 				actor_id: context?.techId || context?.dispatcherId,
 				changes: {
 					name: { old: existing.name, new: null },
