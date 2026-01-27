@@ -158,18 +158,6 @@ const CreateQuote = ({ isModalOpen, setIsModalOpen, createQuote }: CreateQuotePr
 			const descValue = descRef.current.value.trim();
 			const priorityValue = priorityRef.current.value.trim();
 
-			if (!geoData?.address) {
-				setErrors({
-					issues: [
-						{
-							path: ["address"],
-							message: "Address is required",
-						},
-					],
-				} as any);
-				return;
-			}
-
 			const preparedLineItems: CreateQuoteLineItemInput[] = lineItems.map(
 				(item, index) => ({
 					name: item.name,
@@ -187,8 +175,8 @@ const CreateQuote = ({ isModalOpen, setIsModalOpen, createQuote }: CreateQuotePr
 			const newQuote: CreateQuoteInput = {
 				title: titleValue,
 				client_id: clientValue,
-				address: geoData.address,
-				coords: geoData.coords || undefined,
+				address: geoData?.address || "",
+				coords: geoData?.coords,
 				description: descValue,
 				priority: priorityValue as
 					| "Low"
@@ -214,6 +202,7 @@ const CreateQuote = ({ isModalOpen, setIsModalOpen, createQuote }: CreateQuotePr
 
 			if (!parseResult.success) {
 				setErrors(parseResult.error);
+				console.error("Validation errors:", parseResult.error);
 				return;
 			}
 
@@ -249,19 +238,21 @@ const CreateQuote = ({ isModalOpen, setIsModalOpen, createQuote }: CreateQuotePr
 		}
 	};
 
-	let titleErrors;
-	let addressErrors;
-	let clientErrors;
-	let descriptionErrors;
-	let lineItemErrors;
-
-	if (errors) {
-		titleErrors = errors.issues.filter((err) => err.path[0] == "title");
-		addressErrors = errors.issues.filter((err) => err.path[0] == "address");
-		clientErrors = errors.issues.filter((err) => err.path[0] == "client_id");
-		descriptionErrors = errors.issues.filter((err) => err.path[0] == "description");
-		lineItemErrors = errors.issues.filter((err) => err.path[0] == "line_items");
-	}
+	// Error display component - SAME AS CreateJob
+	const ErrorDisplay = ({ path }: { path: string }) => {
+		if (!errors) return null;
+		const fieldErrors = errors.issues.filter((err) => err.path[0] === path);
+		if (fieldErrors.length === 0) return null;
+		return (
+			<div className="mt-1 space-y-1">
+				{fieldErrors.map((err, idx) => (
+					<p key={idx} className="text-red-300 text-sm">
+						{err.message}
+					</p>
+				))}
+			</div>
+		);
+	};
 
 	const content = (
 		<div
@@ -298,19 +289,7 @@ const CreateQuote = ({ isModalOpen, setIsModalOpen, createQuote }: CreateQuotePr
 					disabled={isLoading}
 					ref={titleRef}
 				/>
-
-				{titleErrors && (
-					<div>
-						{titleErrors.map((err) => (
-							<h3
-								className="my-1 text-red-300"
-								key={err.message}
-							>
-								{err.message}
-							</h3>
-						))}
-					</div>
-				)}
+				<ErrorDisplay path="title" />
 
 				<p className="mb-1 mt-3 hover:color-accent">Client *</p>
 				<div className="border border-zinc-800 rounded-sm">
@@ -319,19 +298,7 @@ const CreateQuote = ({ isModalOpen, setIsModalOpen, createQuote }: CreateQuotePr
 						entries={dropdownEntries}
 					/>
 				</div>
-
-				{clientErrors && (
-					<div>
-						{clientErrors.map((err) => (
-							<h3
-								className="my-1 text-red-300"
-								key={err.message}
-							>
-								{err.message}
-							</h3>
-						))}
-					</div>
-				)}
+				<ErrorDisplay path="client_id" />
 
 				<p className="mb-1 mt-3 hover:color-accent">Description *</p>
 				<textarea
@@ -340,35 +307,12 @@ const CreateQuote = ({ isModalOpen, setIsModalOpen, createQuote }: CreateQuotePr
 					disabled={isLoading}
 					ref={descRef}
 				></textarea>
-
-				{descriptionErrors && (
-					<div>
-						{descriptionErrors.map((err) => (
-							<h3
-								className="my-1 text-red-300"
-								key={err.message}
-							>
-								{err.message}
-							</h3>
-						))}
-					</div>
-				)}
+				<ErrorDisplay path="description" />
 
 				<p className="mb-1 mt-3 hover:color-accent">Address *</p>
 				<AddressForm handleChange={handleChangeAddress} />
-
-				{addressErrors && (
-					<div>
-						{addressErrors.map((err) => (
-							<h3
-								className="my-1 text-red-300"
-								key={err.message}
-							>
-								{err.message}
-							</h3>
-						))}
-					</div>
-				)}
+				<ErrorDisplay path="address" />
+				<ErrorDisplay path="coords" />
 
 				<p className="mb-1 mt-3 hover:color-accent">Priority</p>
 				<div className="border border-zinc-800 rounded-sm">
@@ -377,6 +321,7 @@ const CreateQuote = ({ isModalOpen, setIsModalOpen, createQuote }: CreateQuotePr
 						entries={priorityEntries}
 					/>
 				</div>
+				<ErrorDisplay path="priority" />
 
 				{/* Line Items Section */}
 				<div className="mt-4 p-4 bg-zinc-800 rounded-lg border border-zinc-700">
@@ -395,18 +340,7 @@ const CreateQuote = ({ isModalOpen, setIsModalOpen, createQuote }: CreateQuotePr
 						</button>
 					</div>
 
-					{lineItemErrors && (
-						<div className="mb-3">
-							{lineItemErrors.map((err) => (
-								<h3
-									className="my-1 text-red-300"
-									key={err.message}
-								>
-									{err.message}
-								</h3>
-							))}
-						</div>
-					)}
+					<ErrorDisplay path="line_items" />
 
 					<div className="space-y-3">
 						{lineItems.map((item, index) => (

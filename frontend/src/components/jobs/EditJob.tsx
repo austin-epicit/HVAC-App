@@ -256,6 +256,7 @@ const EditJob = ({ isModalOpen, setIsModalOpen, job }: EditJobProps) => {
 
 			if (!parseResult.success) {
 				setErrors(parseResult.error);
+				console.error("Validation errors:", parseResult.error);
 				return;
 			}
 
@@ -277,17 +278,21 @@ const EditJob = ({ isModalOpen, setIsModalOpen, job }: EditJobProps) => {
 		}
 	};
 
-	let nameErrors;
-	let addressErrors;
-	let descriptionErrors;
-	let lineItemErrors;
-
-	if (errors) {
-		nameErrors = errors.issues.filter((err) => err.path[0] === "name");
-		addressErrors = errors.issues.filter((err) => err.path[0] === "address");
-		descriptionErrors = errors.issues.filter((err) => err.path[0] === "description");
-		lineItemErrors = errors.issues.filter((err) => err.path[0] === "line_items");
-	}
+	// Error display component - SAME AS CreateJob
+	const ErrorDisplay = ({ path }: { path: string }) => {
+		if (!errors) return null;
+		const fieldErrors = errors.issues.filter((err) => err.path[0] === path);
+		if (fieldErrors.length === 0) return null;
+		return (
+			<div className="mt-1 space-y-1">
+				{fieldErrors.map((err, idx) => (
+					<p key={idx} className="text-red-300 text-sm">
+						{err.message}
+					</p>
+				))}
+			</div>
+		);
+	};
 
 	const content = (
 		<div
@@ -325,19 +330,7 @@ const EditJob = ({ isModalOpen, setIsModalOpen, job }: EditJobProps) => {
 					disabled={isLoading}
 					ref={nameRef}
 				/>
-
-				{nameErrors && (
-					<div>
-						{nameErrors.map((err) => (
-							<h3
-								className="my-1 text-red-300"
-								key={err.message}
-							>
-								{err.message}
-							</h3>
-						))}
-					</div>
-				)}
+				<ErrorDisplay path="name" />
 
 				<p className="mb-1 mt-3 hover:color-accent">Client</p>
 				<div className="border border-zinc-800 p-2 w-full rounded-sm bg-zinc-800/50 text-zinc-400">
@@ -355,19 +348,7 @@ const EditJob = ({ isModalOpen, setIsModalOpen, job }: EditJobProps) => {
 					disabled={isLoading}
 					ref={descRef}
 				></textarea>
-
-				{descriptionErrors && (
-					<div>
-						{descriptionErrors.map((err) => (
-							<h3
-								className="my-1 text-red-300"
-								key={err.message}
-							>
-								{err.message}
-							</h3>
-						))}
-					</div>
-				)}
+				<ErrorDisplay path="description" />
 
 				<p className="mb-1 mt-3 hover:color-accent">Address *</p>
 				<AddressForm handleChange={handleChangeAddress} />
@@ -376,19 +357,8 @@ const EditJob = ({ isModalOpen, setIsModalOpen, job }: EditJobProps) => {
 						Current: {geoData.address}
 					</p>
 				)}
-
-				{addressErrors && (
-					<div>
-						{addressErrors.map((err) => (
-							<h3
-								className="my-1 text-red-300"
-								key={err.message}
-							>
-								{err.message}
-							</h3>
-						))}
-					</div>
-				)}
+				<ErrorDisplay path="address" />
+				<ErrorDisplay path="coords" />
 
 				<p className="mb-1 mt-3 hover:color-accent">Priority</p>
 				<div className="border border-zinc-800 rounded-sm">
@@ -410,6 +380,7 @@ const EditJob = ({ isModalOpen, setIsModalOpen, job }: EditJobProps) => {
 						}
 					/>
 				</div>
+				<ErrorDisplay path="priority" />
 
 				{/* Line Items Section */}
 				<div className="mt-4 p-4 bg-zinc-800 rounded-lg border border-zinc-700">
@@ -427,6 +398,8 @@ const EditJob = ({ isModalOpen, setIsModalOpen, job }: EditJobProps) => {
 							Add Item
 						</button>
 					</div>
+
+					<ErrorDisplay path="line_items" />
 
 					<div className="space-y-3">
 						{activeLineItems.map((item, index) => (

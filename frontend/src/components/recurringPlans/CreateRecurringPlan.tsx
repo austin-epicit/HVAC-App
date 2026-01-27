@@ -33,7 +33,6 @@ interface CreateRecurringPlanProps {
 	setIsModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-// Local UI-only interface for form state
 interface LineItem {
 	id: string;
 	name: string;
@@ -79,7 +78,7 @@ const CreateRecurringPlan = ({ isModalOpen, setIsModalOpen }: CreateRecurringPla
 		},
 	]);
 
-	const [frequency, setFrequency] = useState<RecurringFrequency>("weekly");
+	const [frequency, setFrequency] = useState<RecurringFrequency>("daily");
 	const [interval, setInterval] = useState<number>(1);
 	const [selectedWeekdays, setSelectedWeekdays] = useState<Weekday[]>([]);
 	const [monthDay, setMonthDay] = useState<number | "">("");
@@ -154,7 +153,6 @@ const CreateRecurringPlan = ({ isModalOpen, setIsModalOpen }: CreateRecurringPla
 		);
 	};
 
-	// Recurring Rule management
 	const toggleWeekday = (weekday: Weekday) => {
 		setSelectedWeekdays((prev) =>
 			prev.includes(weekday)
@@ -163,7 +161,6 @@ const CreateRecurringPlan = ({ isModalOpen, setIsModalOpen }: CreateRecurringPla
 		);
 	};
 
-	// Helper to format time as HH:MM
 	const formatTimeString = (date: Date | null): string | null => {
 		if (!date) return null;
 		const hours = date.getHours().toString().padStart(2, "0");
@@ -194,31 +191,23 @@ const CreateRecurringPlan = ({ isModalOpen, setIsModalOpen }: CreateRecurringPla
 			const billingModeValue = billingModeRef.current.value.trim();
 			const invoiceTimingValue = invoiceTimingRef.current.value.trim();
 
-			if (!geoData?.address || !geoData?.coords) {
-				setErrors({
-					issues: [
-						{
-							path: ["address"],
-							message: "Address with coordinates is required",
-						},
-					],
-				} as any);
-				return;
-			}
-
 			const startsAtValue = startDate.toISOString();
 			const endsAtValue = endDate ? endDate.toISOString() : undefined;
 
-			const preparedLineItems = lineItems.map((item, index) => ({
-				name: item.name,
-				description: item.description || undefined,
-				quantity: Number(item.quantity),
-				unit_price: Number(item.unit_price),
-				item_type: (item.item_type || undefined) as
-					| LineItemType
-					| undefined,
-				sort_order: index,
-			}));
+			const validLineItems = lineItems.filter((item) => item.name.trim() !== "");
+			const preparedLineItems =
+				validLineItems.length > 0
+					? validLineItems.map((item, index) => ({
+							name: item.name,
+							description: item.description || undefined,
+							quantity: Number(item.quantity),
+							unit_price: Number(item.unit_price),
+							item_type: (item.item_type || undefined) as
+								| LineItemType
+								| undefined,
+							sort_order: index,
+						}))
+					: [];
 
 			const preparedRule = {
 				frequency: frequency,
@@ -252,8 +241,8 @@ const CreateRecurringPlan = ({ isModalOpen, setIsModalOpen }: CreateRecurringPla
 			const newRecurringPlan: CreateRecurringPlanInput = {
 				name: nameValue,
 				client_id: clientValue,
-				address: geoData.address,
-				coords: geoData.coords,
+				address: geoData?.address || "",
+				coords: geoData?.coords,
 				description: descValue,
 				priority: priorityValue as
 					| "Low"
@@ -293,7 +282,6 @@ const CreateRecurringPlan = ({ isModalOpen, setIsModalOpen }: CreateRecurringPla
 			try {
 				await createMutation.mutateAsync(newRecurringPlan);
 
-				// Reset form
 				if (nameRef.current) nameRef.current.value = "";
 				if (descRef.current) descRef.current.value = "";
 				if (generationWindowRef.current)
@@ -320,7 +308,6 @@ const CreateRecurringPlan = ({ isModalOpen, setIsModalOpen }: CreateRecurringPla
 				setMonthDay("");
 				setMonth("");
 
-				// Reset constraints
 				setArrivalConstraint("anytime");
 				setFinishConstraint("when_done");
 				const resetTime = new Date();
@@ -341,23 +328,21 @@ const CreateRecurringPlan = ({ isModalOpen, setIsModalOpen }: CreateRecurringPla
 		}
 	};
 
-	// Error extraction
-	let nameErrors,
-		addressErrors,
-		clientErrors,
-		descriptionErrors,
-		lineItemErrors,
-		ruleErrors,
-		startsAtErrors;
-	if (errors) {
-		nameErrors = errors.issues.filter((err) => err.path[0] === "name");
-		addressErrors = errors.issues.filter((err) => err.path[0] === "address");
-		clientErrors = errors.issues.filter((err) => err.path[0] === "client_id");
-		descriptionErrors = errors.issues.filter((err) => err.path[0] === "description");
-		lineItemErrors = errors.issues.filter((err) => err.path[0] === "line_items");
-		ruleErrors = errors.issues.filter((err) => err.path[0] === "rule");
-		startsAtErrors = errors.issues.filter((err) => err.path[0] === "starts_at");
-	}
+	// Error display component
+	const ErrorDisplay = ({ path }: { path: string }) => {
+		if (!errors) return null;
+		const fieldErrors = errors.issues.filter((err) => err.path[0] === path);
+		if (fieldErrors.length === 0) return null;
+		return (
+			<div className="mt-1 space-y-1">
+				{fieldErrors.map((err, idx) => (
+					<p key={idx} className="text-red-300 text-sm">
+						{err.message}
+					</p>
+				))}
+			</div>
+		);
+	};
 
 	const dropdownEntries =
 		clients && clients.length ? (
@@ -376,7 +361,6 @@ const CreateRecurringPlan = ({ isModalOpen, setIsModalOpen }: CreateRecurringPla
 
 	const content = (
 		<div className="flex flex-col h-full">
-			{/* Scrollable content */}
 			<div
 				ref={scrollContainerRef}
 				className="flex-1 overflow-y-auto pr-2 pl-1"
@@ -418,15 +402,7 @@ const CreateRecurringPlan = ({ isModalOpen, setIsModalOpen }: CreateRecurringPla
 								disabled={isLoading}
 								ref={nameRef}
 							/>
-							{nameErrors &&
-								nameErrors.map((err) => (
-									<p
-										key={err.message}
-										className="mt-1 text-red-300 text-sm"
-									>
-										{err.message}
-									</p>
-								))}
+							<ErrorDisplay path="name" />
 						</div>
 
 						<div>
@@ -440,15 +416,7 @@ const CreateRecurringPlan = ({ isModalOpen, setIsModalOpen }: CreateRecurringPla
 								required
 								aria-label="Select client"
 							/>
-							{clientErrors &&
-								clientErrors.map((err) => (
-									<p
-										key={err.message}
-										className="mt-1 text-red-300 text-sm"
-									>
-										{err.message}
-									</p>
-								))}
+							<ErrorDisplay path="client_id" />
 						</div>
 
 						<div>
@@ -461,15 +429,7 @@ const CreateRecurringPlan = ({ isModalOpen, setIsModalOpen }: CreateRecurringPla
 								disabled={isLoading}
 								ref={descRef}
 							/>
-							{descriptionErrors &&
-								descriptionErrors.map((err) => (
-									<p
-										key={err.message}
-										className="mt-1 text-red-300 text-sm"
-									>
-										{err.message}
-									</p>
-								))}
+							<ErrorDisplay path="description" />
 						</div>
 
 						<div>
@@ -479,20 +439,13 @@ const CreateRecurringPlan = ({ isModalOpen, setIsModalOpen }: CreateRecurringPla
 							<AddressForm
 								handleChange={handleChangeAddress}
 							/>
-							{addressErrors &&
-								addressErrors.map((err) => (
-									<p
-										key={err.message}
-										className="mt-1 text-red-300 text-sm"
-									>
-										{err.message}
-									</p>
-								))}
+							<ErrorDisplay path="address" />
+							<ErrorDisplay path="coords" />
 						</div>
 
 						<div>
 							<label className="text-sm text-zinc-300 mb-1 block">
-								Priority
+								Priority *
 							</label>
 							<Dropdown
 								refToApply={priorityRef}
@@ -519,10 +472,10 @@ const CreateRecurringPlan = ({ isModalOpen, setIsModalOpen }: CreateRecurringPla
 								disabled={isLoading}
 								aria-label="Select priority"
 							/>
+							<ErrorDisplay path="priority" />
 						</div>
 					</div>
 
-					{/* SECTION 2: Schedule Configuration */}
 					<div id="schedule-config" className="scroll-mt-4">
 						<div className="p-4 bg-zinc-800 rounded-lg border border-zinc-700 mb-4">
 							<h3 className="text-lg font-semibold mb-4">
@@ -544,21 +497,7 @@ const CreateRecurringPlan = ({ isModalOpen, setIsModalOpen }: CreateRecurringPla
 										}
 										align="left"
 									/>
-									{startsAtErrors &&
-										startsAtErrors.map(
-											(err) => (
-												<p
-													key={
-														err.message
-													}
-													className="mt-1 text-red-300 text-xs"
-												>
-													{
-														err.message
-													}
-												</p>
-											)
-										)}
+									<ErrorDisplay path="starts_at" />
 								</div>
 
 								<div>
@@ -572,6 +511,7 @@ const CreateRecurringPlan = ({ isModalOpen, setIsModalOpen }: CreateRecurringPla
 										}
 										align="right"
 									/>
+									<ErrorDisplay path="ends_at" />
 								</div>
 
 								<div>
@@ -590,6 +530,7 @@ const CreateRecurringPlan = ({ isModalOpen, setIsModalOpen }: CreateRecurringPla
 										}
 										defaultValue="30"
 									/>
+									<ErrorDisplay path="generation_window_days" />
 								</div>
 
 								<div>
@@ -606,27 +547,19 @@ const CreateRecurringPlan = ({ isModalOpen, setIsModalOpen }: CreateRecurringPla
 										ref={minAdvanceRef}
 										defaultValue="1"
 									/>
+									<ErrorDisplay path="min_advance_days" />
 								</div>
 							</div>
 						</div>
 					</div>
 
-					{/* SECTION 3: Recurring Rule */}
 					<div id="recurring-rule" className="scroll-mt-4">
 						<div className="p-4 bg-zinc-800 rounded-lg border border-zinc-700 mb-4">
 							<h3 className="text-lg font-semibold mb-4">
 								Recurring Schedule *
 							</h3>
 
-							{ruleErrors &&
-								ruleErrors.map((err) => (
-									<p
-										key={err.message}
-										className="mb-3 text-red-300"
-									>
-										{err.message}
-									</p>
-								))}
+							<ErrorDisplay path="rule" />
 
 							<div className="space-y-3">
 								<div className="grid grid-cols-2 gap-3">
@@ -678,6 +611,7 @@ const CreateRecurringPlan = ({ isModalOpen, setIsModalOpen }: CreateRecurringPla
 											required
 											aria-label="Select frequency"
 										/>
+										<ErrorDisplay path="rule.frequency" />
 									</div>
 
 									<div>
@@ -738,10 +672,10 @@ const CreateRecurringPlan = ({ isModalOpen, setIsModalOpen }: CreateRecurringPla
 																: ""}
 											</span>
 										</div>
+										<ErrorDisplay path="rule.interval" />
 									</div>
 								</div>
 
-								{/* Weekly - Weekday Selection */}
 								{frequency === "weekly" && (
 									<div>
 										<label className="text-sm text-zinc-300 mb-2 block">
@@ -780,10 +714,10 @@ const CreateRecurringPlan = ({ isModalOpen, setIsModalOpen }: CreateRecurringPla
 												)
 											)}
 										</div>
+										<ErrorDisplay path="rule.by_weekday" />
 									</div>
 								)}
 
-								{/* Monthly - Day Selection */}
 								{frequency === "monthly" && (
 									<div>
 										<label className="text-sm text-zinc-300 mb-1 block">
@@ -818,10 +752,10 @@ const CreateRecurringPlan = ({ isModalOpen, setIsModalOpen }: CreateRecurringPla
 											className="border border-zinc-700 p-2 w-full rounded-sm bg-zinc-900 text-white"
 											placeholder="1-31"
 										/>
+										<ErrorDisplay path="rule.by_month_day" />
 									</div>
 								)}
 
-								{/* Yearly - Month and Day Selection */}
 								{frequency === "yearly" && (
 									<div className="grid grid-cols-2 gap-3">
 										<div>
@@ -888,6 +822,7 @@ const CreateRecurringPlan = ({ isModalOpen, setIsModalOpen }: CreateRecurringPla
 												required
 												aria-label="Select month"
 											/>
+											<ErrorDisplay path="rule.by_month" />
 										</div>
 
 										<div>
@@ -895,6 +830,7 @@ const CreateRecurringPlan = ({ isModalOpen, setIsModalOpen }: CreateRecurringPla
 												Day
 												of
 												Month
+												*
 											</label>
 											<input
 												type="number"
@@ -924,6 +860,7 @@ const CreateRecurringPlan = ({ isModalOpen, setIsModalOpen }: CreateRecurringPla
 												className="border border-zinc-700 p-2 w-full rounded-sm bg-zinc-900 text-white"
 												placeholder="1-31"
 											/>
+											<ErrorDisplay path="rule.by_month_day" />
 										</div>
 									</div>
 								)}
@@ -931,7 +868,6 @@ const CreateRecurringPlan = ({ isModalOpen, setIsModalOpen }: CreateRecurringPla
 						</div>
 					</div>
 
-					{/* SECTION 4: Time Constraints */}
 					<div id="time-constraints" className="scroll-mt-4">
 						<div className="p-4 bg-zinc-800 rounded-lg border border-zinc-700 mb-4">
 							<h3 className="text-lg font-semibold mb-4">
@@ -939,10 +875,9 @@ const CreateRecurringPlan = ({ isModalOpen, setIsModalOpen }: CreateRecurringPla
 							</h3>
 
 							<div className="space-y-4">
-								{/* Arrival Constraint */}
 								<div>
 									<label className="text-sm text-zinc-300 mb-2 block">
-										Arrival
+										Arrival *
 									</label>
 									<div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 										<div>
@@ -990,19 +925,23 @@ const CreateRecurringPlan = ({ isModalOpen, setIsModalOpen }: CreateRecurringPla
 													)
 												)}
 											</select>
+											<ErrorDisplay path="rule.arrival_constraint" />
 										</div>
 
 										<div className="space-y-2">
 											{arrivalConstraint ===
 												"at" && (
-												<TimePicker
-													value={
-														arrivalTime
-													}
-													onChange={
-														setArrivalTime
-													}
-												/>
+												<>
+													<TimePicker
+														value={
+															arrivalTime
+														}
+														onChange={
+															setArrivalTime
+														}
+													/>
+													<ErrorDisplay path="rule.arrival_time" />
+												</>
 											)}
 
 											{arrivalConstraint ===
@@ -1016,6 +955,7 @@ const CreateRecurringPlan = ({ isModalOpen, setIsModalOpen }: CreateRecurringPla
 															setArrivalWindowStart
 														}
 													/>
+													<ErrorDisplay path="rule.arrival_window_start" />
 													<TimePicker
 														value={
 															arrivalWindowEnd
@@ -1024,28 +964,31 @@ const CreateRecurringPlan = ({ isModalOpen, setIsModalOpen }: CreateRecurringPla
 															setArrivalWindowEnd
 														}
 													/>
+													<ErrorDisplay path="rule.arrival_window_end" />
 												</>
 											)}
 
 											{arrivalConstraint ===
 												"by" && (
-												<TimePicker
-													value={
-														arrivalWindowEnd
-													}
-													onChange={
-														setArrivalWindowEnd
-													}
-												/>
+												<>
+													<TimePicker
+														value={
+															arrivalWindowEnd
+														}
+														onChange={
+															setArrivalWindowEnd
+														}
+													/>
+													<ErrorDisplay path="rule.arrival_window_end" />
+												</>
 											)}
 										</div>
 									</div>
 								</div>
 
-								{/* Finish Constraint */}
 								<div>
 									<label className="text-sm text-zinc-300 mb-2 block">
-										Finish
+										Finish *
 									</label>
 									<div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 										<div>
@@ -1090,6 +1033,7 @@ const CreateRecurringPlan = ({ isModalOpen, setIsModalOpen }: CreateRecurringPla
 													)
 												)}
 											</select>
+											<ErrorDisplay path="rule.finish_constraint" />
 										</div>
 
 										<div>
@@ -1097,14 +1041,17 @@ const CreateRecurringPlan = ({ isModalOpen, setIsModalOpen }: CreateRecurringPla
 												"at" ||
 												finishConstraint ===
 													"by") && (
-												<TimePicker
-													value={
-														finishTime
-													}
-													onChange={
-														setFinishTime
-													}
-												/>
+												<>
+													<TimePicker
+														value={
+															finishTime
+														}
+														onChange={
+															setFinishTime
+														}
+													/>
+													<ErrorDisplay path="rule.finish_time" />
+												</>
 											)}
 										</div>
 									</div>
@@ -1113,7 +1060,6 @@ const CreateRecurringPlan = ({ isModalOpen, setIsModalOpen }: CreateRecurringPla
 						</div>
 					</div>
 
-					{/* SECTION 5: Line Items */}
 					<div id="line-items" className="scroll-mt-4">
 						<div className="p-4 bg-zinc-800 rounded-lg border border-zinc-700 mb-4">
 							<div className="flex items-center justify-between mb-4">
@@ -1131,15 +1077,7 @@ const CreateRecurringPlan = ({ isModalOpen, setIsModalOpen }: CreateRecurringPla
 								</button>
 							</div>
 
-							{lineItemErrors &&
-								lineItemErrors.map((err) => (
-									<p
-										key={err.message}
-										className="mb-3 text-red-300"
-									>
-										{err.message}
-									</p>
-								))}
+							<ErrorDisplay path="line_items" />
 
 							<div className="space-y-3">
 								{lineItems.map((item, index) => (
@@ -1179,7 +1117,7 @@ const CreateRecurringPlan = ({ isModalOpen, setIsModalOpen }: CreateRecurringPla
 											<div>
 												<input
 													type="text"
-													placeholder="Item name"
+													placeholder="Item name *"
 													value={
 														item.name
 													}
@@ -1284,6 +1222,7 @@ const CreateRecurringPlan = ({ isModalOpen, setIsModalOpen }: CreateRecurringPla
 											<div>
 												<label className="text-xs text-zinc-400 mb-1 block">
 													Quantity
+													*
 												</label>
 												<input
 													type="number"
@@ -1317,6 +1256,7 @@ const CreateRecurringPlan = ({ isModalOpen, setIsModalOpen }: CreateRecurringPla
 												<label className="text-xs text-zinc-400 mb-1 block">
 													Unit
 													Price
+													*
 												</label>
 												<div className="relative">
 													<span className="absolute left-2 top-1/2 -translate-y-1/2 text-zinc-400 text-sm">
@@ -1386,7 +1326,6 @@ const CreateRecurringPlan = ({ isModalOpen, setIsModalOpen }: CreateRecurringPla
 						</div>
 					</div>
 
-					{/* SECTION 6: Billing Configuration */}
 					<div id="billing" className="scroll-mt-4">
 						<div className="p-4 bg-zinc-800 rounded-lg border border-zinc-700 mb-4">
 							<h3 className="text-lg font-semibold mb-4">
@@ -1432,6 +1371,7 @@ const CreateRecurringPlan = ({ isModalOpen, setIsModalOpen }: CreateRecurringPla
 										required
 										aria-label="Select billing mode"
 									/>
+									<ErrorDisplay path="billing_mode" />
 								</div>
 
 								<div>
@@ -1472,6 +1412,7 @@ const CreateRecurringPlan = ({ isModalOpen, setIsModalOpen }: CreateRecurringPla
 										required
 										aria-label="Select invoice timing"
 									/>
+									<ErrorDisplay path="invoice_timing" />
 								</div>
 
 								<div className="md:col-span-2">
