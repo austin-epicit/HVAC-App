@@ -1,5 +1,7 @@
 # HVAC App Demo
 
+# ⚠️ This repo is deprecated. Canonical repo is: https://github.com/CorbenEpicIT/EpicIT-Dispatch
+
 ## To run:
 
 ### Frontend (/frontend)
